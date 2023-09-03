@@ -2,6 +2,7 @@ use clap::Parser;
 
 mod cli;
 mod config;
+mod generate;
 mod parse;
 
 fn print_diesel_dependencies() {
