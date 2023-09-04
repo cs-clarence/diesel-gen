@@ -213,60 +213,10 @@ pub fn generate_models<W: Write>(
   model: &ModelConfig,
   mut w: W,
 ) -> anyhow::Result<()> {
-  print_rust_file_headers(&mut w)?;
-
-  let import_root = model.table_import_root.as_ref().cloned().unwrap_or(
-    config
-      .print_schema
-      .as_ref()
-      .cloned()
-      .unwrap_or_default()
-      .file
-      .unwrap_or(PathBuf::from_str("./schema.rs").unwrap())
-      .to_str()
-      .unwrap()
-      .trim_start_matches("./")
-      .split('/')
-      .filter_map(|mut e| {
-        if e == "mod.rs" {
-          return None;
-        }
-
-        if e == "src" {
-          return Some("crate");
-        }
-
-        if e.ends_with(".rs") {
-          e = e.trim_end_matches(".rs");
-
-          return Some(e);
-        }
-
-        Some(e)
-      })
-      .collect::<Vec<&str>>()
-      .join("::"),
-  );
-
-  if let Some(module) = file.module.as_deref() {
-    writeln!(w, "use {}::{}::{{", import_root, module)?;
-  } else {
-    writeln!(w, "use {}::{{", import_root)?;
-  }
-
-  for t in &file.tables {
-    writeln!(w, "  {},", &t.name)?;
-  }
-
-  writeln!(w, "}};\n")?;
-
-  if let Some(ref imports) = model.imports {
-    for i in imports {
-      writeln!(w, "use {};", i)?;
-    }
-  }
-
   const DIESEL_DEFAULT_DERIVE: &str =
+    "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable)]";
+
+  const DIESEL_DEFAULT_WITH_CHANGESET_DERIVE: &str =
     "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable, diesel::AsChangeset)]";
 
   const DIESEL_INSERTER_DERIVE: &str = "#[derive(diesel::Insertable)]";
@@ -364,8 +314,89 @@ pub fn generate_models<W: Write>(
 
   let optinal_updater_fields = model.updater_fields_optional.unwrap_or(true);
 
+  let import_root = model.table_imports_root.as_ref().cloned().unwrap_or(
+    config
+      .print_schema
+      .as_ref()
+      .cloned()
+      .unwrap_or_default()
+      .file
+      .unwrap_or(PathBuf::from_str("./schema.rs").unwrap())
+      .to_str()
+      .unwrap()
+      .trim_start_matches("./")
+      .split('/')
+      .filter_map(|mut e| {
+        if e == "mod.rs" {
+          return None;
+        }
+
+        if e == "src" {
+          return Some("crate");
+        }
+
+        if e.ends_with(".rs") {
+          e = e.trim_end_matches(".rs");
+
+          return Some(e);
+        }
+
+        Some(e)
+      })
+      .collect::<Vec<&str>>()
+      .join("::"),
+  );
+
+  print_rust_file_headers(&mut w)?;
+
+  if let Some(module) = file.module.as_deref() {
+    writeln!(w, "use {}::{}::{{", import_root, module)?;
+  } else {
+    writeln!(w, "use {}::{{", import_root)?;
+  }
+
+  for t in &file.tables {
+    if let Some(config) = table_configs.get(&t.name) {
+      if config.skip_generation.unwrap_or(false) {
+        continue;
+      }
+    }
+
+    writeln!(w, "  {},", &t.name)?;
+  }
+
+  writeln!(w, "}};\n")?;
+
+  if let Some(ref imports) = model.uses {
+    for i in imports {
+      writeln!(w, "use {};", i)?;
+    }
+  }
+
+  if let Some(ref forward_imports) = model.pub_uses {
+    for i in forward_imports {
+      writeln!(w, "pub use {};", i)?;
+    }
+  }
+
+  if let Some(ref mods) = model.mods {
+    for m in mods {
+      writeln!(w, "mod {};", m)?;
+    }
+  }
+
+  if let Some(ref forward_mods) = model.pub_mods {
+    for m in forward_mods {
+      writeln!(w, "pub mod {};", m)?;
+    }
+  }
+
   for t in &file.tables {
     let table_config = table_configs.get(&t.name).cloned().unwrap_or_default();
+
+    if table_config.skip_generation.unwrap_or(false) {
+      continue;
+    }
 
     let mut d = wildcard_derives.clone();
     d.append(&mut table_config.derives.clone().unwrap_or_default());
@@ -374,7 +405,11 @@ pub fn generate_models<W: Write>(
       writeln!(w, "#[derive({})]", d.join(", "))?;
     }
 
-    writeln!(w, "{}", DIESEL_DEFAULT_DERIVE)?;
+    if t.only_primary_key_columns() {
+      writeln!(w, "{}", DIESEL_DEFAULT_DERIVE)?;
+    } else {
+      writeln!(w, "{}", DIESEL_DEFAULT_WITH_CHANGESET_DERIVE)?;
+    }
 
     writeln!(w, "#[diesel(table_name = {})]", t.name)?;
     writeln!(w, "#[diesel(primary_key({}))]", t.primary_key.join(", "))?;

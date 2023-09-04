@@ -50,6 +50,8 @@ pub struct ColumnConfig {
 #[derive(Default, Deserialize, Clone, Debug)]
 pub struct TableConfig {
   #[serde(default)]
+  pub skip_generation: Option<bool>,
+  #[serde(default)]
   pub attributes: Option<Vec<String>>,
   #[serde(default)]
   pub updater_attributes: Option<Vec<String>>,
@@ -68,13 +70,19 @@ pub struct TableConfig {
 #[derive(Default, Deserialize, Clone, Debug)]
 pub struct ModelConfig {
   #[serde(default)]
+  pub mods: Option<Vec<String>>,
+  #[serde(default)]
+  pub pub_mods: Option<Vec<String>>,
+  #[serde(default)]
+  pub uses: Option<Vec<String>>,
+  #[serde(default)]
+  pub pub_uses: Option<Vec<String>>,
+  #[serde(default)]
   pub tables: Option<HashMap<String, TableConfig>>,
   #[serde(default)]
   pub output: Option<String>,
   #[serde(default)]
-  pub imports: Option<Vec<String>>,
-  #[serde(default)]
-  pub table_import_root: Option<String>,
+  pub table_imports_root: Option<String>,
   #[serde(default)]
   pub type_overrides: Option<HashMap<String, String>>,
   #[serde(default)]

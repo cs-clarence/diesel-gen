@@ -612,6 +612,7 @@ impl<'a> ParseContext<'a> {
     let mut until = self.until;
 
     let ch = self.current_char().unwrap();
+
     if !(ch.is_alphabetic() || ch == '_') {
       return Err(ParseError::from_parse_context(
         "Identifiers must start with a letter or underscore".to_string(),
@@ -620,10 +621,6 @@ impl<'a> ParseContext<'a> {
     }
 
     while let Some(c) = self.current_char() {
-      if !(c.is_alphanumeric() || c != '_') {
-        break;
-      }
-
       if !c.is_ascii_alphanumeric() && c != '_' {
         if !started {
           return Err(ParseError::from_parse_context(
@@ -693,6 +690,12 @@ pub struct Table {
   pub schema: Option<String>,
   pub primary_key: Vec<String>,
   pub columns: Vec<Column>,
+}
+
+impl Table {
+  pub fn only_primary_key_columns(&self) -> bool {
+    self.columns.len() == self.primary_key.len()
+  }
 }
 
 impl Table {
@@ -1381,6 +1384,7 @@ pub struct File {
 pub fn parse_file(ctx: &mut ParseContext<'_>) -> Result<File, ParseError> {
   let mut tables = Vec::new();
   let mut module = None;
+
   let mut ctx = if ctx.contains_str("pub mod") {
     let iden = ctx
       .move_to_str("pub mod")?
@@ -1947,11 +1951,31 @@ mod test {
   }
 
   #[test]
+  fn extract_identifier() {
+    assert_eq!(
+      ParseContext::new("test_identifier {}")
+        .extract_identifier()
+        .unwrap()
+        .str(),
+      "test_identifier"
+    )
+  }
+
+  #[test]
+  #[should_panic]
+  fn extract_identifier_start_with_number() {
+    ParseContext::new("123_test_identifier {}")
+      .extract_identifier()
+      .unwrap()
+      .str();
+  }
+
+  #[test]
   fn file() {
     assert_eq!(
       parse_file(&mut ParseContext::new(
         r#"
-          pub mod iam {
+          pub mod iam_schema {
             pub mod sql_types {
               
             }
@@ -1971,7 +1995,7 @@ mod test {
           "#
       )),
       Ok(File {
-        module: Some("iam".to_string()),
+        module: Some("iam_schema".to_string()),
         tables: vec![Table {
           name: "staffs".to_string(),
           schema: Some("iam".to_string()),
