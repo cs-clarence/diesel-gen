@@ -5,12 +5,9 @@ use std::{collections::HashMap, path::PathBuf};
 use serde::Deserialize;
 
 #[derive(Deserialize, Default, Clone, Debug)]
-pub struct Config {
+pub struct DieselConfig {
   #[serde(default)]
   pub print_schema: Option<PrintSchema>,
-
-  #[serde(default)]
-  pub generate: Option<Generate>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
@@ -36,9 +33,10 @@ pub struct PrintSchema {
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
-pub struct Generate {
+#[serde(deny_unknown_fields)]
+pub struct DieselGenConfig {
   #[serde(default)]
-  pub model: Option<Model>,
+  pub model: Option<ModelConfig>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
@@ -68,7 +66,7 @@ pub struct TableConfig {
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
-pub struct Model {
+pub struct ModelConfig {
   #[serde(default)]
   pub tables: Option<HashMap<String, TableConfig>>,
   #[serde(default)]

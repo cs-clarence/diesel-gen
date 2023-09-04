@@ -5,7 +5,7 @@ use std::{
 use inflector::Inflector;
 
 use crate::{
-  config::{Config, Model},
+  config::{DieselConfig, ModelConfig},
   parse::{type_name, File, Type, TypeName},
 };
 
@@ -23,7 +23,7 @@ fn to_singular_pascal_case(text: &str) -> String {
 }
 
 fn get_field_name(
-  model: &Model,
+  model: &ModelConfig,
   table_name: &str,
   column_name: &str,
 ) -> String {
@@ -209,20 +209,11 @@ fn get_ref_type(
 
 pub fn generate_models<W: Write>(
   file: &File,
-  config: &Config,
+  config: &DieselConfig,
+  model: &ModelConfig,
   mut w: W,
 ) -> anyhow::Result<()> {
   print_rust_file_headers(&mut w)?;
-
-  let model = config
-    .generate
-    .as_ref()
-    .cloned()
-    .unwrap_or_default()
-    .model
-    .as_ref()
-    .cloned()
-    .unwrap_or_default();
 
   let import_root = model.table_import_root.as_ref().cloned().unwrap_or(
     config
@@ -407,7 +398,7 @@ pub fn generate_models<W: Write>(
     )?;
 
     for c in &t.columns {
-      let field_name = get_field_name(&model, &t.name, &c.name);
+      let field_name = get_field_name(model, &t.name, &c.name);
 
       if field_name != c.name {
         writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
@@ -455,7 +446,7 @@ pub fn generate_models<W: Write>(
         &inserter_prefix, &struct_name, &inserter_suffix, lifetime
       )?;
       for c in &t.columns {
-        let field_name = get_field_name(&model, &t.name, &c.name);
+        let field_name = get_field_name(model, &t.name, &c.name);
         if field_name != c.name {
           writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
         }
@@ -505,7 +496,7 @@ pub fn generate_models<W: Write>(
         &updater_prefix, &struct_name, &updater_suffix, lifetime
       )?;
       for c in non_primary_key_columns {
-        let field_name = get_field_name(&model, &t.name, &c.name);
+        let field_name = get_field_name(model, &t.name, &c.name);
 
         if field_name != c.name {
           writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;

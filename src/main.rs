@@ -5,7 +5,7 @@ use std::{
 };
 
 use clap::Parser;
-use config::Config;
+use config::{DieselConfig, DieselGenConfig};
 use parse::ParseContext;
 
 mod cli;
@@ -16,14 +16,18 @@ mod parse;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let args = cli::Cli::parse();
 
-  let content = fs::read_to_string(args.args.config)?;
+  let diesel_config_content = fs::read_to_string(args.args.diesel_config)?;
+  let diesel_gen_config_content =
+    fs::read_to_string(args.args.diesel_gen_config)?;
 
-  let config = toml::from_str::<Config>(&content)?;
+  let diesel_config = toml::from_str::<DieselConfig>(&diesel_config_content)?;
+  let diesel_gen_config =
+    toml::from_str::<DieselGenConfig>(&diesel_gen_config_content)?;
 
   match args.command {
     cli::CliSubcommand::Model => {
       let content = fs::read_to_string(
-        config
+        diesel_config
           .print_schema
           .as_ref()
           .cloned()
@@ -37,16 +41,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
       match parsed {
         Ok(parsed) => {
-          let output_path = config
-            .generate
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
+          let model = diesel_gen_config
             .model
             .as_ref()
             .cloned()
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+          let output_path = model
             .output
+            .as_ref()
+            .cloned()
             .unwrap_or(String::from_str("./models.rs")?);
 
           let file = OpenOptions::new()
@@ -55,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .truncate(true)
             .open(output_path)?;
 
-          generate::generate_models(&parsed, &config, &file)?;
+          generate::generate_models(&parsed, &diesel_config, &model, &file)?;
         }
         Err(err) => {
           println!("Error: {}", err);

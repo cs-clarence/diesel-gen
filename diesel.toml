@@ -8,27 +8,3 @@ schema = "iam"
 
 [migrations_directory]
 dir = "./src/db/migrations"
-
-
-[generate.model]
-output = "./src/db/model/mod.rs"
-
-[generate.model.tables."*"]
-derives = ["Clone", "Debug", "Default"]
-updater_derives = ["Clone", "Debug", "Default"]
-inserter_derives = ["Clone", "Debug", "Default"]
-
-[generate.model.tables."*".columns]
-"type_".rename = "r#type"
-
-[generate.model.type_overrides]
-CredentialType = "CredentialType"
-SubjectType = "SubjectType"
-StaffRole = "StaffRole"
-Gender = "Gender"
-
-[generate.model.ref_type_overrides]
-CredentialType = "CredentialType"
-SubjectType = "SubjectType"
-StaffRole = "StaffRole"
-Gender = "Gender"
