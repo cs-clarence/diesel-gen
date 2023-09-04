@@ -1,9 +1,9 @@
 [package]
 name = "diesel-gen"
-version = "0.3.13"
+version = "0.1.0"
 authors = ["Clarence Manuel <rencedm112@gmail.com>"]
 license = "MIT OR Apache-2.0"
-description = "Provides different tools for projects using the diesel_cli."
+description = "Provides codegen to reduce writing boilerplate when using diesel"
 readme = "README.md"
 documentation = "https://github.com/abbychau/diesel-gen/blob/master/README.md"
 homepage = "http://abby.md"
@@ -18,6 +18,8 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.4.2", features = ["derive"] }
 serde = { version = "1.0.188", features = ["derive"] }
-convert_case = "0.6.0"
 toml = "0.7.6"
 thiserror = "1.0.47"
+bytes = { version = "1.4.0", features = ["serde"] }
+Inflector = "0.11.4"
+anyhow = "1.0.75"

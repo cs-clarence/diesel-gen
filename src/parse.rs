@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-use std::{convert::Infallible, str::FromStr};
+use std::{convert::Infallible, fmt::Display, str::FromStr};
 use thiserror::Error;
 
-pub mod type_names {
+pub mod type_name {
   pub const ARRAY: &str = "Array";
   pub const INT2: &str = "Int2";
   pub const SMALLINT: &str = "SmallInt";
@@ -11,6 +11,7 @@ pub mod type_names {
   pub const UNSIGNED: &str = "Unsigned";
   pub const INT8: &str = "Int8";
   pub const BIGINT: &str = "BigInt";
+  pub const BIGSERIAL: &str = "BigSerial";
   pub const NUMERIC: &str = "Numeric";
   pub const DECIMAL: &str = "Decimal";
   pub const TEXT: &str = "Text";
@@ -19,6 +20,7 @@ pub mod type_names {
   pub const DATETIME: &str = "Datetime";
   pub const TIMESTAMP: &str = "Timestamp";
   pub const TIMESTAMPTZ: &str = "Timestamptz";
+  pub const TIMESTAMPTZ_SQLITE: &str = "TimestamptzSqlite";
   pub const FLOAT4: &str = "Float4";
   pub const FLOAT8: &str = "Float8";
   pub const FLOAT: &str = "Float";
@@ -55,6 +57,7 @@ pub enum TypeName {
   Unsigned,
   Int8,
   BigInt,
+  BigSerial,
   Numeric,
   Decimal,
   Text,
@@ -63,6 +66,7 @@ pub enum TypeName {
   Datetime,
   Timestamp,
   Timestamptz,
+  TimestamptzSqlite,
   Float4,
   Float8,
   Float,
@@ -90,9 +94,22 @@ pub enum TypeName {
   Unknown(String),
 }
 
+impl TypeName {
+  pub fn is_string_type(&self) -> bool {
+    matches!(
+      self,
+      TypeName::Text
+        | TypeName::Varchar
+        | TypeName::Tinytext
+        | TypeName::Mediumtext
+        | TypeName::Longtext
+    )
+  }
+}
+
 impl ToString for TypeName {
   fn to_string(&self) -> String {
-    use type_names::*;
+    use type_name::*;
     match self {
       TypeName::Array => ARRAY,
       TypeName::Int2 => INT2,
@@ -102,6 +119,7 @@ impl ToString for TypeName {
       TypeName::Unsigned => UNSIGNED,
       TypeName::Int8 => INT8,
       TypeName::BigInt => BIGINT,
+      TypeName::BigSerial => BIGSERIAL,
       TypeName::Numeric => NUMERIC,
       TypeName::Decimal => DECIMAL,
       TypeName::Text => TEXT,
@@ -110,6 +128,7 @@ impl ToString for TypeName {
       TypeName::Datetime => DATETIME,
       TypeName::Timestamp => TIMESTAMP,
       TypeName::Timestamptz => TIMESTAMPTZ,
+      TypeName::TimestamptzSqlite => TIMESTAMPTZ_SQLITE,
       TypeName::Float4 => FLOAT4,
       TypeName::Float8 => FLOAT8,
       TypeName::Float => FLOAT,
@@ -145,46 +164,48 @@ impl FromStr for TypeName {
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s {
-      type_names::ARRAY => Ok(TypeName::Array),
-      type_names::INT2 => Ok(TypeName::Int2),
-      type_names::SMALLINT => Ok(TypeName::SmallInt),
-      type_names::INT4 => Ok(TypeName::Int4),
-      type_names::INTEGER => Ok(TypeName::Integer),
-      type_names::UNSIGNED => Ok(TypeName::Unsigned),
-      type_names::INT8 => Ok(TypeName::Int8),
-      type_names::BIGINT => Ok(TypeName::BigInt),
-      type_names::NUMERIC => Ok(TypeName::Numeric),
-      type_names::DECIMAL => Ok(TypeName::Decimal),
-      type_names::TEXT => Ok(TypeName::Text),
-      type_names::DATE => Ok(TypeName::Date),
-      type_names::TIME => Ok(TypeName::Time),
-      type_names::DATETIME => Ok(TypeName::Datetime),
-      type_names::TIMESTAMP => Ok(TypeName::Timestamp),
-      type_names::TIMESTAMPTZ => Ok(TypeName::Timestamptz),
-      type_names::FLOAT4 => Ok(TypeName::Float4),
-      type_names::FLOAT8 => Ok(TypeName::Float8),
-      type_names::FLOAT => Ok(TypeName::Float),
-      type_names::BOOL => Ok(TypeName::Bool),
-      type_names::JSON => Ok(TypeName::Json),
-      type_names::JSONB => Ok(TypeName::Jsonb),
-      type_names::UUID => Ok(TypeName::Uuid),
-      type_names::CHAR => Ok(TypeName::Char),
-      type_names::VARCHAR => Ok(TypeName::Varchar),
-      type_names::BYTEA => Ok(TypeName::Bytea),
-      type_names::BINARY => Ok(TypeName::Binary),
-      type_names::VARBINARY => Ok(TypeName::Varbinary),
-      type_names::BLOB => Ok(TypeName::Blob),
-      type_names::TINYBLOB => Ok(TypeName::Tinyblob),
-      type_names::MEDIUMBLOB => Ok(TypeName::Mediumblob),
-      type_names::LONGBLOB => Ok(TypeName::Longblob),
-      type_names::BIT => Ok(TypeName::Bit),
-      type_names::INET => Ok(TypeName::Inet),
-      type_names::TINYTEXT => Ok(TypeName::Tinytext),
-      type_names::MEDIUMTEXT => Ok(TypeName::Mediumtext),
-      type_names::LONGTEXT => Ok(TypeName::Longtext),
-      type_names::DOUBLE => Ok(TypeName::Double),
-      type_names::TINYINT => Ok(TypeName::Tinyint),
-      type_names::NULLABLE => Ok(TypeName::Nullable),
+      type_name::ARRAY => Ok(TypeName::Array),
+      type_name::INT2 => Ok(TypeName::Int2),
+      type_name::SMALLINT => Ok(TypeName::SmallInt),
+      type_name::INT4 => Ok(TypeName::Int4),
+      type_name::INTEGER => Ok(TypeName::Integer),
+      type_name::UNSIGNED => Ok(TypeName::Unsigned),
+      type_name::INT8 => Ok(TypeName::Int8),
+      type_name::BIGINT => Ok(TypeName::BigInt),
+      type_name::BIGSERIAL => Ok(TypeName::BigSerial),
+      type_name::NUMERIC => Ok(TypeName::Numeric),
+      type_name::DECIMAL => Ok(TypeName::Decimal),
+      type_name::TEXT => Ok(TypeName::Text),
+      type_name::DATE => Ok(TypeName::Date),
+      type_name::TIME => Ok(TypeName::Time),
+      type_name::DATETIME => Ok(TypeName::Datetime),
+      type_name::TIMESTAMP => Ok(TypeName::Timestamp),
+      type_name::TIMESTAMPTZ => Ok(TypeName::Timestamptz),
+      type_name::TIMESTAMPTZ_SQLITE => Ok(TypeName::TimestamptzSqlite),
+      type_name::FLOAT4 => Ok(TypeName::Float4),
+      type_name::FLOAT8 => Ok(TypeName::Float8),
+      type_name::FLOAT => Ok(TypeName::Float),
+      type_name::BOOL => Ok(TypeName::Bool),
+      type_name::JSON => Ok(TypeName::Json),
+      type_name::JSONB => Ok(TypeName::Jsonb),
+      type_name::UUID => Ok(TypeName::Uuid),
+      type_name::CHAR => Ok(TypeName::Char),
+      type_name::VARCHAR => Ok(TypeName::Varchar),
+      type_name::BYTEA => Ok(TypeName::Bytea),
+      type_name::BINARY => Ok(TypeName::Binary),
+      type_name::VARBINARY => Ok(TypeName::Varbinary),
+      type_name::BLOB => Ok(TypeName::Blob),
+      type_name::TINYBLOB => Ok(TypeName::Tinyblob),
+      type_name::MEDIUMBLOB => Ok(TypeName::Mediumblob),
+      type_name::LONGBLOB => Ok(TypeName::Longblob),
+      type_name::BIT => Ok(TypeName::Bit),
+      type_name::INET => Ok(TypeName::Inet),
+      type_name::TINYTEXT => Ok(TypeName::Tinytext),
+      type_name::MEDIUMTEXT => Ok(TypeName::Mediumtext),
+      type_name::LONGTEXT => Ok(TypeName::Longtext),
+      type_name::DOUBLE => Ok(TypeName::Double),
+      type_name::TINYINT => Ok(TypeName::Tinyint),
+      type_name::NULLABLE => Ok(TypeName::Nullable),
       s => Ok(TypeName::Unknown(s.to_string())),
     }
   }
@@ -313,7 +334,7 @@ impl<'a> ParseContext<'a> {
 
       if c != cx {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}, expected {}", cx, c),
+          format!("Unexpected character: '{}', expected '{}'", cx, c),
           self,
         ));
       }
@@ -348,12 +369,41 @@ impl<'a> ParseContext<'a> {
     &mut self,
     c: char,
   ) -> Result<&mut Self, ParseError> {
-    while let Some(cx) = self.next() {
-      if cx == c {
-        break;
+    if self.str().contains(c) {
+      while let Some(cx) = self.next() {
+        if cx == c {
+          break;
+        }
       }
+
+      Ok(self)
+    } else {
+      Err(ParseError::from_parse_context(
+        "No character found".to_string(),
+        self,
+      ))
     }
-    Ok(self)
+  }
+
+  pub fn ignore_up_to_char(
+    &mut self,
+    c: char,
+  ) -> Result<&mut Self, ParseError> {
+    if self.str().contains(c) {
+      while let Some(cx) = self.next() {
+        if cx == c {
+          break;
+        }
+      }
+      self.next();
+
+      Ok(self)
+    } else {
+      Err(ParseError::from_parse_context(
+        "No character found".to_string(),
+        self,
+      ))
+    }
   }
 
   pub fn contains_char(&self, c: char) -> bool {
@@ -373,6 +423,20 @@ impl<'a> ParseContext<'a> {
     } else {
       Err(ParseError::from_parse_context(
         format!("Could not find string: {}", str),
+        self,
+      ))
+    }
+  }
+
+  pub fn move_to_char(&mut self, c: char) -> Result<&mut Self, ParseError> {
+    let idx = self.str().find(c);
+
+    if let Some(idx) = idx {
+      self.current_index += idx;
+      Ok(self)
+    } else {
+      Err(ParseError::from_parse_context(
+        format!("Could not find character: {}", c),
         self,
       ))
     }
@@ -402,7 +466,7 @@ impl<'a> ParseContext<'a> {
     let cx = self.current_char().unwrap();
     if cx != c {
       return Err(ParseError::from_parse_context(
-        format!("Unexpected character: {}, expected {}", cx, c),
+        format!("Unexpected character: '{}', expected '{}'", cx, c),
         self,
       ));
     }
@@ -418,7 +482,7 @@ impl<'a> ParseContext<'a> {
         if x != y {
           return Err(ParseError::from_parse_context(
             format!(
-              "Unexpected character: {}, expected {} from str: {}",
+              "Unexpected character: '{}', expected '{}' from str: '{}'",
               y, x, str
             ),
             self,
@@ -426,7 +490,7 @@ impl<'a> ParseContext<'a> {
         }
       } else {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected end of string, expected {}", x),
+          format!("Unexpected end of string, expected '{}'", x),
           self,
         ));
       }
@@ -458,12 +522,13 @@ impl<'a> ParseContext<'a> {
           depth -= 1;
           if depth == 0 {
             until = self.current_index + 1;
+            self.next();
             break;
           }
         }
       } else {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           self,
         ));
       }
@@ -535,7 +600,7 @@ impl<'a> ParseContext<'a> {
       })
     } else {
       Err(ParseError::from_parse_context(
-        format!("Could not find string: {}", str),
+        format!("Could not find string: '{}'", str),
         self,
       ))
     }
@@ -546,9 +611,8 @@ impl<'a> ParseContext<'a> {
     let mut current_index = self.current_index;
     let mut until = self.until;
 
-    if !self.current_char().unwrap().is_alphabetic()
-      || self.current_char().unwrap() != '_'
-    {
+    let ch = self.current_char().unwrap();
+    if !(ch.is_alphabetic() || ch == '_') {
       return Err(ParseError::from_parse_context(
         "Identifiers must start with a letter or underscore".to_string(),
         self,
@@ -563,7 +627,7 @@ impl<'a> ParseContext<'a> {
       if !c.is_ascii_alphanumeric() && c != '_' {
         if !started {
           return Err(ParseError::from_parse_context(
-            format!("Unexpected character: {}", c),
+            format!("Unexpected character: '{}'", c),
             self,
           ));
         }
@@ -591,6 +655,26 @@ pub struct Type {
   pub params: Vec<Type>,
 }
 
+impl Display for Type {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if self.params.is_empty() {
+      write!(f, "{}", self.name.to_string())
+    } else {
+      write!(
+        f,
+        "{}<{}>",
+        self.name.to_string(),
+        self
+          .params
+          .iter()
+          .map(|p| p.to_string())
+          .collect::<Vec<String>>()
+          .join(", ")
+      )
+    }
+  }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Attribute {
   pub content: String,
@@ -611,13 +695,45 @@ pub struct Table {
   pub columns: Vec<Column>,
 }
 
+impl Table {
+  pub fn non_primary_key_columns(&self) -> Vec<&Column> {
+    self
+      .columns
+      .iter()
+      .filter(|c| !self.primary_key.contains(&c.name))
+      .collect()
+  }
+
+  pub fn primary_key_columns(&self) -> Vec<&Column> {
+    self
+      .columns
+      .iter()
+      .filter(|c| self.primary_key.contains(&c.name))
+      .collect()
+  }
+}
+
 #[derive(Error, Debug, Eq, PartialEq, Clone)]
-#[error("ParseError: {message} at line {line} column {column}")]
 pub struct ParseError {
   pub message: String,
   pub string: String,
   pub line: usize,
   pub column: usize,
+}
+
+impl Display for ParseError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let line = self
+      .string
+      .lines()
+      .nth(self.line - 1)
+      .ok_or(std::fmt::Error {})?;
+
+    writeln!(f, "at line: {}, column: {}", self.line, self.column)?;
+    writeln!(f, "{}", line)?;
+    writeln!(f, "{0:>1$} {2}", "^", self.column + 1, self.message)?;
+    Ok(())
+  }
 }
 
 impl ParseError {
@@ -712,7 +828,7 @@ pub fn parse_type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
       ' ' | '\t' | '\n' => {}
       _ => {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           ctx,
         ))
       }
@@ -762,7 +878,7 @@ pub fn parse_attribute(
       }
       _ => {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           ctx,
         ))
       }
@@ -778,7 +894,7 @@ pub fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
 
   if ctx.current_char().unwrap().is_whitespace() {
     return Err(ParseError::from_parse_context(
-      format!("Unexpected whitespace: {}, trim the context before calling this function", ctx.current_char().unwrap()),
+      format!("Unexpected whitespace: '{}', trim the context before calling this function", ctx.current_char().unwrap()),
       ctx
     ));
   }
@@ -889,7 +1005,7 @@ pub fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
       c if in_name && matches!(c, 'A'..='Z' | 'a'..='z' | '0'..='9' | '_') => {
         if c.is_ascii_digit() && !name.is_empty() {
           return Err(ParseError::from_parse_context(
-            format!("Unexpected character: {}, identifiers must start with a letter or underscore", c),
+            format!("Unexpected character: '{}', identifiers must start with a letter or underscore", c),
             ctx
           ));
         }
@@ -924,14 +1040,14 @@ pub fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
       ' ' | '\t' | '\n' => {
         if in_arrow {
           return Err(ParseError::from_parse_context(
-            format!("Unexpected whitespace: {}", c),
+            format!("Unexpected whitespace: '{}'", c),
             ctx,
           ));
         }
       }
       _ => {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           ctx,
         ))
       }
@@ -955,7 +1071,7 @@ pub fn parse_table_primary_key(
   if ctx.current_char().unwrap() != '(' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, primary key must start with (",
+        "Unexpected character: '{}', primary key must start with (",
         ctx.current_char().unwrap()
       ),
       ctx,
@@ -965,7 +1081,7 @@ pub fn parse_table_primary_key(
   if ctx.last_char().unwrap() != ')' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, primary key must end with )",
+        "Unexpected character: '{}', primary key must end with )",
         ctx.last_char().unwrap()
       ),
       ctx,
@@ -984,7 +1100,7 @@ pub fn parse_table_primary_key(
       {
         if c.is_ascii_digit() {
           return Err(ParseError::from_parse_context(
-            format!("Unexpected character: {}, identifiers must start with a letter or underscore", c),
+            format!("Unexpected character: '{}', identifiers must start with a letter or underscore", c),
             ctx
           ));
         }
@@ -1010,7 +1126,7 @@ pub fn parse_table_primary_key(
       ' ' | '\t' | '\n' => {}
       _ => {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           ctx,
         ))
       }
@@ -1029,7 +1145,7 @@ pub fn parse_table_body(
   if ctx.current_char().unwrap() != '{' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, table body must start with {{",
+        "Unexpected character: '{}', table body must start with {{",
         ctx.current_char().unwrap()
       ),
       ctx,
@@ -1039,7 +1155,7 @@ pub fn parse_table_body(
   if ctx.last_char().unwrap() != '}' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, table body must end with }}",
+        "Unexpected character: '{}', table body must end with }}",
         ctx.last_char().unwrap()
       ),
       ctx,
@@ -1073,7 +1189,7 @@ pub fn parse_table_body(
       ' ' | '\t' | '\n' => {}
       _ => {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           ctx,
         ));
       }
@@ -1090,7 +1206,7 @@ pub fn parse_table(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
   if !ctx.current_char().unwrap().is_alphabetic() {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, table name must start with a letter",
+        "Unexpected character: '{}', table name must start with a letter",
         ctx.current_char().unwrap()
       ),
       ctx,
@@ -1100,7 +1216,7 @@ pub fn parse_table(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
   if ctx.last_char().unwrap() != '}' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, table name must end with }}",
+        "Unexpected character: '{}', table name must end with }}",
         ctx.last_char().unwrap()
       ),
       ctx,
@@ -1192,7 +1308,7 @@ pub fn parse_table(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
       ' ' | '\t' | '\n' => {}
       _ => {
         return Err(ParseError::from_parse_context(
-          format!("Unexpected character: {}", c),
+          format!("Unexpected character: '{}'", c),
           ctx,
         ));
       }
@@ -1226,7 +1342,7 @@ pub fn parse_table_declaration(
   if ctx.current_char().unwrap() != 'd' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, table declaration must start with d",
+        "Unexpected character: '{}', table declaration must have with diesel::table!",
         ctx.current_char().unwrap()
       ),
       ctx,
@@ -1236,7 +1352,7 @@ pub fn parse_table_declaration(
   if ctx.last_char().unwrap() != '}' {
     return Err(ParseError::from_parse_context(
       format!(
-        "Unexpected character: {}, table declaration must end with }}",
+        "Unexpected character: '{}', table declaration must end with }}",
         ctx.last_char().unwrap()
       ),
       ctx,
@@ -1248,30 +1364,70 @@ pub fn parse_table_declaration(
   ctx.expect_char('{')?;
   let mut ctx = ctx.extract_within_pair('{', '}')?;
   while ctx.contains_str("pub use ") || ctx.contains_str("use ") {
-    ctx.ignore_until_char(';')?;
+    ctx.ignore_up_to_char(';')?;
   }
-  ctx.ignore_char(';')?;
 
   ctx.skip_whitespaces();
 
   parse_table(&mut ctx)
 }
 
-pub fn parse_file(
-  ctx: &mut ParseContext<'_>,
-) -> Result<Vec<Table>, ParseError> {
-  let mut tables = Vec::new();
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct File {
+  pub module: Option<String>,
+  pub tables: Vec<Table>,
+}
 
-  while !ctx.at_end() {
-    ctx.skip_whitespaces();
-    if ctx.contains_str("diesel::table!") {
-      tables.push(parse_table_declaration(ctx)?);
+pub fn parse_file(ctx: &mut ParseContext<'_>) -> Result<File, ParseError> {
+  let mut tables = Vec::new();
+  let mut module = None;
+  let mut ctx = if ctx.contains_str("pub mod") {
+    let iden = ctx
+      .move_to_str("pub mod")?
+      .ignore_str("pub mod")?
+      .skip_whitespaces_start()
+      .extract_identifier()?;
+
+    ctx.skip_whitespaces_start();
+    ctx.expect_char('{')?;
+    if iden.str() != "sql_types" {
+      module = Some(iden.str().to_string());
+      let mut ctx = ctx.extract_within_pair('{', '}')?;
+
+      if ctx.contains_str("pub mod sql_types") {
+        ctx.move_to_str("pub mod sql_types")?;
+        ctx.ignore_str("pub mod sql_types")?;
+        ctx.skip_whitespaces_start();
+        ctx.expect_char('{')?;
+        ctx.extract_within_pair('{', '}')?;
+      }
+
+      ctx
     } else {
-      ctx.ignore_until_char(';')?;
+      ctx.extract_within_pair('{', '}')?;
+      ctx.clone()
     }
+  } else {
+    ctx.clone()
+  };
+
+  while ctx.contains_str("diesel::table!") {
+    ctx.skip_whitespaces_start();
+
+    ctx.move_to_str("diesel::table!")?;
+    let start = ctx.current_index();
+    ctx.ignore_str("diesel::table!")?;
+    ctx.skip_whitespaces_start();
+    ctx.expect_char('{')?;
+    ctx.extract_within_pair('{', '}')?;
+    let until = ctx.current_index();
+
+    tables.push(parse_table_declaration(
+      &mut ctx.slice_outside(start, until),
+    )?);
   }
 
-  Ok(tables)
+  Ok(File { module, tables })
 }
 
 #[cfg(test)]
@@ -1294,6 +1450,8 @@ mod test {
         until: str.len() - 1,
       })
     );
+
+    assert_eq!(ctx.current_char(), None);
   }
 
   #[test]
@@ -1672,6 +1830,65 @@ mod test {
       parse_table_declaration(&mut ParseContext::new(
         r#"
           diesel::table! {
+            iam.staffs (id) {
+              id->Uuid,
+              created_at->Timestamptz,
+              updated_at->Timestamptz,
+              deleted_at->Nullable<Timestamptz>,
+            }
+          }
+          "#
+      )),
+      Ok(Table {
+        name: "staffs".to_string(),
+        schema: Some("iam".to_string()),
+        primary_key: vec!["id".to_string()],
+        columns: vec![
+          Column {
+            name: "id".to_string(),
+            attributes: vec![],
+            r#type: Type {
+              name: TypeName::Uuid,
+              params: vec![],
+            }
+          },
+          Column {
+            name: "created_at".to_string(),
+            attributes: vec![],
+            r#type: Type {
+              name: TypeName::Timestamptz,
+              params: vec![],
+            }
+          },
+          Column {
+            name: "updated_at".to_string(),
+            attributes: vec![],
+            r#type: Type {
+              name: TypeName::Timestamptz,
+              params: vec![],
+            }
+          },
+          Column {
+            name: "deleted_at".to_string(),
+            attributes: vec![],
+            r#type: Type {
+              name: TypeName::Nullable,
+              params: vec![Type {
+                name: TypeName::Timestamptz,
+                params: vec![],
+              },],
+            }
+          },
+        ],
+      })
+    )
+  }
+  #[test]
+  fn table_declaration_with_imports() {
+    assert_eq!(
+      parse_table_declaration(&mut ParseContext::new(
+        r#"
+          diesel::table! {
             use diesel::sql_types::*;
             use super::sql_types::StaffRole;
 
@@ -1725,6 +1942,78 @@ mod test {
             }
           },
         ],
+      })
+    )
+  }
+
+  #[test]
+  fn file() {
+    assert_eq!(
+      parse_file(&mut ParseContext::new(
+        r#"
+          pub mod iam {
+            pub mod sql_types {
+              
+            }
+
+            diesel::table! {
+              use diesel::sql_types::*;
+              use super::sql_types::StaffRole;
+
+              iam.staffs (id) {
+                id->Uuid,
+                created_at->Timestamptz,
+                updated_at->Timestamptz,
+                deleted_at->Nullable<Timestamptz>,
+              }
+            }
+          }
+          "#
+      )),
+      Ok(File {
+        module: Some("iam".to_string()),
+        tables: vec![Table {
+          name: "staffs".to_string(),
+          schema: Some("iam".to_string()),
+          primary_key: vec!["id".to_string()],
+          columns: vec![
+            Column {
+              name: "id".to_string(),
+              attributes: vec![],
+              r#type: Type {
+                name: TypeName::Uuid,
+                params: vec![],
+              }
+            },
+            Column {
+              name: "created_at".to_string(),
+              attributes: vec![],
+              r#type: Type {
+                name: TypeName::Timestamptz,
+                params: vec![],
+              }
+            },
+            Column {
+              name: "updated_at".to_string(),
+              attributes: vec![],
+              r#type: Type {
+                name: TypeName::Timestamptz,
+                params: vec![],
+              }
+            },
+            Column {
+              name: "deleted_at".to_string(),
+              attributes: vec![],
+              r#type: Type {
+                name: TypeName::Nullable,
+                params: vec![Type {
+                  name: TypeName::Timestamptz,
+                  params: vec![],
+                },],
+              }
+            },
+          ],
+        }]
       })
     )
   }

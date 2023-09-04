@@ -4,10 +4,10 @@ use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 pub struct Cli {
-  #[clap(subcommand)]
+  #[command(subcommand)]
   pub command: CliSubcommand,
 
-  #[clap(flatten)]
+  #[command(flatten)]
   pub args: CliArgs,
 }
 
@@ -18,6 +18,6 @@ pub enum CliSubcommand {
 
 #[derive(Args)]
 pub struct CliArgs {
-  #[clap(short = 'c', long = "config", default_value = "diesel.toml")]
-  config: PathBuf,
+  #[clap(short = 'c', long = "config", default_value = "./diesel.toml")]
+  pub config: PathBuf,
 }
