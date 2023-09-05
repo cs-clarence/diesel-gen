@@ -20,6 +20,5 @@ clap = { version = "4.4.2", features = ["derive"] }
 serde = { version = "1.0.188", features = ["derive"] }
 toml = "0.7.6"
 thiserror = "1.0.47"
-bytes = { version = "1.4.0", features = ["serde"] }
 Inflector = "0.11.4"
 anyhow = "1.0.75"

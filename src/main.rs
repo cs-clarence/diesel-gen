@@ -1,6 +1,8 @@
 use std::{
   fs::{self, OpenOptions},
+  io::Write,
   path::PathBuf,
+  process::{Command, Stdio},
   str::FromStr,
 };
 
@@ -42,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       match parsed {
         Ok(parsed) => {
           let model = diesel_gen_config
-            .model
+            .models
             .as_ref()
             .cloned()
             .unwrap_or_default();
@@ -53,13 +55,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .cloned()
             .unwrap_or(String::from_str("./models.rs")?);
 
-          let file = OpenOptions::new()
+          let mut file = OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
-            .open(output_path)?;
+            .open(&output_path)?;
 
-          generate::generate_models(&parsed, &diesel_config, &model, &file)?;
+          let mut buff: Vec<u8> = Vec::new();
+
+          generate::generate_models(
+            &parsed,
+            &diesel_config,
+            &model,
+            &mut buff,
+          )?;
+
+          let out = Command::new("which")
+            .arg("rustfmt")
+            .output()
+            .expect("failed to execute process 'which'");
+
+          if out.status.success() {
+            let mut out = Command::new("rustfmt")
+              .stdin(Stdio::piped())
+              .stdout(file)
+              .spawn()
+              .expect("failed to execute process 'rustfmt'");
+
+            let mut stdin = out.stdin.as_ref().unwrap();
+
+            stdin.write_all(&buff)?;
+            stdin.flush()?;
+            out.wait()?;
+          } else {
+            file.write_all(&buff)?;
+          }
+          println!("Generated {} file successfully!", &output_path);
         }
         Err(err) => {
           println!("Error: {}", err);

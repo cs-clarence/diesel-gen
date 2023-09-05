@@ -1,21 +1,25 @@
-[model]
+[models]
 output = "./src/db/model/mod.rs"
+backend = "postgres"
 
-[model.tables."*"]
+[models.tables."*"]
 derives = ["Clone", "Debug", "Default"]
 updater_derives = ["Clone", "Debug", "Default"]
 inserter_derives = ["Clone", "Debug", "Default"]
 
-[model.tables."*".columns]
+[models.tables."*".columns]
 "type_".rename = "r#type"
 
-[model.type_overrides]
+[models.tables."*".operations]
+enable = true
+
+[models.type_overrides]
 CredentialType = "CredentialType"
 SubjectType = "SubjectType"
 StaffRole = "StaffRole"
 Gender = "Gender"
 
-[model.ref_type_overrides]
+[models.ref_type_overrides]
 CredentialType = "CredentialType"
 SubjectType = "SubjectType"
 StaffRole = "StaffRole"

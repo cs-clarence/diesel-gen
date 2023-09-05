@@ -105,12 +105,43 @@ impl TypeName {
         | TypeName::Longtext
     )
   }
+
+  pub fn is_datetime_type(&self) -> bool {
+    matches!(
+      self,
+      TypeName::Date
+        | TypeName::Time
+        | TypeName::Datetime
+        | TypeName::Timestamp
+        | TypeName::Timestamptz
+        | TypeName::TimestamptzSqlite
+    )
+  }
+
+  pub fn is_integer_type(&self) -> bool {
+    matches!(
+      self,
+      TypeName::Int2
+        | TypeName::SmallInt
+        | TypeName::Int4
+        | TypeName::Integer
+        | TypeName::Unsigned
+        | TypeName::Int8
+        | TypeName::BigInt
+        | TypeName::BigSerial
+        | TypeName::Tinyint
+    )
+  }
+
+  pub fn is_boolean_type(&self) -> bool {
+    matches!(self, TypeName::Bool)
+  }
 }
 
-impl ToString for TypeName {
-  fn to_string(&self) -> String {
+impl Display for TypeName {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     use type_name::*;
-    match self {
+    f.write_str(match self {
       TypeName::Array => ARRAY,
       TypeName::Int2 => INT2,
       TypeName::SmallInt => SMALLINT,
@@ -154,8 +185,7 @@ impl ToString for TypeName {
       TypeName::Tinyint => TINYINT,
       TypeName::Nullable => NULLABLE,
       TypeName::Unknown(name) => name,
-    }
-    .to_string()
+    })
   }
 }
 
@@ -652,15 +682,47 @@ pub struct Type {
   pub params: Vec<Type>,
 }
 
+impl Type {
+  pub fn is_nullable(&self) -> bool {
+    self.name == TypeName::Nullable
+  }
+
+  pub fn is_nullable_type(&self, pred: impl Fn(&Type) -> bool) -> bool {
+    self.is_nullable()
+      && self.params.len() == 1
+      && if let Some(t) = self.params.first() {
+        pred(t)
+      } else {
+        false
+      }
+  }
+
+  pub fn is_datetime_type(&self) -> bool {
+    self.name.is_datetime_type() && self.params.is_empty()
+  }
+
+  pub fn is_integer_type(&self) -> bool {
+    self.name.is_integer_type() && self.params.is_empty()
+  }
+
+  pub fn is_string_type(&self) -> bool {
+    self.name.is_string_type() && self.params.is_empty()
+  }
+
+  pub fn is_boolean_type(&self) -> bool {
+    self.name.is_boolean_type() && self.params.is_empty()
+  }
+}
+
 impl Display for Type {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     if self.params.is_empty() {
-      write!(f, "{}", self.name.to_string())
+      write!(f, "{}", self.name)
     } else {
       write!(
         f,
         "{}<{}>",
-        self.name.to_string(),
+        self.name,
         self
           .params
           .iter()
@@ -696,9 +758,11 @@ impl Table {
   pub fn only_primary_key_columns(&self) -> bool {
     self.columns.len() == self.primary_key.len()
   }
-}
 
-impl Table {
+  pub fn get_column(&self, name: &str) -> Option<&Column> {
+    self.columns.iter().find(|c| c.name == name)
+  }
+
   pub fn non_primary_key_columns(&self) -> Vec<&Column> {
     self
       .columns

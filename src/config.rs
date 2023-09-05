@@ -36,10 +36,11 @@ pub struct PrintSchema {
 #[serde(deny_unknown_fields)]
 pub struct DieselGenConfig {
   #[serde(default)]
-  pub model: Option<ModelConfig>,
+  pub models: Option<ModelsConfig>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct ColumnConfig {
   #[serde(default)]
   pub rename: Option<String>,
@@ -48,9 +49,10 @@ pub struct ColumnConfig {
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct TableConfig {
   #[serde(default)]
-  pub skip_generation: Option<bool>,
+  pub skip: Option<bool>,
   #[serde(default)]
   pub attributes: Option<Vec<String>>,
   #[serde(default)]
@@ -65,10 +67,15 @@ pub struct TableConfig {
   pub inserter_derives: Option<Vec<String>>,
   #[serde(default)]
   pub columns: Option<HashMap<String, ColumnConfig>>,
+  #[serde(default)]
+  pub operations: Option<OperationsConfig>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
-pub struct ModelConfig {
+#[serde(deny_unknown_fields)]
+pub struct ModelsConfig {
+  #[serde(default)]
+  pub backend: Option<SqlBackend>,
   #[serde(default)]
   pub mods: Option<Vec<String>>,
   #[serde(default)]
@@ -105,4 +112,62 @@ pub struct ModelConfig {
   pub updater_structs_name_suffix: Option<String>,
   #[serde(default)]
   pub updater_fields_optional: Option<bool>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum SqlBackend {
+  #[default]
+  Postgres,
+  MySql,
+  Sqlite,
+}
+
+impl SqlBackend {
+  pub fn path(&self) -> &'static str {
+    match self {
+      SqlBackend::Postgres => "diesel::pg::Pg",
+      SqlBackend::MySql => "diesel::mysql::Mysql",
+      SqlBackend::Sqlite => "diesel::sqlite::Sqlite",
+    }
+  }
+}
+
+#[derive(Default, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct OperationsConfig {
+  #[serde(rename = "async")]
+  pub r#async: Option<bool>,
+  #[serde(default)]
+  pub enable: Option<bool>,
+  #[serde(default)]
+  pub delete: Option<DeleteOperationConfig>,
+  #[serde(default)]
+  pub insert: Option<InsertOperationConfig>,
+  #[serde(default)]
+  pub update: Option<UpdateOperationConfig>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteOperationConfig {
+  pub enable: Option<bool>,
+  pub hard_delete: Option<bool>,
+  pub soft_delete: Option<bool>,
+  pub soft_delete_column: Option<String>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct InsertOperationConfig {
+  pub enable: Option<bool>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateOperationConfig {
+  pub enable: Option<bool>,
+  pub per_column: Option<bool>,
+  pub whole_table: Option<bool>,
+  pub update_timestamp_columns: Option<Vec<String>>,
 }
