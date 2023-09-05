@@ -294,46 +294,50 @@ pub fn generate_models<W: Write>(
 
   const DIESEL_UPDATER_DERIVE: &str = "#[derive(diesel::AsChangeset)]";
 
-  let struct_prefix = model
-    .struct_names_prefix
+  let table_configs = model.tables.as_ref().cloned().unwrap_or_default();
+
+  let wildcard_table_config =
+    table_configs.get("*").cloned().unwrap_or_default();
+
+  let model_prefix = wildcard_table_config
+    .model_struct_name_prefix
     .as_ref()
     .cloned()
     .unwrap_or("".to_string());
 
-  let struct_suffix = model
-    .struct_names_suffix
+  let model_suffix = wildcard_table_config
+    .model_struct_name_suffix
     .as_ref()
     .cloned()
     .unwrap_or("".to_string());
 
-  let inserter_prefix = model
-    .inserter_struct_names_prefix
+  let inserter_struct = wildcard_table_config.inserter_struct.unwrap_or(true);
+
+  let inserter_prefix = wildcard_table_config
+    .inserter_struct_name_prefix
     .as_ref()
     .cloned()
     .unwrap_or("New".to_string());
 
-  let inserter_suffix = model
+  let inserter_suffix = wildcard_table_config
     .inserter_struct_name_suffix
     .as_ref()
     .cloned()
     .unwrap_or("".to_string());
 
-  let updater_prefix = model
+  let updater_struct = wildcard_table_config.updater_struct.unwrap_or(true);
+
+  let updater_prefix = wildcard_table_config
     .updater_structs_name_prefix
     .as_ref()
     .cloned()
     .unwrap_or("".to_string());
 
-  let updater_suffix = model
+  let updater_suffix = wildcard_table_config
     .updater_structs_name_suffix
     .as_ref()
     .cloned()
     .unwrap_or("Update".to_string());
-
-  let table_configs = model.tables.as_ref().cloned().unwrap_or_default();
-
-  let wildcard_table_config =
-    table_configs.get("*").cloned().unwrap_or_default();
 
   let wildcard_derives = wildcard_table_config.derives.unwrap_or_default();
 
@@ -385,7 +389,9 @@ pub fn generate_models<W: Write>(
     })
     .collect::<HashMap<String, String>>();
 
-  let optinal_updater_fields = model.updater_fields_optional.unwrap_or(true);
+  let optinal_updater_fields = wildcard_table_config
+    .updater_fields_optional
+    .unwrap_or(true);
 
   let import_root = model.table_imports_root.as_ref().cloned().unwrap_or(
     config
@@ -516,10 +522,35 @@ pub fn generate_models<W: Write>(
       writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
     }
 
+    let inserter_prefix = table_config
+      .inserter_struct_name_prefix
+      .as_ref()
+      .unwrap_or(&inserter_prefix);
+    let inserter_suffix = table_config
+      .inserter_struct_name_suffix
+      .as_ref()
+      .unwrap_or(&inserter_suffix);
+    let updater_prefix = table_config
+      .updater_structs_name_prefix
+      .as_ref()
+      .unwrap_or(&updater_prefix);
+    let updater_suffix = table_config
+      .updater_structs_name_suffix
+      .as_ref()
+      .unwrap_or(&updater_suffix);
+    let model_prefix = table_config
+      .model_struct_name_prefix
+      .as_ref()
+      .unwrap_or(&model_prefix);
+    let model_suffix = table_config
+      .model_struct_name_suffix
+      .as_ref()
+      .unwrap_or(&model_suffix);
+
     let struct_name = to_singular_pascal_case(&t.name);
 
-    let final_struct_name =
-      format!("{}{}{}", struct_prefix, struct_name, struct_suffix);
+    let final_model_name =
+      format!("{}{}{}", model_prefix, struct_name, model_suffix);
     let final_inserter_name =
       format!("{}{}{}", inserter_prefix, struct_name, inserter_suffix);
     let final_updater_name =
@@ -536,7 +567,7 @@ pub fn generate_models<W: Write>(
       }
     }
 
-    writeln!(w, "pub struct {} {{", final_struct_name)?;
+    writeln!(w, "pub struct {} {{", final_model_name)?;
 
     for c in &t.columns {
       let field_name = get_field_name(model, &t.name, &c.name);
@@ -556,7 +587,8 @@ pub fn generate_models<W: Write>(
 
     writeln!(w, "}}\n")?;
 
-    let inserter_structs = model.inserter_structs.unwrap_or(true);
+    let inserter_structs =
+      table_config.inserter_struct.unwrap_or(inserter_struct);
 
     if inserter_structs {
       let mut d = wildcard_inserter_derives
@@ -606,7 +638,7 @@ pub fn generate_models<W: Write>(
 
     let non_primary_key_columns = t.non_primary_key_columns();
 
-    let updater_structs = model.updater_structs.unwrap_or(true);
+    let updater_structs = table_config.updater_struct.unwrap_or(updater_struct);
 
     if updater_structs && !t.only_primary_key_columns() {
       let mut d = wildcard_updater_derives
@@ -720,7 +752,7 @@ pub fn generate_models<W: Write>(
       let backend = backend.unwrap();
 
       if enable_delete {
-        writeln!(w, "impl {} {{", final_struct_name)?;
+        writeln!(w, "impl {} {{", final_model_name)?;
         if hard_delete {
           write_operation(use_async, "delete", backend, None, &mut w)?;
           write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
@@ -754,7 +786,7 @@ pub fn generate_models<W: Write>(
               .get_result::<{model}>(&mut conn)
               .await
             "#,
-            model = final_struct_name
+            model = final_model_name
           )?;
           writeln!(w, "}}")?;
         }
@@ -852,7 +884,7 @@ pub fn generate_models<W: Write>(
                 .get_result::<{model}>(&mut conn)
                 .await
               "#,
-              model = final_struct_name
+              model = final_model_name
             )?;
             writeln!(w, "}}")?;
           }
@@ -871,7 +903,7 @@ pub fn generate_models<W: Write>(
           ));
         }
 
-        writeln!(w, "impl {} {{", final_struct_name)?;
+        writeln!(w, "impl {} {{", final_model_name)?;
 
         if whole_table {
           write_operation(use_async, "update", backend, None, &mut w)?;
@@ -931,7 +963,7 @@ pub fn generate_models<W: Write>(
               .get_result::<{model}>(&mut conn)
               .await
             "#,
-            model = final_struct_name
+            model = final_model_name
           )?;
           writeln!(w, "}}")?;
         }
@@ -1016,7 +1048,7 @@ pub fn generate_models<W: Write>(
                 .get_result::<{model}>(&mut conn)
                 .await
               "#,
-              model = final_struct_name
+              model = final_model_name
             )?;
             writeln!(w, "}}")?;
           }
@@ -1031,7 +1063,7 @@ pub fn generate_models<W: Write>(
             "inserter_structs must be enabled to generate insert functions"
           ));
         }
-        writeln!(w, "impl {} {{", final_struct_name)?;
+        writeln!(w, "impl {} {{", final_model_name)?;
         write_operation(use_async, "insert", backend, None, &mut w)?;
         write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
         write!(w, "data: &{}<'_>, ", final_inserter_name)?;
@@ -1049,7 +1081,7 @@ pub fn generate_models<W: Write>(
               .await
           "#,
           table = t.name,
-          model = final_struct_name
+          model = final_model_name
         )?;
 
         writeln!(w, "}}")?;

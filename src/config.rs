@@ -52,67 +52,39 @@ pub struct ColumnConfig {
 #[derive(Default, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct TableConfig {
-  #[serde(default)]
   pub skip: Option<bool>,
-  #[serde(default)]
   pub attributes: Option<ListConfig<String>>,
-  #[serde(default)]
   pub updater_attributes: Option<ListConfig<String>>,
-  #[serde(default)]
   pub inserter_attributes: Option<ListConfig<String>>,
-  #[serde(default)]
   pub derives: Option<ListConfig<String>>,
-  #[serde(default)]
   pub updater_derives: Option<ListConfig<String>>,
-  #[serde(default)]
   pub inserter_derives: Option<ListConfig<String>>,
-  #[serde(default)]
   pub columns: Option<HashMap<String, ColumnConfig>>,
-  #[serde(default)]
+  pub model_struct_name_prefix: Option<String>,
+  pub model_struct_name_suffix: Option<String>,
+  pub inserter_struct: Option<bool>,
+  pub inserter_struct_name_prefix: Option<String>,
+  pub inserter_struct_name_suffix: Option<String>,
+  pub updater_struct: Option<bool>,
+  pub updater_structs_name_prefix: Option<String>,
+  pub updater_structs_name_suffix: Option<String>,
+  pub updater_fields_optional: Option<bool>,
   pub operations: Option<OperationsConfig>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ModelsConfig {
-  #[serde(default)]
   pub backend: Option<SqlBackend>,
-  #[serde(default)]
   pub mods: Option<ListConfig<String>>,
-  #[serde(default)]
   pub pub_mods: Option<ListConfig<String>>,
-  #[serde(default)]
   pub uses: Option<ListConfig<String>>,
-  #[serde(default)]
   pub pub_uses: Option<ListConfig<String>>,
-  #[serde(default)]
   pub tables: Option<HashMap<String, TableConfig>>,
-  #[serde(default)]
   pub output: Option<String>,
-  #[serde(default)]
   pub table_imports_root: Option<String>,
-  #[serde(default)]
   pub type_overrides: Option<HashMap<String, String>>,
-  #[serde(default)]
   pub ref_type_overrides: Option<HashMap<String, String>>,
-  #[serde(default)]
-  pub struct_names_prefix: Option<String>,
-  #[serde(default)]
-  pub struct_names_suffix: Option<String>,
-  #[serde(default)]
-  pub inserter_structs: Option<bool>,
-  #[serde(default)]
-  pub inserter_struct_names_prefix: Option<String>,
-  #[serde(default)]
-  pub inserter_struct_name_suffix: Option<String>,
-  #[serde(default)]
-  pub updater_structs: Option<bool>,
-  #[serde(default)]
-  pub updater_structs_name_prefix: Option<String>,
-  #[serde(default)]
-  pub updater_structs_name_suffix: Option<String>,
-  #[serde(default)]
-  pub updater_fields_optional: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
@@ -139,13 +111,9 @@ impl SqlBackend {
 pub struct OperationsConfig {
   #[serde(rename = "async")]
   pub r#async: Option<bool>,
-  #[serde(default)]
   pub enable: Option<bool>,
-  #[serde(default)]
   pub delete: Option<DeleteOperationConfig>,
-  #[serde(default)]
   pub insert: Option<InsertOperationConfig>,
-  #[serde(default)]
   pub update: Option<UpdateOperationConfig>,
 }
 
@@ -154,7 +122,9 @@ pub struct OperationsConfig {
 pub struct DeleteOperationConfig {
   pub enable: Option<bool>,
   pub hard_delete: Option<bool>,
+  pub hard_delete_returning: Option<bool>,
   pub soft_delete: Option<bool>,
+  pub soft_delete_returning: Option<bool>,
   pub soft_delete_column: Option<String>,
 }
 
@@ -162,6 +132,8 @@ pub struct DeleteOperationConfig {
 #[serde(deny_unknown_fields)]
 pub struct InsertOperationConfig {
   pub enable: Option<bool>,
+  pub omit_columns: Option<ListConfig<String>>,
+  pub returning: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
@@ -169,7 +141,10 @@ pub struct InsertOperationConfig {
 pub struct UpdateOperationConfig {
   pub enable: Option<bool>,
   pub per_column: Option<bool>,
+  pub per_column_returning: Option<bool>,
+  pub omit_columns: Option<ListConfig<String>>,
   pub whole_table: Option<bool>,
+  pub whole_table_returning: Option<bool>,
   pub update_timestamp_columns: Option<ListConfig<String>>,
 }
 
