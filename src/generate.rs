@@ -5,7 +5,7 @@ use std::{
 use inflector::Inflector;
 
 use crate::{
-  config::{DieselConfig, ModelsConfig},
+  config::{DieselConfig, ListConfig, ModelsConfig},
   parse::{type_name, Column, File, Table, Type, TypeName},
 };
 
@@ -496,11 +496,11 @@ pub fn generate_models<W: Write>(
       continue;
     }
 
-    let mut d = wildcard_derives.clone();
-    d.append(&mut table_config.derives.clone().unwrap_or_default());
+    let mut d =
+      wildcard_derives.combine(&table_config.derives.unwrap_or_default());
     d.dedup();
     if !d.is_empty() {
-      writeln!(w, "#[derive({})]", d.join(", "))?;
+      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
     }
 
     if t.only_primary_key_columns() {
@@ -525,8 +525,9 @@ pub fn generate_models<W: Write>(
     let final_updater_name =
       format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
 
-    let mut a = wildcard_attributes.clone();
-    a.append(&mut table_config.attributes.clone().unwrap_or_default());
+    let mut a =
+      wildcard_attributes.combine(&table_config.attributes.unwrap_or_default());
+
     a.dedup();
 
     if !a.is_empty() {
@@ -558,11 +559,11 @@ pub fn generate_models<W: Write>(
     let inserter_structs = model.inserter_structs.unwrap_or(true);
 
     if inserter_structs {
-      let mut d = wildcard_inserter_derives.clone();
-      d.append(&mut table_config.inserter_derives.clone().unwrap_or_default());
+      let mut d = wildcard_inserter_derives
+        .combine(&table_config.inserter_derives.unwrap_or_default());
       d.dedup();
       if !d.is_empty() {
-        writeln!(w, "#[derive({})]", d.join(", "))?;
+        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
       }
 
       writeln!(w, "{}", DIESEL_INSERTER_DERIVE)?;
@@ -571,11 +572,9 @@ pub fn generate_models<W: Write>(
         writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
       }
 
-      let mut a = wildcard_inserter_attributes.clone();
+      let mut a = wildcard_inserter_attributes
+        .combine(&table_config.inserter_attributes.unwrap_or_default());
 
-      a.append(
-        &mut table_config.inserter_attributes.clone().unwrap_or_default(),
-      );
       a.dedup();
 
       if !a.is_empty() {
@@ -610,11 +609,12 @@ pub fn generate_models<W: Write>(
     let updater_structs = model.updater_structs.unwrap_or(true);
 
     if updater_structs && !t.only_primary_key_columns() {
-      let mut d = wildcard_updater_derives.clone();
-      d.append(&mut table_config.updater_derives.clone().unwrap_or_default());
+      let mut d = wildcard_updater_derives
+        .combine(&table_config.updater_derives.unwrap_or_default());
+
       d.dedup();
       if !d.is_empty() {
-        writeln!(w, "#[derive({})]", d.join(", "))?;
+        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
       }
       writeln!(w, "{}", DIESEL_UPDATER_DERIVE)?;
       writeln!(w, "#[diesel(table_name = {})]", t.name)?;
@@ -622,11 +622,9 @@ pub fn generate_models<W: Write>(
         writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
       }
 
-      let mut a = wildcard_updater_attributes.clone();
+      let mut a = wildcard_updater_attributes
+        .combine(&table_config.updater_attributes.unwrap_or_default());
 
-      a.append(
-        &mut table_config.updater_attributes.clone().unwrap_or_default(),
-      );
       a.dedup();
 
       if !a.is_empty() {
@@ -689,12 +687,13 @@ pub fn generate_models<W: Write>(
 
       let per_column = update_config.per_column.unwrap_or(per_column);
       let whole_table = update_config.whole_table.unwrap_or(whole_table);
-      let update_timestamps = update_config
-        .update_timestamp_columns
-        .or(update_timestamps.clone());
+      let ut = if let Some(e) = update_config.update_timestamp_columns {
+        Some(e.combine(&update_timestamps.clone().unwrap_or_default()))
+      } else {
+        update_timestamps.clone()
+      };
 
-      let timestamp_columns =
-        get_update_timestamp_columns(t, update_timestamps.as_ref());
+      let timestamp_columns = get_update_timestamp_columns(t, ut.as_ref());
 
       if !timestamp_columns.iter().all(|i| {
         i.r#type.is_datetime_type()
@@ -1090,7 +1089,7 @@ fn get_soft_delete_column<'a>(
 
 fn get_update_timestamp_columns<'a>(
   t: &'a Table,
-  cols: Option<&Vec<String>>,
+  cols: Option<&ListConfig<String>>,
 ) -> Vec<&'a Column> {
   const DEF_COL_NAMES: [&str; 4] = [
     "updated_at",
@@ -1101,6 +1100,7 @@ fn get_update_timestamp_columns<'a>(
 
   if let Some(cols) = cols {
     cols
+      .vec()
       .iter()
       .filter_map(|str| t.get_column(str))
       .collect::<Vec<_>>()
