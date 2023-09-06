@@ -828,7 +828,7 @@ impl ParseError {
   }
 }
 
-pub fn parse_type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
+fn parse_type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
   ctx.skip_whitespaces();
 
   let mut type_name = String::new();
@@ -915,7 +915,7 @@ pub fn parse_type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
   })
 }
 
-pub fn parse_attribute(
+fn parse_attribute(
   ctx: &mut ParseContext<'_>,
 ) -> Result<Attribute, ParseError> {
   ctx.skip_whitespaces();
@@ -956,7 +956,7 @@ pub fn parse_attribute(
   Ok(Attribute { content })
 }
 
-pub fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
+fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
   ctx.skip_whitespaces();
 
   if ctx.current_char().unwrap().is_whitespace() {
@@ -1130,7 +1130,7 @@ pub fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
   })
 }
 
-pub fn parse_table_primary_key(
+fn parse_table_primary_key(
   ctx: &mut ParseContext<'_>,
 ) -> Result<Vec<String>, ParseError> {
   ctx.skip_whitespaces();
@@ -1205,7 +1205,7 @@ pub fn parse_table_primary_key(
   Ok(identifiers)
 }
 
-pub fn parse_table_body(
+fn parse_table_body(
   ctx: &mut ParseContext<'_>,
 ) -> Result<Vec<Column>, ParseError> {
   ctx.skip_whitespaces();
@@ -1267,7 +1267,7 @@ pub fn parse_table_body(
   Ok(columns)
 }
 
-pub fn parse_table(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
+fn parse_table(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
   ctx.skip_whitespaces();
 
   if !ctx.current_char().unwrap().is_alphabetic() {
@@ -1402,9 +1402,7 @@ pub fn parse_table(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
   })
 }
 
-pub fn parse_table_declaration(
-  ctx: &mut ParseContext<'_>,
-) -> Result<Table, ParseError> {
+fn table_declaration(ctx: &mut ParseContext<'_>) -> Result<Table, ParseError> {
   ctx.skip_whitespaces();
   if ctx.current_char().unwrap() != 'd' {
     return Err(ParseError::from_parse_context(
@@ -1445,7 +1443,7 @@ pub struct File {
   pub tables: Vec<Table>,
 }
 
-pub fn parse_file(ctx: &mut ParseContext<'_>) -> Result<File, ParseError> {
+pub fn file(ctx: &mut ParseContext<'_>) -> Result<File, ParseError> {
   let mut tables = Vec::new();
   let mut module = None;
 
@@ -1490,9 +1488,7 @@ pub fn parse_file(ctx: &mut ParseContext<'_>) -> Result<File, ParseError> {
     ctx.extract_within_pair('{', '}')?;
     let until = ctx.current_index();
 
-    tables.push(parse_table_declaration(
-      &mut ctx.slice_outside(start, until),
-    )?);
+    tables.push(table_declaration(&mut ctx.slice_outside(start, until))?);
   }
 
   Ok(File { module, tables })
@@ -1893,9 +1889,9 @@ mod test {
   }
 
   #[test]
-  fn table_declaration() {
+  fn test_table_declaration() {
     assert_eq!(
-      parse_table_declaration(&mut ParseContext::new(
+      table_declaration(&mut ParseContext::new(
         r#"
           diesel::table! {
             iam.staffs (id) {
@@ -1952,9 +1948,9 @@ mod test {
     )
   }
   #[test]
-  fn table_declaration_with_imports() {
+  fn test_table_declaration_with_imports() {
     assert_eq!(
-      parse_table_declaration(&mut ParseContext::new(
+      table_declaration(&mut ParseContext::new(
         r#"
           diesel::table! {
             use diesel::sql_types::*;
@@ -2035,9 +2031,9 @@ mod test {
   }
 
   #[test]
-  fn file() {
+  fn test_file() {
     assert_eq!(
-      parse_file(&mut ParseContext::new(
+      file(&mut ParseContext::new(
         r#"
           pub mod iam_schema {
             pub mod sql_types {

@@ -6,11 +6,11 @@ use inflector::Inflector;
 use merge::Merge;
 
 use crate::{
-  config::{DieselConfig, ListConfig, ModelsConfig},
+  config::{DieselConfig, ListConfig, ModelsConfig, TableConfig},
   parse::{type_name, Column, File, Table, Type, TypeName},
 };
 
-fn write_rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
+fn rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
   writeln!(writer, "// @generated automatically by diesel-gen\n")?;
 
   writeln!(writer, "#![allow(unused)]")?;
@@ -74,41 +74,18 @@ fn is_rust_keyword(str: &str) -> bool {
   )
 }
 
-fn get_field_name(
-  model: &ModelsConfig,
-  table_name: &str,
-  column_name: &str,
-) -> String {
-  fn imp(model: &ModelsConfig, table_name: &str, column_name: &str) -> String {
-    if model.tables.is_none() {
-      return column_name.to_string();
-    }
-
-    let tables = model.tables.as_ref().unwrap();
-
-    let table = tables.get(table_name);
-    let wildcard = tables.get("*");
-
-    if let Some(table) = table {
-      if let Some(columns) = table.columns.as_ref() {
-        if let Some(column) = columns.get(column_name) {
-          return column.rename.as_deref().unwrap_or(column_name).to_string();
-        }
-      }
-    }
-
-    if let Some(table) = wildcard {
-      if let Some(columns) = table.columns.as_ref() {
-        if let Some(column) = columns.get(column_name) {
-          return column.rename.as_deref().unwrap_or(column_name).to_string();
-        }
+fn get_field_name(table_config: &TableConfig, column_name: &str) -> String {
+  fn imp(table: &TableConfig, column_name: &str) -> String {
+    if let Some(columns) = table.columns.as_ref() {
+      if let Some(column) = columns.get(column_name) {
+        return column.rename.as_deref().unwrap_or(column_name).to_string();
       }
     }
 
     column_name.to_string()
   }
 
-  let field_name = imp(model, table_name, column_name);
+  let field_name = imp(table_config, column_name);
 
   if is_rust_keyword(&field_name) {
     format!("r#{}", field_name)
@@ -279,29 +256,30 @@ fn get_ref_type(
   None
 }
 
-pub fn generate_models<W: Write>(
-  file: &File,
-  config: &DieselConfig,
-  model: &ModelsConfig,
-  mut w: W,
-) -> anyhow::Result<()> {
-  const DIESEL_DEFAULT_DERIVE: &str =
+const DIESEL_DEFAULT_DERIVE: &str =
     "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable)]";
 
-  const DIESEL_DEFAULT_WITH_CHANGESET_DERIVE: &str =
+const DIESEL_DEFAULT_WITH_CHANGESET_DERIVE: &str =
     "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable, diesel::AsChangeset)]";
 
-  const DIESEL_INSERTER_DERIVE: &str = "#[derive(diesel::Insertable)]";
+const DIESEL_INSERTER_DERIVE: &str = "#[derive(diesel::Insertable)]";
 
-  const DIESEL_UPDATER_DERIVE: &str = "#[derive(diesel::AsChangeset)]";
+const DIESEL_UPDATER_DERIVE: &str = "#[derive(diesel::AsChangeset)]";
 
-  let table_configs = model.tables.as_ref().cloned().unwrap_or_default();
+pub fn models<W: Write>(
+  file: &File,
+  config: &DieselConfig,
+  models_config: &ModelsConfig,
+  mut w: W,
+) -> anyhow::Result<()> {
+  let table_configs =
+    models_config.tables.as_ref().cloned().unwrap_or_default();
 
   let wildcard_table_config =
     table_configs.get("*").cloned().unwrap_or_default();
 
   // remove spaces from type overrides to make it easier to match
-  let type_overrides = model
+  let type_overrides = models_config
     .type_overrides
     .as_ref()
     .cloned()
@@ -315,10 +293,10 @@ pub fn generate_models<W: Write>(
     })
     .collect::<HashMap<String, String>>();
 
-  let backend = model.backend.as_ref().map(|b| b.path());
+  let backend = models_config.backend.as_ref().map(|b| b.path());
 
   // remove spaces from type overrides to make it easier to match
-  let ref_type_overrides = model
+  let ref_type_overrides = models_config
     .ref_type_overrides
     .as_ref()
     .cloned()
@@ -332,44 +310,48 @@ pub fn generate_models<W: Write>(
     })
     .collect::<HashMap<String, String>>();
 
-  let optinal_updater_fields = wildcard_table_config
+  let optional_updater_fields = wildcard_table_config
     .updater_fields_optional
     .unwrap_or(true);
 
-  let import_root = model.table_imports_root.as_ref().cloned().unwrap_or(
-    config
-      .print_schema
-      .as_ref()
-      .cloned()
-      .unwrap_or_default()
-      .file
-      .unwrap_or(PathBuf::from_str("./schema.rs").unwrap())
-      .to_str()
-      .unwrap()
-      .trim_start_matches("./")
-      .split('/')
-      .filter_map(|mut e| {
-        if e == "mod.rs" {
-          return None;
-        }
+  let import_root = models_config
+    .table_imports_root
+    .as_ref()
+    .cloned()
+    .unwrap_or(
+      config
+        .print_schema
+        .as_ref()
+        .cloned()
+        .unwrap_or_default()
+        .file
+        .unwrap_or(PathBuf::from_str("./schema.rs").unwrap())
+        .to_str()
+        .unwrap()
+        .trim_start_matches("./")
+        .split('/')
+        .filter_map(|mut e| {
+          if e == "mod.rs" {
+            return None;
+          }
 
-        if e == "src" {
-          return Some("crate");
-        }
+          if e == "src" {
+            return Some("crate");
+          }
 
-        if e.ends_with(".rs") {
-          e = e.trim_end_matches(".rs");
+          if e.ends_with(".rs") {
+            e = e.trim_end_matches(".rs");
 
-          return Some(e);
-        }
+            return Some(e);
+          }
 
-        Some(e)
-      })
-      .collect::<Vec<&str>>()
-      .join("::"),
-  );
+          Some(e)
+        })
+        .collect::<Vec<&str>>()
+        .join("::"),
+    );
 
-  write_rust_file_headers(&mut w)?;
+  rust_file_headers(&mut w)?;
 
   if let Some(module) = file.module.as_deref() {
     writeln!(w, "use {}::{}::{{", import_root, module)?;
@@ -389,612 +371,47 @@ pub fn generate_models<W: Write>(
 
   writeln!(w, "}};\n")?;
 
-  if let Some(ref imports) = model.uses {
+  if let Some(ref imports) = models_config.uses {
     for i in imports {
       writeln!(w, "use {};", i)?;
     }
   }
 
-  if let Some(ref forward_imports) = model.pub_uses {
+  if let Some(ref forward_imports) = models_config.pub_uses {
     for i in forward_imports {
       writeln!(w, "pub use {};", i)?;
     }
   }
 
-  if let Some(ref mods) = model.mods {
+  if let Some(ref mods) = models_config.mods {
     for m in mods {
       writeln!(w, "mod {};", m)?;
     }
   }
 
-  if let Some(ref forward_mods) = model.pub_mods {
+  if let Some(ref forward_mods) = models_config.pub_mods {
     for m in forward_mods {
       writeln!(w, "pub mod {};", m)?;
     }
   }
 
-  for t in &file.tables {
-    let mut table_config =
-      table_configs.get(&t.name).cloned().unwrap_or_default();
-
-    table_config.merge(wildcard_table_config.clone());
-
-    if table_config.skip.unwrap_or(false) {
-      continue;
-    }
-
-    let mut d = table_config.derives.unwrap_or_default();
-
-    d.dedup();
-    if !d.is_empty() {
-      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
-    }
-
-    if t.only_primary_key_columns() {
-      writeln!(w, "{}", DIESEL_DEFAULT_DERIVE)?;
-    } else {
-      writeln!(w, "{}", DIESEL_DEFAULT_WITH_CHANGESET_DERIVE)?;
-    }
-
-    writeln!(w, "#[diesel(table_name = {})]", t.name)?;
-    writeln!(w, "#[diesel(primary_key({}))]", t.primary_key.join(", "))?;
-
-    if let Some(b) = backend {
-      writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
-    }
-
-    let inserter_prefix = table_config
-      .inserter_struct_name_prefix
-      .clone()
-      .unwrap_or_default();
-
-    let inserter_suffix = table_config
-      .inserter_struct_name_suffix
-      .clone()
-      .unwrap_or_else(|| "New".to_string());
-    let updater_prefix = table_config
-      .updater_struct_name_prefix
-      .clone()
-      .unwrap_or_default();
-    let updater_suffix = table_config
-      .updater_struct_name_suffix
-      .clone()
-      .unwrap_or_else(|| "Update".to_string());
-    let model_prefix = table_config
-      .model_struct_name_prefix
-      .clone()
-      .unwrap_or_default();
-    let model_suffix = table_config
-      .model_struct_name_suffix
-      .clone()
-      .unwrap_or_default();
-
-    let struct_name = to_singular_pascal_case(&t.name);
-
-    let final_model_name =
-      format!("{}{}{}", model_prefix, struct_name, model_suffix);
-    let final_inserter_name =
-      format!("{}{}{}", inserter_prefix, struct_name, inserter_suffix);
-    let final_updater_name =
-      format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
-
-    let mut a = table_config.attributes.unwrap_or_default();
-
-    a.dedup();
-
-    if !a.is_empty() {
-      for a in a {
-        writeln!(w, "#[{}]", a)?;
-      }
-    }
-
-    writeln!(w, "pub struct {} {{", final_model_name)?;
-
-    for c in &t.columns {
-      let field_name = get_field_name(model, &t.name, &c.name);
-
-      if field_name != c.name {
-        writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
-      }
-      writeln!(
-        w,
-        "  pub {}: {},",
-        field_name,
-        get_type(&type_overrides, &c.r#type).ok_or_else(|| {
-          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-        })?
-      )?;
-    }
-
-    writeln!(w, "}}\n")?;
-
-    let inserter_structs = table_config.inserter_struct.unwrap_or(true);
-
-    if inserter_structs {
-      let mut d = table_config.inserter_derives.unwrap_or_default();
-
-      d.dedup();
-      if !d.is_empty() {
-        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
-      }
-
-      writeln!(w, "{}", DIESEL_INSERTER_DERIVE)?;
-      writeln!(w, "#[diesel(table_name = {})]", t.name)?;
-      if let Some(b) = backend {
-        writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
-      }
-
-      let mut a = table_config.inserter_attributes.unwrap_or_default();
-
-      a.dedup();
-
-      if !a.is_empty() {
-        for a in a {
-          writeln!(w, "#[{}]", a)?;
-        }
-      }
-
-      let lifetime = "'a";
-      writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
-      for c in &t.columns {
-        let field_name = get_field_name(model, &t.name, &c.name);
-
-        if field_name != c.name {
-          writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
-        }
-        writeln!(
-          w,
-          "  pub {}: {},",
-          field_name,
-          get_ref_type(&ref_type_overrides, &c.r#type, Some(lifetime))
-            .ok_or_else(|| {
-              anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-            },)?
-        )?;
-      }
-      writeln!(w, "}}\n")?;
-    }
-
-    let non_primary_key_columns = t.non_primary_key_columns();
-
-    let updater_structs = table_config.updater_struct.unwrap_or(true);
-
-    if updater_structs && !t.only_primary_key_columns() {
-      let mut d = table_config.updater_derives.unwrap_or_default();
-
-      d.dedup();
-      if !d.is_empty() {
-        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
-      }
-      writeln!(w, "{}", DIESEL_UPDATER_DERIVE)?;
-      writeln!(w, "#[diesel(table_name = {})]", t.name)?;
-      if let Some(b) = backend {
-        writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
-      }
-
-      let mut a = table_config.updater_attributes.unwrap_or_default();
-
-      a.dedup();
-
-      if !a.is_empty() {
-        for a in a {
-          writeln!(w, "#[{}]", a)?;
-        }
-      }
-
-      let lifetime = "'a";
-      writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
-      for c in &non_primary_key_columns {
-        let field_name = get_field_name(model, &t.name, &c.name);
-
-        if field_name != c.name {
-          writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
-        }
-        let ty = get_ref_type(&ref_type_overrides, &c.r#type, Some(lifetime))
-          .ok_or_else(|| {
-          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-        })?;
-        writeln!(
-          w,
-          "  pub {}: {},",
-          field_name,
-          if optinal_updater_fields {
-            format!("Option<{}>", ty)
-          } else {
-            ty
-          }
-        )?;
-      }
-      writeln!(w, "}}\n")?;
-
-      let operations = table_config
-        .operations
-        .as_ref()
-        .cloned()
-        .unwrap_or_default();
-
-      let enable_operations = operations.enable.unwrap_or(false);
-
-      if !enable_operations {
-        return Ok(());
-      }
-
-      let delete_config = operations.delete.unwrap_or_default();
-      let enable_delete = delete_config.enable.unwrap_or(true);
-      let soft_delete = delete_config.soft_delete.unwrap_or(true);
-      let hard_delete = delete_config.hard_delete.unwrap_or(true);
-      let soft_delete_column = delete_config.soft_delete_column;
-
-      let update_config = operations.update.unwrap_or_default();
-      let enable_update = update_config.enable.unwrap_or(true);
-
-      let per_column = update_config.per_column.unwrap_or(true);
-      let whole_table = update_config.whole_table.unwrap_or(true);
-
-      let ut = update_config.update_timestamp_columns;
-
-      let timestamp_columns = get_update_timestamp_columns(t, ut.as_ref());
-
-      if !timestamp_columns.iter().all(|i| {
-        i.r#type.is_datetime_type()
-          || i.r#type.is_nullable_type(|t| t.is_datetime_type())
-      }) {
-        return Err(anyhow::anyhow!(
-          "Only datetime columns are supported for update_timestamp_columns"
-        ));
-      }
-
-      let insert_config = operations.insert.unwrap_or_default();
-      let enable_insert = insert_config.enable.unwrap_or(true);
-
-      let use_async = operations.r#async.unwrap_or(true);
-
-      if backend.is_none() {
-        return Err(anyhow::anyhow!("Backend not specified"));
-      }
-
-      let primary_keys = t.primary_key_columns();
-
-      let backend = backend.unwrap();
-
-      if enable_delete {
-        writeln!(w, "impl {} {{", final_model_name)?;
-        if hard_delete {
-          write_operation(use_async, "delete", backend, None, &mut w)?;
-          write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
-          write!(w, "mut conn: Conn")?;
-          write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
-
-          write_default_uses(use_async, true, true, &mut w)?;
-          writeln!(
-            w,
-            r#"
-            diesel::delete({table}::table)
-            "#,
-            table = t.name
-          )?;
-
-          for i in &primary_keys {
-            writeln!(
-              w,
-              r#"
-                .filter({table}::{column}.eq({column}))
-              "#,
-              table = t.name,
-              column = i.name,
-            )?;
-          }
-
-          writeln!(
-            w,
-            r#"
-              .returning({model}::as_returning())
-              .get_result::<{model}>(&mut conn)
-              .await
-            "#,
-            model = final_model_name
-          )?;
-          writeln!(w, "}}")?;
-        }
-
-        if let Some(c) =
-          get_soft_delete_column(t, soft_delete_column.as_deref())
-        {
-          if !(c.r#type.is_boolean_type()
-            || c.r#type.is_nullable_type(|t| t.is_datetime_type())
-            || c.r#type.is_integer_type())
-          {
-            return Err(anyhow::anyhow!(
-              "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
-              c.r#type,
-              c.name,
-              t.name
-            ));
-          }
-
-          if soft_delete {
-            write_operation(use_async, "soft_delete", backend, None, &mut w)?;
-            write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
-            write!(w, "mut conn: Conn")?;
-            write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
-            write_default_uses(use_async, true, true, &mut w)?;
-            writeln!(
-              w,
-              r#"
-                diesel::update({table}::table)
-              "#,
-              table = t.name
-            )?;
-
-            for i in &primary_keys {
-              writeln!(
-                w,
-                r#"
-                  .filter({table}::{column}.eq({column}))
-                "#,
-                table = t.name,
-                column = i.name,
-              )?;
-            }
-
-            writeln!(w, ".set((")?;
-
-            for i in &timestamp_columns {
-              if i.name == c.name {
-                continue;
-              }
-              writeln!(
-                w,
-                r#"
-                  {table}::{column}.eq(diesel::dsl::now),
-                "#,
-                table = t.name,
-                column = i.name,
-              )?;
-            }
-
-            if c.r#type.is_boolean_type() {
-              writeln!(
-                w,
-                r#"
-                  {table}::{column}.eq(true),
-                "#,
-                table = t.name,
-                column = c.name,
-              )?;
-            } else if c.r#type.is_integer_type() {
-              writeln!(
-                w,
-                r#"
-                  {table}::{column}.eq(1),
-                "#,
-                table = t.name,
-                column = c.name,
-              )?;
-            } else if c.r#type.is_nullable() {
-              writeln!(
-                w,
-                r#"
-                  {table}::{column}.eq(diesel::dsl::now),
-                "#,
-                table = t.name,
-                column = c.name,
-              )?;
-            }
-            writeln!(w, "))")?;
-
-            writeln!(
-              w,
-              r#"
-                .returning({model}::as_returning())
-                .get_result::<{model}>(&mut conn)
-                .await
-              "#,
-              model = final_model_name
-            )?;
-            writeln!(w, "}}")?;
-          }
-        }
-
-        writeln!(w, "}}\n")?;
-      }
-
-      if enable_update
-        && !t.only_primary_key_columns()
-        && (per_column || whole_table)
-      {
-        if !updater_structs {
-          return Err(anyhow::anyhow!(
-            "updater_structs must be enabled to generate update functions"
-          ));
-        }
-
-        writeln!(w, "impl {} {{", final_model_name)?;
-
-        if whole_table {
-          write_operation(use_async, "update", backend, None, &mut w)?;
-          write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
-          write!(w, "changes: & {}<'_>, ", final_updater_name)?;
-          write!(w, "mut conn: Conn")?;
-          write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
-          write_default_uses(use_async, true, true, &mut w)?;
-          writeln!(
-            w,
-            r#"
-              diesel::update({table}::table)
-            "#,
-            table = t.name
-          )?;
-
-          for i in &primary_keys {
-            writeln!(
-              w,
-              r#"
-                .filter({table}::{column}.eq({column}))
-              "#,
-              table = t.name,
-              column = i.name,
-            )?;
-          }
-
-          writeln!(
-            w,
-            r#"
-              .set((
-            "#,
-          )?;
-
-          for i in &timestamp_columns {
-            writeln!(
-              w,
-              r#"
-                {table}::{column}.eq(diesel::dsl::now),
-              "#,
-              table = t.name,
-              column = i.name,
-            )?;
-          }
-
-          writeln!(
-            w,
-            r#"
-              changes,))
-            "#
-          )?;
-
-          writeln!(
-            w,
-            r#"
-              .returning({model}::as_returning())
-              .get_result::<{model}>(&mut conn)
-              .await
-            "#,
-            model = final_model_name
-          )?;
-          writeln!(w, "}}")?;
-        }
-
-        if per_column {
-          for c in &non_primary_key_columns {
-            let field_name = get_field_name(model, &t.name, &c.name);
-
-            write_operation(
-              use_async,
-              &format!(
-                "update_{}",
-                field_name.strip_prefix("r#").unwrap_or(&field_name)
-              ),
-              backend,
-              None,
-              &mut w,
-            )?;
-
-            write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
-            write!(
-              w,
-              "{}: {}, ",
-              &c.name,
-              get_ref_type(&ref_type_overrides, &c.r#type, None).ok_or_else(
-                || {
-                  anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-                }
-              )?
-            )?;
-            write!(w, "mut conn: Conn")?;
-            write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
-            write_default_uses(use_async, true, true, &mut w)?;
-            writeln!(
-              w,
-              r#"
-                diesel::update({table}::table)
-              "#,
-              table = t.name
-            )?;
-
-            for i in &primary_keys {
-              writeln!(
-                w,
-                r#"
-                  .filter({table}::{column}.eq({column}))
-                "#,
-                table = t.name,
-                column = i.name,
-              )?;
-            }
-
-            writeln!(w, ".set((")?;
-
-            for i in &timestamp_columns {
-              if i.name == c.name {
-                continue;
-              }
-              writeln!(
-                w,
-                r#"
-                  {table}::{column}.eq(diesel::dsl::now),
-                "#,
-                table = t.name,
-                column = i.name,
-              )?;
-            }
-
-            writeln!(
-              w,
-              r#"
-                {table}::{column}.eq({column}),))
-              "#,
-              table = t.name,
-              column = c.name,
-            )?;
-
-            writeln!(
-              w,
-              r#"
-                .returning({model}::as_returning())
-                .get_result::<{model}>(&mut conn)
-                .await
-              "#,
-              model = final_model_name
-            )?;
-            writeln!(w, "}}")?;
-          }
-        }
-
-        writeln!(w, "}}\n")?;
-      }
-
-      if enable_insert {
-        if !inserter_structs {
-          return Err(anyhow::anyhow!(
-            "inserter_structs must be enabled to generate insert functions"
-          ));
-        }
-        writeln!(w, "impl {} {{", final_model_name)?;
-        write_operation(use_async, "insert", backend, None, &mut w)?;
-        write_ref_fn_params(&ref_type_overrides, &primary_keys, &mut w)?;
-        write!(w, "data: &{}<'_>, ", final_inserter_name)?;
-        write!(w, "mut conn: Conn")?;
-        write!(w, "\n) -> Result<Self, diesel::result::Error> {{")?;
-
-        write_default_uses(use_async, true, false, &mut w)?;
-        writeln!(
-          w,
-          r#"
-            diesel::insert_into({table}::table)
-              .values(data)
-              .returning({model}::as_returning())
-              .get_result::<{model}>(&mut conn)
-              .await
-          "#,
-          table = t.name,
-          model = final_model_name
-        )?;
-
-        writeln!(w, "}}")?;
-
-        writeln!(w, "}}\n")?;
-      }
-    }
+  for table in &file.tables {
+    let mut table_configs =
+      table_configs.get(&table.name).cloned().unwrap_or_default();
+
+    table_configs.merge(wildcard_table_config.clone());
+
+    model(
+      ModelArgs {
+        backend,
+        ref_type_overrides: &ref_type_overrides,
+        type_overrides: &type_overrides,
+        optional_updater_fields,
+        table,
+        table_config: &table_configs,
+      },
+      &mut w,
+    )?;
   }
 
   Ok(())
@@ -1068,7 +485,7 @@ fn write_ref_fn_params<W: Write>(
   Ok(())
 }
 
-fn write_operation<W: Write>(
+fn operation_sig<W: Write>(
   use_async: bool,
   name: &str,
   backend: &str,
@@ -1100,7 +517,7 @@ fn write_operation<W: Write>(
   Ok(())
 }
 
-fn write_default_uses<W: Write>(
+fn default_uses<W: Write>(
   use_async: bool,
   use_selectable_helper: bool,
   use_expression_methods: bool,
@@ -1120,5 +537,602 @@ fn write_default_uses<W: Write>(
     writeln!(w, "use diesel::RunQueryDsl;")?;
   }
 
+  Ok(())
+}
+
+pub struct ModelArgs<'a> {
+  table: &'a Table,
+  table_config: &'a TableConfig,
+  backend: Option<&'a str>,
+  type_overrides: &'a HashMap<String, String>,
+  ref_type_overrides: &'a HashMap<String, String>,
+  optional_updater_fields: bool,
+}
+
+pub fn model<W: Write>(
+  ModelArgs {
+    backend,
+    optional_updater_fields,
+    ref_type_overrides,
+    table,
+    table_config,
+    type_overrides,
+  }: ModelArgs<'_>,
+  mut w: W,
+) -> anyhow::Result<()> {
+  let mut d = table_config.derives.clone().unwrap_or_default();
+
+  d.dedup();
+  if !d.is_empty() {
+    writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+  }
+
+  if table.only_primary_key_columns() {
+    writeln!(w, "{}", DIESEL_DEFAULT_DERIVE)?;
+  } else {
+    writeln!(w, "{}", DIESEL_DEFAULT_WITH_CHANGESET_DERIVE)?;
+  }
+
+  writeln!(w, "#[diesel(table_name = {})]", table.name)?;
+  writeln!(
+    w,
+    "#[diesel(primary_key({}))]",
+    table.primary_key.join(", ")
+  )?;
+
+  if let Some(b) = backend {
+    writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
+  }
+
+  let inserter_prefix = table_config
+    .inserter_struct_name_prefix
+    .clone()
+    .unwrap_or_default();
+
+  let inserter_suffix = table_config
+    .inserter_struct_name_suffix
+    .clone()
+    .unwrap_or_else(|| "New".to_string());
+  let updater_prefix = table_config
+    .updater_struct_name_prefix
+    .clone()
+    .unwrap_or_default();
+  let updater_suffix = table_config
+    .updater_struct_name_suffix
+    .clone()
+    .unwrap_or_else(|| "Update".to_string());
+  let model_prefix = table_config
+    .model_struct_name_prefix
+    .clone()
+    .unwrap_or_default();
+  let model_suffix = table_config
+    .model_struct_name_suffix
+    .clone()
+    .unwrap_or_default();
+
+  let struct_name = to_singular_pascal_case(&table.name);
+
+  let final_model_name =
+    format!("{}{}{}", model_prefix, struct_name, model_suffix);
+  let final_inserter_name =
+    format!("{}{}{}", inserter_prefix, struct_name, inserter_suffix);
+  let final_updater_name =
+    format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
+
+  let mut a = table_config.attributes.clone().unwrap_or_default();
+
+  a.dedup();
+
+  if !a.is_empty() {
+    for a in a {
+      writeln!(w, "#[{}]", a)?;
+    }
+  }
+
+  writeln!(w, "pub struct {} {{", final_model_name)?;
+
+  for c in &table.columns {
+    let field_name = get_field_name(table_config, &c.name);
+
+    if field_name != c.name {
+      writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
+    }
+    writeln!(
+      w,
+      "  pub {}: {},",
+      field_name,
+      get_type(type_overrides, &c.r#type).ok_or_else(|| {
+        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+      })?
+    )?;
+  }
+
+  writeln!(w, "}}\n")?;
+
+  let inserter_structs = table_config.inserter_struct.unwrap_or(true);
+
+  if inserter_structs {
+    let mut d = table_config.inserter_derives.clone().unwrap_or_default();
+
+    d.dedup();
+    if !d.is_empty() {
+      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+    }
+
+    writeln!(w, "{}", DIESEL_INSERTER_DERIVE)?;
+    writeln!(w, "#[diesel(table_name = {})]", table.name)?;
+    if let Some(b) = backend {
+      writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
+    }
+
+    let mut a = table_config.inserter_attributes.clone().unwrap_or_default();
+
+    a.dedup();
+
+    if !a.is_empty() {
+      for a in a {
+        writeln!(w, "#[{}]", a)?;
+      }
+    }
+
+    let lifetime = "'a";
+    writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
+    for c in &table.columns {
+      let field_name = get_field_name(table_config, &c.name);
+
+      if field_name != c.name {
+        writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
+      }
+      writeln!(
+        w,
+        "  pub {}: {},",
+        field_name,
+        get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
+          .ok_or_else(|| {
+            anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+          },)?
+      )?;
+    }
+    writeln!(w, "}}\n")?;
+  }
+
+  let non_primary_key_columns = table.non_primary_key_columns();
+
+  let updater_structs = table_config.updater_struct.unwrap_or(true);
+
+  if updater_structs && !table.only_primary_key_columns() {
+    let mut d = table_config.updater_derives.clone().unwrap_or_default();
+
+    d.dedup();
+    if !d.is_empty() {
+      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+    }
+    writeln!(w, "{}", DIESEL_UPDATER_DERIVE)?;
+    writeln!(w, "#[diesel(table_name = {})]", table.name)?;
+    if let Some(b) = backend {
+      writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
+    }
+
+    let mut a = table_config.updater_attributes.clone().unwrap_or_default();
+
+    a.dedup();
+
+    if !a.is_empty() {
+      for a in a {
+        writeln!(w, "#[{}]", a)?;
+      }
+    }
+
+    let lifetime = "'a";
+    writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
+    for c in &non_primary_key_columns {
+      let field_name = get_field_name(table_config, &c.name);
+
+      if field_name != c.name {
+        writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
+      }
+      let ty = get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
+        .ok_or_else(|| {
+          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+        })?;
+      writeln!(
+        w,
+        "  pub {}: {},",
+        field_name,
+        if optional_updater_fields {
+          format!("Option<{}>", ty)
+        } else {
+          ty
+        }
+      )?;
+    }
+    writeln!(w, "}}\n")?;
+
+    let operations = table_config
+      .operations
+      .as_ref()
+      .cloned()
+      .unwrap_or_default();
+
+    let enable_operations = operations.enable.unwrap_or(false);
+
+    if !enable_operations {
+      return Ok(());
+    }
+
+    let delete_config = operations.delete.unwrap_or_default();
+    let enable_delete = delete_config.enable.unwrap_or(true);
+    let soft_delete = delete_config.soft_delete.unwrap_or(true);
+    let hard_delete = delete_config.hard_delete.unwrap_or(true);
+    let soft_delete_column = delete_config.soft_delete_column;
+
+    let update_config = operations.update.unwrap_or_default();
+    let enable_update = update_config.enable.unwrap_or(true);
+
+    let per_column = update_config.per_column.unwrap_or(true);
+    let whole_table = update_config.whole_table.unwrap_or(true);
+
+    let ut = update_config.update_timestamp_columns;
+
+    let timestamp_columns = get_update_timestamp_columns(table, ut.as_ref());
+
+    if !timestamp_columns.iter().all(|i| {
+      i.r#type.is_datetime_type()
+        || i.r#type.is_nullable_type(|t| t.is_datetime_type())
+    }) {
+      return Err(anyhow::anyhow!(
+        "Only datetime columns are supported for update_timestamp_columns"
+      ));
+    }
+
+    let insert_config = operations.insert.unwrap_or_default();
+    let enable_insert = insert_config.enable.unwrap_or(true);
+
+    let use_async = operations.r#async.unwrap_or(true);
+
+    if backend.is_none() {
+      return Err(anyhow::anyhow!("Backend not specified"));
+    }
+
+    let primary_keys = table.primary_key_columns();
+
+    let backend = backend.unwrap();
+
+    if enable_delete {
+      writeln!(w, "impl {} {{", final_model_name)?;
+      if hard_delete {
+        operation_sig(use_async, "delete", backend, None, &mut w)?;
+        write_ref_fn_params(ref_type_overrides, &primary_keys, &mut w)?;
+        write!(w, "mut conn: Conn")?;
+        write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+
+        default_uses(use_async, true, true, &mut w)?;
+        writeln!(
+          w,
+          r#"
+            diesel::delete({table}::table)
+            "#,
+          table = table.name
+        )?;
+
+        for i in &primary_keys {
+          writeln!(
+            w,
+            r#"
+                .filter({table}::{column}.eq({column}))
+              "#,
+            table = table.name,
+            column = i.name,
+          )?;
+        }
+
+        writeln!(
+          w,
+          r#"
+              .returning({model}::as_returning())
+              .get_result::<{model}>(&mut conn)
+              .await
+            "#,
+          model = final_model_name
+        )?;
+        writeln!(w, "}}")?;
+      }
+
+      if let Some(c) =
+        get_soft_delete_column(table, soft_delete_column.as_deref())
+      {
+        if !(c.r#type.is_boolean_type()
+          || c.r#type.is_nullable_type(|t| t.is_datetime_type())
+          || c.r#type.is_integer_type())
+        {
+          return Err(anyhow::anyhow!(
+              "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
+              c.r#type,
+              c.name,
+              table.name
+            ));
+        }
+
+        if soft_delete {
+          operation_sig(use_async, "soft_delete", backend, None, &mut w)?;
+          write_ref_fn_params(ref_type_overrides, &primary_keys, &mut w)?;
+          write!(w, "mut conn: Conn")?;
+          write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+          default_uses(use_async, true, true, &mut w)?;
+          writeln!(
+            w,
+            r#"
+                diesel::update({table}::table)
+              "#,
+            table = table.name
+          )?;
+
+          for i in &primary_keys {
+            writeln!(
+              w,
+              r#"
+                  .filter({table}::{column}.eq({column}))
+                "#,
+              table = table.name,
+              column = i.name,
+            )?;
+          }
+
+          writeln!(w, ".set((")?;
+
+          for i in &timestamp_columns {
+            if i.name == c.name {
+              continue;
+            }
+            writeln!(
+              w,
+              r#"
+                  {table}::{column}.eq(diesel::dsl::now),
+                "#,
+              table = table.name,
+              column = i.name,
+            )?;
+          }
+
+          if c.r#type.is_boolean_type() {
+            writeln!(
+              w,
+              r#"
+                  {table}::{column}.eq(true),
+                "#,
+              table = table.name,
+              column = c.name,
+            )?;
+          } else if c.r#type.is_integer_type() {
+            writeln!(
+              w,
+              r#"
+                  {table}::{column}.eq(1),
+                "#,
+              table = table.name,
+              column = c.name,
+            )?;
+          } else if c.r#type.is_nullable() {
+            writeln!(
+              w,
+              r#"
+                  {table}::{column}.eq(diesel::dsl::now),
+                "#,
+              table = table.name,
+              column = c.name,
+            )?;
+          }
+          writeln!(w, "))")?;
+
+          writeln!(
+            w,
+            r#"
+                .returning({model}::as_returning())
+                .get_result::<{model}>(&mut conn)
+                .await
+              "#,
+            model = final_model_name
+          )?;
+          writeln!(w, "}}")?;
+        }
+      }
+
+      writeln!(w, "}}\n")?;
+    }
+
+    if enable_update
+      && !table.only_primary_key_columns()
+      && (per_column || whole_table)
+    {
+      if !updater_structs {
+        return Err(anyhow::anyhow!(
+          "updater_structs must be enabled to generate update functions"
+        ));
+      }
+
+      writeln!(w, "impl {} {{", final_model_name)?;
+
+      if whole_table {
+        operation_sig(use_async, "update", backend, None, &mut w)?;
+        write_ref_fn_params(ref_type_overrides, &primary_keys, &mut w)?;
+        write!(w, "changes: & {}<'_>, ", final_updater_name)?;
+        write!(w, "mut conn: Conn")?;
+        write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+        default_uses(use_async, true, true, &mut w)?;
+        writeln!(
+          w,
+          r#"
+              diesel::update({table}::table)
+            "#,
+          table = table.name
+        )?;
+
+        for i in &primary_keys {
+          writeln!(
+            w,
+            r#"
+                .filter({table}::{column}.eq({column}))
+              "#,
+            table = table.name,
+            column = i.name,
+          )?;
+        }
+
+        writeln!(
+          w,
+          r#"
+              .set((
+            "#,
+        )?;
+
+        for i in &timestamp_columns {
+          writeln!(
+            w,
+            r#"
+                {table}::{column}.eq(diesel::dsl::now),
+              "#,
+            table = table.name,
+            column = i.name,
+          )?;
+        }
+
+        writeln!(
+          w,
+          r#"
+              changes,))
+            "#
+        )?;
+
+        writeln!(
+          w,
+          r#"
+              .returning({model}::as_returning())
+              .get_result::<{model}>(&mut conn)
+              .await
+            "#,
+          model = final_model_name
+        )?;
+        writeln!(w, "}}")?;
+      }
+
+      if per_column {
+        for c in &non_primary_key_columns {
+          let field_name = get_field_name(table_config, &c.name);
+
+          operation_sig(
+            use_async,
+            &format!(
+              "update_{}",
+              field_name.strip_prefix("r#").unwrap_or(&field_name)
+            ),
+            backend,
+            None,
+            &mut w,
+          )?;
+
+          write_ref_fn_params(ref_type_overrides, &primary_keys, &mut w)?;
+          write!(
+            w,
+            "{}: {}, ",
+            &c.name,
+            get_ref_type(ref_type_overrides, &c.r#type, None).ok_or_else(
+              || { anyhow::anyhow!("Unknown type: {}", c.r#type.to_string()) }
+            )?
+          )?;
+          write!(w, "mut conn: Conn")?;
+          write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+          default_uses(use_async, true, true, &mut w)?;
+          writeln!(
+            w,
+            r#"
+                diesel::update({table}::table)
+              "#,
+            table = table.name
+          )?;
+
+          for i in &primary_keys {
+            writeln!(
+              w,
+              r#"
+                  .filter({table}::{column}.eq({column}))
+                "#,
+              table = table.name,
+              column = i.name,
+            )?;
+          }
+
+          writeln!(w, ".set((")?;
+
+          for i in &timestamp_columns {
+            if i.name == c.name {
+              continue;
+            }
+            writeln!(
+              w,
+              r#"
+                  {table}::{column}.eq(diesel::dsl::now),
+                "#,
+              table = table.name,
+              column = i.name,
+            )?;
+          }
+
+          writeln!(
+            w,
+            r#"
+                {table}::{column}.eq({column}),))
+              "#,
+            table = table.name,
+            column = c.name,
+          )?;
+
+          writeln!(
+            w,
+            r#"
+                .returning({model}::as_returning())
+                .get_result::<{model}>(&mut conn)
+                .await
+              "#,
+            model = final_model_name
+          )?;
+          writeln!(w, "}}")?;
+        }
+      }
+
+      writeln!(w, "}}\n")?;
+    }
+
+    if enable_insert {
+      if !inserter_structs {
+        return Err(anyhow::anyhow!(
+          "inserter_structs must be enabled to generate insert functions"
+        ));
+      }
+      writeln!(w, "impl {} {{", final_model_name)?;
+      operation_sig(use_async, "insert", backend, None, &mut w)?;
+      write_ref_fn_params(ref_type_overrides, &primary_keys, &mut w)?;
+      write!(w, "data: &{}<'_>, ", final_inserter_name)?;
+      write!(w, "mut conn: Conn")?;
+      write!(w, "\n) -> Result<Self, diesel::result::Error> {{")?;
+
+      default_uses(use_async, true, false, &mut w)?;
+      writeln!(
+        w,
+        r#"
+            diesel::insert_into({table}::table)
+              .values(data)
+              .returning({model}::as_returning())
+              .get_result::<{model}>(&mut conn)
+              .await
+          "#,
+        table = table.name,
+        model = final_model_name
+      )?;
+
+      writeln!(w, "}}")?;
+
+      writeln!(w, "}}\n")?;
+    }
+  }
   Ok(())
 }

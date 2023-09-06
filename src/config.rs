@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use core::fmt::Debug;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, hash::Hash, path::PathBuf};
 
 use merge::Merge;
 use serde::Deserialize;
@@ -40,7 +40,7 @@ pub struct DieselGenConfig {
   pub models: Option<ModelsConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ColumnConfig {
   pub rename: Option<String>,
@@ -64,7 +64,8 @@ pub struct TableConfig {
   pub updater_derives: Option<ListConfig<String>>,
   #[merge(strategy = merge_option)]
   pub inserter_derives: Option<ListConfig<String>>,
-  pub columns: Option<HashMap<String, ColumnConfig>>,
+  #[merge(strategy = merge_option)]
+  pub columns: Option<MapConfig<String, ColumnConfig>>,
   pub model_struct_name_prefix: Option<String>,
   pub model_struct_name_suffix: Option<String>,
   pub inserter_struct: Option<bool>,
@@ -86,14 +87,10 @@ pub struct TableConfig {
 #[serde(deny_unknown_fields)]
 pub struct ModelsConfig {
   pub backend: Option<SqlBackend>,
-  #[merge(strategy = merge_option)]
-  pub mods: Option<ListConfig<String>>,
-  #[merge(strategy = merge_option)]
-  pub pub_mods: Option<ListConfig<String>>,
-  #[merge(strategy = merge_option)]
-  pub uses: Option<ListConfig<String>>,
-  #[merge(strategy = merge_option)]
-  pub pub_uses: Option<ListConfig<String>>,
+  pub mods: Option<Vec<String>>,
+  pub pub_mods: Option<Vec<String>>,
+  pub uses: Option<Vec<String>>,
+  pub pub_uses: Option<Vec<String>>,
   pub tables: Option<HashMap<String, TableConfig>>,
   pub output: Option<String>,
   pub table_imports_root: Option<String>,
@@ -171,28 +168,28 @@ pub struct UpdateOperationConfig {
 #[derive(Deserialize, Clone, Debug)]
 #[serde(untagged)]
 #[serde(deny_unknown_fields)]
-pub enum ListConfig<T>
-where
-  T: Default + Clone + Debug,
-{
+pub enum ListConfig<T> {
   Value(Vec<T>),
   Replace { replace: Vec<T> },
   Merge { merge: Vec<T> },
 }
 
-impl<T> Default for ListConfig<T>
+impl<T> PartialEq for ListConfig<T>
 where
-  T: Default + Clone + Debug,
+  T: PartialEq,
 {
+  fn eq(&self, other: &Self) -> bool {
+    self.vec() == other.vec()
+  }
+}
+
+impl<T> Default for ListConfig<T> {
   fn default() -> Self {
     ListConfig::Value(Vec::new())
   }
 }
 
-impl<T> Merge for ListConfig<T>
-where
-  T: Default + Clone + Debug,
-{
+impl<T> Merge for ListConfig<T> {
   fn merge(&mut self, other: Self) {
     match other {
       ListConfig::Value(value) => {
@@ -220,23 +217,12 @@ where
   }
 }
 
-impl<T> ListConfig<T>
-where
-  T: Default + Clone + Debug,
-{
+impl<T> ListConfig<T> {
   pub fn into_vec(self) -> Vec<T> {
     match self {
       ListConfig::Value(v) => v,
       ListConfig::Replace { replace } => replace,
       ListConfig::Merge { merge } => merge,
-    }
-  }
-
-  pub fn to_vec(&self) -> Vec<T> {
-    match self {
-      ListConfig::Value(v) => v.clone(),
-      ListConfig::Replace { replace } => replace.clone(),
-      ListConfig::Merge { merge } => merge.clone(),
     }
   }
 
@@ -266,19 +252,6 @@ where
 
   pub fn is_empty(&self) -> bool {
     self.vec().is_empty()
-  }
-
-  pub fn combine(&self, other: &ListConfig<T>) -> ListConfig<T> {
-    ListConfig::Value(match other {
-      ListConfig::Value(v) => {
-        self.iter().chain(v.iter()).cloned().collect::<Vec<T>>()
-      }
-
-      ListConfig::Replace { replace } => replace.clone(),
-      ListConfig::Merge { merge } => {
-        self.iter().chain(merge.iter()).cloned().collect::<Vec<T>>()
-      }
-    })
   }
 }
 
@@ -327,5 +300,74 @@ where
 
   fn into_iter(self) -> Self::IntoIter {
     self.vec_mut().iter_mut()
+  }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum MapConfig<K, V>
+where
+  K: Eq + Hash,
+{
+  Value(HashMap<K, V>),
+  Replace { replace: HashMap<K, V> },
+  Merge { merge: HashMap<K, V> },
+}
+
+impl<K, V> Default for MapConfig<K, V>
+where
+  K: Eq + Hash,
+{
+  fn default() -> Self {
+    MapConfig::Value(HashMap::new())
+  }
+}
+
+impl<K, V> MapConfig<K, V>
+where
+  K: Eq + Hash,
+{
+  pub fn map_mut(&mut self) -> &mut HashMap<K, V> {
+    match self {
+      MapConfig::Value(v) => v,
+      MapConfig::Replace { replace } => replace,
+      MapConfig::Merge { merge } => merge,
+    }
+  }
+
+  pub fn map(&self) -> &HashMap<K, V> {
+    match self {
+      MapConfig::Value(v) => v,
+      MapConfig::Replace { replace } => replace,
+      MapConfig::Merge { merge } => merge,
+    }
+  }
+
+  pub fn get<Q>(&self, key: &Q) -> Option<&V>
+  where
+    Q: ?Sized,
+    K: std::borrow::Borrow<Q>,
+    Q: Eq + Hash,
+  {
+    self.map().get(key)
+  }
+}
+
+impl<K, V> Merge for MapConfig<K, V>
+where
+  K: Eq + Hash,
+{
+  fn merge(&mut self, other: Self) {
+    match other {
+      MapConfig::Value(value) => {
+        self.map_mut().extend(value);
+      }
+      MapConfig::Replace { replace } => {
+        *self = MapConfig::Replace { replace };
+      }
+      MapConfig::Merge { merge } => {
+        self.map_mut().extend(merge);
+      }
+    }
   }
 }

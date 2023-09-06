@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     toml::from_str::<DieselGenConfig>(&diesel_gen_config_content)?;
 
   match args.command {
-    cli::CliSubcommand::Model => {
+    cli::CliSubcommand::Models => {
       let content = fs::read_to_string(
         diesel_config
           .print_schema
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           .unwrap_or(PathBuf::from_str("./schema.rs")?),
       )?;
 
-      let parsed = parse::parse_file(&mut ParseContext::new(&content));
+      let parsed = parse::file(&mut ParseContext::new(&content));
 
       match parsed {
         Ok(parsed) => {
@@ -63,12 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
           let mut buff: Vec<u8> = Vec::new();
 
-          generate::generate_models(
-            &parsed,
-            &diesel_config,
-            &model,
-            &mut buff,
-          )?;
+          generate::models(&parsed, &diesel_config, &model, &mut buff)?;
 
           let out = Command::new("which")
             .arg("rustfmt")
@@ -93,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
           println!("Generated {} file successfully!", &output_path);
         }
         Err(err) => {
-          println!("Error: {}", err);
+          eprintln!("Error: {}", err);
         }
       }
     }
