@@ -3,6 +3,7 @@ use std::{
 };
 
 use inflector::Inflector;
+use merge::Merge;
 
 use crate::{
   config::{DieselConfig, ListConfig, ModelsConfig},
@@ -299,64 +300,6 @@ pub fn generate_models<W: Write>(
   let wildcard_table_config =
     table_configs.get("*").cloned().unwrap_or_default();
 
-  let model_prefix = wildcard_table_config
-    .model_struct_name_prefix
-    .as_ref()
-    .cloned()
-    .unwrap_or("".to_string());
-
-  let model_suffix = wildcard_table_config
-    .model_struct_name_suffix
-    .as_ref()
-    .cloned()
-    .unwrap_or("".to_string());
-
-  let inserter_struct = wildcard_table_config.inserter_struct.unwrap_or(true);
-
-  let inserter_prefix = wildcard_table_config
-    .inserter_struct_name_prefix
-    .as_ref()
-    .cloned()
-    .unwrap_or("New".to_string());
-
-  let inserter_suffix = wildcard_table_config
-    .inserter_struct_name_suffix
-    .as_ref()
-    .cloned()
-    .unwrap_or("".to_string());
-
-  let updater_struct = wildcard_table_config.updater_struct.unwrap_or(true);
-
-  let updater_prefix = wildcard_table_config
-    .updater_structs_name_prefix
-    .as_ref()
-    .cloned()
-    .unwrap_or("".to_string());
-
-  let updater_suffix = wildcard_table_config
-    .updater_structs_name_suffix
-    .as_ref()
-    .cloned()
-    .unwrap_or("Update".to_string());
-
-  let wildcard_derives = wildcard_table_config.derives.unwrap_or_default();
-
-  let wildcard_inserter_derives =
-    wildcard_table_config.inserter_derives.unwrap_or_default();
-
-  let wildcard_updater_derives =
-    wildcard_table_config.updater_derives.unwrap_or_default();
-
-  let wildcard_attributes =
-    wildcard_table_config.attributes.unwrap_or_default();
-
-  let wildcard_inserter_attributes = wildcard_table_config
-    .inserter_attributes
-    .unwrap_or_default();
-
-  let wildcard_updater_attributes =
-    wildcard_table_config.updater_attributes.unwrap_or_default();
-
   // remove spaces from type overrides to make it easier to match
   let type_overrides = model
     .type_overrides
@@ -428,31 +371,6 @@ pub fn generate_models<W: Write>(
 
   write_rust_file_headers(&mut w)?;
 
-  let operations = wildcard_table_config
-    .operations
-    .as_ref()
-    .cloned()
-    .unwrap_or_default();
-
-  let enable_operations = operations.enable.unwrap_or(false);
-
-  let delete_config = operations.delete.unwrap_or_default();
-  let enable_delete = delete_config.enable.unwrap_or(enable_operations);
-  let soft_delete = delete_config.soft_delete.unwrap_or(true);
-  let hard_delete = delete_config.hard_delete.unwrap_or(true);
-  let soft_delete_column = delete_config.soft_delete_column;
-
-  let update_config = operations.update.unwrap_or_default();
-  let enable_update = update_config.enable.unwrap_or(enable_operations);
-  let per_column = update_config.per_column.unwrap_or(true);
-  let whole_table = update_config.whole_table.unwrap_or(true);
-  let update_timestamps = update_config.update_timestamp_columns;
-
-  let insert_config = operations.insert.unwrap_or_default();
-  let enable_insert = insert_config.enable.unwrap_or(enable_operations);
-
-  let use_async = operations.r#async.unwrap_or(true);
-
   if let Some(module) = file.module.as_deref() {
     writeln!(w, "use {}::{}::{{", import_root, module)?;
   } else {
@@ -496,14 +414,17 @@ pub fn generate_models<W: Write>(
   }
 
   for t in &file.tables {
-    let table_config = table_configs.get(&t.name).cloned().unwrap_or_default();
+    let mut table_config =
+      table_configs.get(&t.name).cloned().unwrap_or_default();
+
+    table_config.merge(wildcard_table_config.clone());
 
     if table_config.skip.unwrap_or(false) {
       continue;
     }
 
-    let mut d =
-      wildcard_derives.combine(&table_config.derives.unwrap_or_default());
+    let mut d = table_config.derives.unwrap_or_default();
+
     d.dedup();
     if !d.is_empty() {
       writeln!(w, "#[derive({})]", d.vec().join(", "))?;
@@ -524,28 +445,29 @@ pub fn generate_models<W: Write>(
 
     let inserter_prefix = table_config
       .inserter_struct_name_prefix
-      .as_ref()
-      .unwrap_or(&inserter_prefix);
+      .clone()
+      .unwrap_or_default();
+
     let inserter_suffix = table_config
       .inserter_struct_name_suffix
-      .as_ref()
-      .unwrap_or(&inserter_suffix);
+      .clone()
+      .unwrap_or_else(|| "New".to_string());
     let updater_prefix = table_config
-      .updater_structs_name_prefix
-      .as_ref()
-      .unwrap_or(&updater_prefix);
+      .updater_struct_name_prefix
+      .clone()
+      .unwrap_or_default();
     let updater_suffix = table_config
-      .updater_structs_name_suffix
-      .as_ref()
-      .unwrap_or(&updater_suffix);
+      .updater_struct_name_suffix
+      .clone()
+      .unwrap_or_else(|| "Update".to_string());
     let model_prefix = table_config
       .model_struct_name_prefix
-      .as_ref()
-      .unwrap_or(&model_prefix);
+      .clone()
+      .unwrap_or_default();
     let model_suffix = table_config
       .model_struct_name_suffix
-      .as_ref()
-      .unwrap_or(&model_suffix);
+      .clone()
+      .unwrap_or_default();
 
     let struct_name = to_singular_pascal_case(&t.name);
 
@@ -556,8 +478,7 @@ pub fn generate_models<W: Write>(
     let final_updater_name =
       format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
 
-    let mut a =
-      wildcard_attributes.combine(&table_config.attributes.unwrap_or_default());
+    let mut a = table_config.attributes.unwrap_or_default();
 
     a.dedup();
 
@@ -587,12 +508,11 @@ pub fn generate_models<W: Write>(
 
     writeln!(w, "}}\n")?;
 
-    let inserter_structs =
-      table_config.inserter_struct.unwrap_or(inserter_struct);
+    let inserter_structs = table_config.inserter_struct.unwrap_or(true);
 
     if inserter_structs {
-      let mut d = wildcard_inserter_derives
-        .combine(&table_config.inserter_derives.unwrap_or_default());
+      let mut d = table_config.inserter_derives.unwrap_or_default();
+
       d.dedup();
       if !d.is_empty() {
         writeln!(w, "#[derive({})]", d.vec().join(", "))?;
@@ -604,8 +524,7 @@ pub fn generate_models<W: Write>(
         writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
       }
 
-      let mut a = wildcard_inserter_attributes
-        .combine(&table_config.inserter_attributes.unwrap_or_default());
+      let mut a = table_config.inserter_attributes.unwrap_or_default();
 
       a.dedup();
 
@@ -638,11 +557,10 @@ pub fn generate_models<W: Write>(
 
     let non_primary_key_columns = t.non_primary_key_columns();
 
-    let updater_structs = table_config.updater_struct.unwrap_or(updater_struct);
+    let updater_structs = table_config.updater_struct.unwrap_or(true);
 
     if updater_structs && !t.only_primary_key_columns() {
-      let mut d = wildcard_updater_derives
-        .combine(&table_config.updater_derives.unwrap_or_default());
+      let mut d = table_config.updater_derives.unwrap_or_default();
 
       d.dedup();
       if !d.is_empty() {
@@ -654,8 +572,7 @@ pub fn generate_models<W: Write>(
         writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
       }
 
-      let mut a = wildcard_updater_attributes
-        .combine(&table_config.updater_attributes.unwrap_or_default());
+      let mut a = table_config.updater_attributes.unwrap_or_default();
 
       a.dedup();
 
@@ -696,34 +613,25 @@ pub fn generate_models<W: Write>(
         .cloned()
         .unwrap_or_default();
 
-      let enable_operations = operations.enable.unwrap_or(enable_operations);
+      let enable_operations = operations.enable.unwrap_or(false);
 
       if !enable_operations {
         return Ok(());
       }
 
       let delete_config = operations.delete.unwrap_or_default();
-      let enable_delete = delete_config
-        .enable
-        .unwrap_or(enable_operations && enable_delete);
-      let soft_delete = delete_config.soft_delete.unwrap_or(soft_delete);
-      let hard_delete = delete_config.hard_delete.unwrap_or(hard_delete);
-      let soft_delete_column = delete_config
-        .soft_delete_column
-        .or(soft_delete_column.clone());
+      let enable_delete = delete_config.enable.unwrap_or(true);
+      let soft_delete = delete_config.soft_delete.unwrap_or(true);
+      let hard_delete = delete_config.hard_delete.unwrap_or(true);
+      let soft_delete_column = delete_config.soft_delete_column;
 
       let update_config = operations.update.unwrap_or_default();
-      let enable_update = update_config
-        .enable
-        .unwrap_or(enable_operations && enable_update);
+      let enable_update = update_config.enable.unwrap_or(true);
 
-      let per_column = update_config.per_column.unwrap_or(per_column);
-      let whole_table = update_config.whole_table.unwrap_or(whole_table);
-      let ut = if let Some(e) = update_config.update_timestamp_columns {
-        Some(e.combine(&update_timestamps.clone().unwrap_or_default()))
-      } else {
-        update_timestamps.clone()
-      };
+      let per_column = update_config.per_column.unwrap_or(true);
+      let whole_table = update_config.whole_table.unwrap_or(true);
+
+      let ut = update_config.update_timestamp_columns;
 
       let timestamp_columns = get_update_timestamp_columns(t, ut.as_ref());
 
@@ -737,11 +645,9 @@ pub fn generate_models<W: Write>(
       }
 
       let insert_config = operations.insert.unwrap_or_default();
-      let enable_insert = insert_config
-        .enable
-        .unwrap_or(enable_operations && enable_insert);
+      let enable_insert = insert_config.enable.unwrap_or(true);
 
-      let use_async = operations.r#async.unwrap_or(use_async);
+      let use_async = operations.r#async.unwrap_or(true);
 
       if backend.is_none() {
         return Err(anyhow::anyhow!("Backend not specified"));

@@ -3,6 +3,7 @@
 use core::fmt::Debug;
 use std::{collections::HashMap, path::PathBuf};
 
+use merge::Merge;
 use serde::Deserialize;
 
 #[derive(Deserialize, Default, Clone, Debug)]
@@ -36,49 +37,62 @@ pub struct PrintSchema {
 #[derive(Default, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct DieselGenConfig {
-  #[serde(default)]
   pub models: Option<ModelsConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct ColumnConfig {
-  #[serde(default)]
   pub rename: Option<String>,
-  #[serde(default)]
+  #[merge(strategy = merge_option)]
   pub attributes: Option<ListConfig<String>>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct TableConfig {
   pub skip: Option<bool>,
+  #[merge(strategy = merge_option)]
   pub attributes: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub updater_attributes: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub inserter_attributes: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub derives: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub updater_derives: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub inserter_derives: Option<ListConfig<String>>,
   pub columns: Option<HashMap<String, ColumnConfig>>,
   pub model_struct_name_prefix: Option<String>,
   pub model_struct_name_suffix: Option<String>,
   pub inserter_struct: Option<bool>,
+  #[merge(strategy = merge_option)]
+  pub inserter_struct_omit_columns: Option<ListConfig<String>>,
   pub inserter_struct_name_prefix: Option<String>,
   pub inserter_struct_name_suffix: Option<String>,
   pub updater_struct: Option<bool>,
-  pub updater_structs_name_prefix: Option<String>,
-  pub updater_structs_name_suffix: Option<String>,
+  #[merge(strategy = merge_option)]
+  pub updater_struct_omit_columns: Option<ListConfig<String>>,
+  pub updater_struct_name_prefix: Option<String>,
+  pub updater_struct_name_suffix: Option<String>,
   pub updater_fields_optional: Option<bool>,
+  #[merge(strategy = merge_option)]
   pub operations: Option<OperationsConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct ModelsConfig {
   pub backend: Option<SqlBackend>,
+  #[merge(strategy = merge_option)]
   pub mods: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub pub_mods: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub uses: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
   pub pub_uses: Option<ListConfig<String>>,
   pub tables: Option<HashMap<String, TableConfig>>,
   pub output: Option<String>,
@@ -106,18 +120,21 @@ impl SqlBackend {
   }
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct OperationsConfig {
   #[serde(rename = "async")]
   pub r#async: Option<bool>,
   pub enable: Option<bool>,
+  #[merge(strategy = merge_option)]
   pub delete: Option<DeleteOperationConfig>,
+  #[merge(strategy = merge_option)]
   pub insert: Option<InsertOperationConfig>,
+  #[merge(strategy = merge_option)]
   pub update: Option<UpdateOperationConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct DeleteOperationConfig {
   pub enable: Option<bool>,
@@ -128,23 +145,26 @@ pub struct DeleteOperationConfig {
   pub soft_delete_column: Option<String>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct InsertOperationConfig {
   pub enable: Option<bool>,
+  #[merge(strategy = merge_option)]
   pub omit_columns: Option<ListConfig<String>>,
   pub returning: Option<bool>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateOperationConfig {
   pub enable: Option<bool>,
   pub per_column: Option<bool>,
   pub per_column_returning: Option<bool>,
-  pub omit_columns: Option<ListConfig<String>>,
+  #[merge(strategy = merge_option)]
+  pub per_column_omit: Option<ListConfig<String>>,
   pub whole_table: Option<bool>,
   pub whole_table_returning: Option<bool>,
+  #[merge(strategy = merge_option)]
   pub update_timestamp_columns: Option<ListConfig<String>>,
 }
 
@@ -166,6 +186,37 @@ where
 {
   fn default() -> Self {
     ListConfig::Value(Vec::new())
+  }
+}
+
+impl<T> Merge for ListConfig<T>
+where
+  T: Default + Clone + Debug,
+{
+  fn merge(&mut self, other: Self) {
+    match other {
+      ListConfig::Value(value) => {
+        self.vec_mut().extend(value);
+      }
+      ListConfig::Replace { replace } => {
+        *self = ListConfig::Replace { replace };
+      }
+      ListConfig::Merge { merge } => {
+        self.vec_mut().extend(merge);
+      }
+    }
+  }
+}
+
+fn merge_option<T>(lhs: &mut Option<T>, rhs: Option<T>)
+where
+  T: Merge,
+{
+  if let Some(rhs) = rhs {
+    match lhs {
+      Some(lhs) => lhs.merge(rhs),
+      None => *lhs = Some(rhs),
+    }
   }
 }
 

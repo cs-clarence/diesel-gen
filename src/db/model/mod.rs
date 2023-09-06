@@ -37,7 +37,7 @@ pub struct Credential {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewCredential<'a> {
+pub struct CredentialNew<'a> {
   pub id: &'a uuid::Uuid,
   pub enabled: &'a bool,
   #[diesel(column_name = "type_")]
@@ -206,7 +206,7 @@ impl Credential {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewCredential<'_>,
+    data: &CredentialNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
@@ -245,7 +245,7 @@ pub struct EmailAddressVerificationCode {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewEmailAddressVerificationCode<'a> {
+pub struct EmailAddressVerificationCodeNew<'a> {
   pub id: &'a uuid::Uuid,
   pub expires_at: &'a time::OffsetDateTime,
   pub email_address_id: &'a uuid::Uuid,
@@ -404,7 +404,7 @@ impl EmailAddressVerificationCode {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewEmailAddressVerificationCode<'_>,
+    data: &EmailAddressVerificationCodeNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
@@ -443,7 +443,7 @@ pub struct EmailAddress {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewEmailAddress<'a> {
+pub struct EmailAddressNew<'a> {
   pub id: &'a uuid::Uuid,
   pub value: &'a str,
   pub primary: &'a bool,
@@ -610,7 +610,7 @@ impl EmailAddress {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewEmailAddress<'_>,
+    data: &EmailAddressNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
@@ -647,7 +647,7 @@ pub struct PasswordResetToken {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewPasswordResetToken<'a> {
+pub struct PasswordResetTokenNew<'a> {
   pub id: &'a uuid::Uuid,
   pub token: &'a str,
   pub expires_at: &'a time::OffsetDateTime,
@@ -762,7 +762,7 @@ impl PasswordResetToken {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewPasswordResetToken<'_>,
+    data: &PasswordResetTokenNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
@@ -804,7 +804,7 @@ pub struct RefreshToken {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewRefreshToken<'a> {
+pub struct RefreshTokenNew<'a> {
   pub id: &'a uuid::Uuid,
   pub value: &'a str,
   pub scope: &'a str,
@@ -1019,7 +1019,7 @@ impl RefreshToken {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewRefreshToken<'_>,
+    data: &RefreshTokenNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
@@ -1053,7 +1053,7 @@ pub struct StaffCredential {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewStaffCredential<'a> {
+pub struct StaffCredentialNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub credential_id: &'a uuid::Uuid,
 }
@@ -1078,7 +1078,7 @@ pub struct StaffEmailAddress {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewStaffEmailAddress<'a> {
+pub struct StaffEmailAddressNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub email_address_id: &'a uuid::Uuid,
 }
@@ -1103,7 +1103,7 @@ pub struct StaffPasswordResetToken {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewStaffPasswordResetToken<'a> {
+pub struct StaffPasswordResetTokenNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub password_reset_token_id: &'a uuid::Uuid,
 }
@@ -1128,7 +1128,7 @@ pub struct StaffRefreshToken {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewStaffRefreshToken<'a> {
+pub struct StaffRefreshTokenNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub refresh_token_id: &'a uuid::Uuid,
 }
@@ -1163,7 +1163,7 @@ pub struct Staff {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staffs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewStaff<'a> {
+pub struct StaffNew<'a> {
   pub id: &'a uuid::Uuid,
   pub username: &'a str,
   pub display_picture_url: Option<&'a str>,
@@ -1465,7 +1465,7 @@ impl Staff {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewStaff<'_>,
+    data: &StaffNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
@@ -1499,7 +1499,7 @@ pub struct UserCredential {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUserCredential<'a> {
+pub struct UserCredentialNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub credential_id: &'a uuid::Uuid,
 }
@@ -1524,7 +1524,7 @@ pub struct UserEmailAddress {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUserEmailAddress<'a> {
+pub struct UserEmailAddressNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub email_address_id: &'a uuid::Uuid,
 }
@@ -1549,7 +1549,7 @@ pub struct UserPasswordResetToken {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUserPasswordResetToken<'a> {
+pub struct UserPasswordResetTokenNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub password_reset_token_id: &'a uuid::Uuid,
 }
@@ -1574,7 +1574,7 @@ pub struct UserRefreshToken {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUserRefreshToken<'a> {
+pub struct UserRefreshTokenNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub refresh_token_id: &'a uuid::Uuid,
 }
@@ -1610,7 +1610,7 @@ pub struct User {
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUser<'a> {
+pub struct UserNew<'a> {
   pub id: &'a uuid::Uuid,
   pub username: &'a str,
   pub display_picture_url: Option<&'a str>,
@@ -1935,7 +1935,7 @@ impl User {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
   >(
     id: &uuid::Uuid,
-    data: &NewUser<'_>,
+    data: &UserNew<'_>,
     mut conn: Conn,
   ) -> Result<Self, diesel::result::Error> {
     use diesel::SelectableHelper;
