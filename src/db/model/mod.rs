@@ -3,14 +3,17 @@
 #![allow(unused)]
 #![allow(clippy::all)]
 
-use crate::db::schema::iam::{
+use crate::db::model::CredentialType;
+use crate::db::model::Gender;
+use crate::db::model::StaffRole;
+use crate::db::model::SubjectType;
+use crate::db::model::{
   credentials, email_address_verification_codes, email_addresses,
   password_reset_tokens, refresh_tokens, staff_credentials,
   staff_email_addresses, staff_password_reset_tokens, staff_refresh_tokens,
   staffs, user_credentials, user_email_addresses, user_password_reset_tokens,
   user_refresh_tokens, users,
 };
-
 #[derive(
   Clone,
   Debug,
@@ -23,7 +26,7 @@ use crate::db::schema::iam::{
 )]
 #[diesel(table_name = credentials)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct Credential {
   pub id: uuid::Uuid,
   pub enabled: bool,
@@ -36,7 +39,7 @@ pub struct Credential {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = credentials)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct CredentialNew<'a> {
   pub id: &'a uuid::Uuid,
   pub enabled: &'a bool,
@@ -49,7 +52,7 @@ pub struct CredentialNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = credentials)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct CredentialUpdate<'a> {
   pub enabled: Option<&'a bool>,
   #[diesel(column_name = "type_")]
@@ -61,7 +64,7 @@ pub struct CredentialUpdate<'a> {
 
 impl Credential {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -80,7 +83,7 @@ impl Credential {
 
 impl Credential {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &CredentialUpdate<'_>,
@@ -98,7 +101,7 @@ impl Credential {
       .await
   }
   pub async fn update_enabled<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     enabled: &bool,
@@ -119,7 +122,7 @@ impl Credential {
       .await
   }
   pub async fn update_type<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     type_: CredentialType,
@@ -140,7 +143,7 @@ impl Credential {
       .await
   }
   pub async fn update_content<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     content: &str,
@@ -161,7 +164,7 @@ impl Credential {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -182,7 +185,7 @@ impl Credential {
       .await
   }
   pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
@@ -203,7 +206,7 @@ impl Credential {
 
 impl Credential {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &CredentialNew<'_>,
@@ -232,7 +235,7 @@ impl Credential {
 )]
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct EmailAddressVerificationCode {
   pub id: uuid::Uuid,
   pub expires_at: time::OffsetDateTime,
@@ -244,7 +247,7 @@ pub struct EmailAddressVerificationCode {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = email_address_verification_codes)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct EmailAddressVerificationCodeNew<'a> {
   pub id: &'a uuid::Uuid,
   pub expires_at: &'a time::OffsetDateTime,
@@ -256,7 +259,7 @@ pub struct EmailAddressVerificationCodeNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = email_address_verification_codes)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct EmailAddressVerificationCodeUpdate<'a> {
   pub expires_at: Option<&'a time::OffsetDateTime>,
   pub email_address_id: Option<&'a uuid::Uuid>,
@@ -267,7 +270,7 @@ pub struct EmailAddressVerificationCodeUpdate<'a> {
 
 impl EmailAddressVerificationCode {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -286,7 +289,7 @@ impl EmailAddressVerificationCode {
 
 impl EmailAddressVerificationCode {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &EmailAddressVerificationCodeUpdate<'_>,
@@ -304,7 +307,7 @@ impl EmailAddressVerificationCode {
       .await
   }
   pub async fn update_expires_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     expires_at: &time::OffsetDateTime,
@@ -322,7 +325,7 @@ impl EmailAddressVerificationCode {
       .await
   }
   pub async fn update_email_address_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     email_address_id: &uuid::Uuid,
@@ -342,7 +345,7 @@ impl EmailAddressVerificationCode {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -360,7 +363,7 @@ impl EmailAddressVerificationCode {
       .await
   }
   pub async fn update_invalidated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     invalidated_at: Option<&time::OffsetDateTime>,
@@ -380,7 +383,7 @@ impl EmailAddressVerificationCode {
       .await
   }
   pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     value: &str,
@@ -401,7 +404,7 @@ impl EmailAddressVerificationCode {
 
 impl EmailAddressVerificationCode {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &EmailAddressVerificationCodeNew<'_>,
@@ -430,7 +433,7 @@ impl EmailAddressVerificationCode {
 )]
 #[diesel(table_name = email_addresses)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct EmailAddress {
   pub id: uuid::Uuid,
   pub value: String,
@@ -442,7 +445,7 @@ pub struct EmailAddress {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = email_addresses)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct EmailAddressNew<'a> {
   pub id: &'a uuid::Uuid,
   pub value: &'a str,
@@ -454,7 +457,7 @@ pub struct EmailAddressNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = email_addresses)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct EmailAddressUpdate<'a> {
   pub value: Option<&'a str>,
   pub primary: Option<&'a bool>,
@@ -465,7 +468,7 @@ pub struct EmailAddressUpdate<'a> {
 
 impl EmailAddress {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -484,7 +487,7 @@ impl EmailAddress {
 
 impl EmailAddress {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &EmailAddressUpdate<'_>,
@@ -502,7 +505,7 @@ impl EmailAddress {
       .await
   }
   pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     value: &str,
@@ -523,7 +526,7 @@ impl EmailAddress {
       .await
   }
   pub async fn update_primary<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     primary: &bool,
@@ -544,7 +547,7 @@ impl EmailAddress {
       .await
   }
   pub async fn update_verified_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     verified_at: Option<&time::OffsetDateTime>,
@@ -565,7 +568,7 @@ impl EmailAddress {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -586,7 +589,7 @@ impl EmailAddress {
       .await
   }
   pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
@@ -607,7 +610,7 @@ impl EmailAddress {
 
 impl EmailAddress {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &EmailAddressNew<'_>,
@@ -636,7 +639,7 @@ impl EmailAddress {
 )]
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct PasswordResetToken {
   pub id: uuid::Uuid,
   pub token: String,
@@ -646,7 +649,7 @@ pub struct PasswordResetToken {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = password_reset_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct PasswordResetTokenNew<'a> {
   pub id: &'a uuid::Uuid,
   pub token: &'a str,
@@ -656,7 +659,7 @@ pub struct PasswordResetTokenNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = password_reset_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct PasswordResetTokenUpdate<'a> {
   pub token: Option<&'a str>,
   pub expires_at: Option<&'a time::OffsetDateTime>,
@@ -665,7 +668,7 @@ pub struct PasswordResetTokenUpdate<'a> {
 
 impl PasswordResetToken {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -684,7 +687,7 @@ impl PasswordResetToken {
 
 impl PasswordResetToken {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &PasswordResetTokenUpdate<'_>,
@@ -702,7 +705,7 @@ impl PasswordResetToken {
       .await
   }
   pub async fn update_token<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     token: &str,
@@ -720,7 +723,7 @@ impl PasswordResetToken {
       .await
   }
   pub async fn update_expires_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     expires_at: &time::OffsetDateTime,
@@ -738,7 +741,7 @@ impl PasswordResetToken {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -759,7 +762,7 @@ impl PasswordResetToken {
 
 impl PasswordResetToken {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &PasswordResetTokenNew<'_>,
@@ -788,7 +791,7 @@ impl PasswordResetToken {
 )]
 #[diesel(table_name = refresh_tokens)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct RefreshToken {
   pub id: uuid::Uuid,
   pub value: String,
@@ -803,7 +806,7 @@ pub struct RefreshToken {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = refresh_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct RefreshTokenNew<'a> {
   pub id: &'a uuid::Uuid,
   pub value: &'a str,
@@ -818,7 +821,7 @@ pub struct RefreshTokenNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = refresh_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct RefreshTokenUpdate<'a> {
   pub value: Option<&'a str>,
   pub scope: Option<&'a str>,
@@ -832,7 +835,7 @@ pub struct RefreshTokenUpdate<'a> {
 
 impl RefreshToken {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -851,7 +854,7 @@ impl RefreshToken {
 
 impl RefreshToken {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &RefreshTokenUpdate<'_>,
@@ -869,7 +872,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     value: &str,
@@ -887,7 +890,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_scope<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     scope: &str,
@@ -905,7 +908,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_audience<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     audience: &str,
@@ -923,7 +926,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_subject<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     subject: &uuid::Uuid,
@@ -941,7 +944,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_subject_type<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     subject_type: SubjectType,
@@ -959,7 +962,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_expires_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     expires_at: &time::OffsetDateTime,
@@ -977,7 +980,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -995,7 +998,7 @@ impl RefreshToken {
       .await
   }
   pub async fn update_invalidated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     invalidated_at: Option<&time::OffsetDateTime>,
@@ -1016,7 +1019,7 @@ impl RefreshToken {
 
 impl RefreshToken {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &RefreshTokenNew<'_>,
@@ -1044,7 +1047,7 @@ impl RefreshToken {
 )]
 #[diesel(table_name = staff_credentials)]
 #[diesel(primary_key(staff_id, credential_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffCredential {
   pub staff_id: uuid::Uuid,
   pub credential_id: uuid::Uuid,
@@ -1052,7 +1055,7 @@ pub struct StaffCredential {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_credentials)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffCredentialNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub credential_id: &'a uuid::Uuid,
@@ -1069,7 +1072,7 @@ pub struct StaffCredentialNew<'a> {
 )]
 #[diesel(table_name = staff_email_addresses)]
 #[diesel(primary_key(staff_id, email_address_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffEmailAddress {
   pub staff_id: uuid::Uuid,
   pub email_address_id: uuid::Uuid,
@@ -1077,7 +1080,7 @@ pub struct StaffEmailAddress {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_email_addresses)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffEmailAddressNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub email_address_id: &'a uuid::Uuid,
@@ -1094,7 +1097,7 @@ pub struct StaffEmailAddressNew<'a> {
 )]
 #[diesel(table_name = staff_password_reset_tokens)]
 #[diesel(primary_key(staff_id, password_reset_token_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffPasswordResetToken {
   pub staff_id: uuid::Uuid,
   pub password_reset_token_id: uuid::Uuid,
@@ -1102,7 +1105,7 @@ pub struct StaffPasswordResetToken {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_password_reset_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffPasswordResetTokenNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub password_reset_token_id: &'a uuid::Uuid,
@@ -1119,7 +1122,7 @@ pub struct StaffPasswordResetTokenNew<'a> {
 )]
 #[diesel(table_name = staff_refresh_tokens)]
 #[diesel(primary_key(staff_id, refresh_token_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffRefreshToken {
   pub staff_id: uuid::Uuid,
   pub refresh_token_id: uuid::Uuid,
@@ -1127,7 +1130,7 @@ pub struct StaffRefreshToken {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staff_refresh_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffRefreshTokenNew<'a> {
   pub staff_id: &'a uuid::Uuid,
   pub refresh_token_id: &'a uuid::Uuid,
@@ -1145,7 +1148,7 @@ pub struct StaffRefreshTokenNew<'a> {
 )]
 #[diesel(table_name = staffs)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct Staff {
   pub id: uuid::Uuid,
   pub username: String,
@@ -1162,7 +1165,7 @@ pub struct Staff {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staffs)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffNew<'a> {
   pub id: &'a uuid::Uuid,
   pub username: &'a str,
@@ -1179,7 +1182,7 @@ pub struct StaffNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = staffs)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct StaffUpdate<'a> {
   pub username: Option<&'a str>,
   pub display_picture_url: Option<Option<&'a str>>,
@@ -1195,7 +1198,7 @@ pub struct StaffUpdate<'a> {
 
 impl Staff {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -1211,7 +1214,7 @@ impl Staff {
       .await
   }
   pub async fn soft_delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -1234,7 +1237,7 @@ impl Staff {
 
 impl Staff {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &StaffUpdate<'_>,
@@ -1252,7 +1255,7 @@ impl Staff {
       .await
   }
   pub async fn update_username<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     username: &str,
@@ -1273,7 +1276,7 @@ impl Staff {
       .await
   }
   pub async fn update_display_picture_url<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     display_picture_url: Option<&str>,
@@ -1294,7 +1297,7 @@ impl Staff {
       .await
   }
   pub async fn update_first_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     first_name: &str,
@@ -1315,7 +1318,7 @@ impl Staff {
       .await
   }
   pub async fn update_middle_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     middle_name: Option<&str>,
@@ -1336,7 +1339,7 @@ impl Staff {
       .await
   }
   pub async fn update_last_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     last_name: &str,
@@ -1357,7 +1360,7 @@ impl Staff {
       .await
   }
   pub async fn update_name_suffix<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     name_suffix: Option<&str>,
@@ -1378,7 +1381,7 @@ impl Staff {
       .await
   }
   pub async fn update_role<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     role: StaffRole,
@@ -1399,7 +1402,7 @@ impl Staff {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -1420,7 +1423,7 @@ impl Staff {
       .await
   }
   pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
@@ -1438,7 +1441,7 @@ impl Staff {
       .await
   }
   pub async fn update_deleted_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     deleted_at: Option<&time::OffsetDateTime>,
@@ -1462,7 +1465,7 @@ impl Staff {
 
 impl Staff {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &StaffNew<'_>,
@@ -1490,7 +1493,7 @@ impl Staff {
 )]
 #[diesel(table_name = user_credentials)]
 #[diesel(primary_key(user_id, credential_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserCredential {
   pub user_id: uuid::Uuid,
   pub credential_id: uuid::Uuid,
@@ -1498,7 +1501,7 @@ pub struct UserCredential {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_credentials)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserCredentialNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub credential_id: &'a uuid::Uuid,
@@ -1515,7 +1518,7 @@ pub struct UserCredentialNew<'a> {
 )]
 #[diesel(table_name = user_email_addresses)]
 #[diesel(primary_key(user_id, email_address_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserEmailAddress {
   pub user_id: uuid::Uuid,
   pub email_address_id: uuid::Uuid,
@@ -1523,7 +1526,7 @@ pub struct UserEmailAddress {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_email_addresses)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserEmailAddressNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub email_address_id: &'a uuid::Uuid,
@@ -1540,7 +1543,7 @@ pub struct UserEmailAddressNew<'a> {
 )]
 #[diesel(table_name = user_password_reset_tokens)]
 #[diesel(primary_key(user_id, password_reset_token_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserPasswordResetToken {
   pub user_id: uuid::Uuid,
   pub password_reset_token_id: uuid::Uuid,
@@ -1548,7 +1551,7 @@ pub struct UserPasswordResetToken {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_password_reset_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserPasswordResetTokenNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub password_reset_token_id: &'a uuid::Uuid,
@@ -1565,7 +1568,7 @@ pub struct UserPasswordResetTokenNew<'a> {
 )]
 #[diesel(table_name = user_refresh_tokens)]
 #[diesel(primary_key(user_id, refresh_token_id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserRefreshToken {
   pub user_id: uuid::Uuid,
   pub refresh_token_id: uuid::Uuid,
@@ -1573,7 +1576,7 @@ pub struct UserRefreshToken {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = user_refresh_tokens)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserRefreshTokenNew<'a> {
   pub user_id: &'a uuid::Uuid,
   pub refresh_token_id: &'a uuid::Uuid,
@@ -1591,7 +1594,7 @@ pub struct UserRefreshTokenNew<'a> {
 )]
 #[diesel(table_name = users)]
 #[diesel(primary_key(id))]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct User {
   pub id: uuid::Uuid,
   pub username: String,
@@ -1609,7 +1612,7 @@ pub struct User {
 
 #[derive(Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = users)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserNew<'a> {
   pub id: &'a uuid::Uuid,
   pub username: &'a str,
@@ -1627,7 +1630,7 @@ pub struct UserNew<'a> {
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = users)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(check_for_backend(postgres))]
 pub struct UserUpdate<'a> {
   pub username: Option<&'a str>,
   pub display_picture_url: Option<Option<&'a str>>,
@@ -1644,7 +1647,7 @@ pub struct UserUpdate<'a> {
 
 impl User {
   pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -1660,7 +1663,7 @@ impl User {
       .await
   }
   pub async fn soft_delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     mut conn: Conn,
@@ -1683,7 +1686,7 @@ impl User {
 
 impl User {
   pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     changes: &UserUpdate<'_>,
@@ -1701,7 +1704,7 @@ impl User {
       .await
   }
   pub async fn update_username<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     username: &str,
@@ -1722,7 +1725,7 @@ impl User {
       .await
   }
   pub async fn update_display_picture_url<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     display_picture_url: Option<&str>,
@@ -1743,7 +1746,7 @@ impl User {
       .await
   }
   pub async fn update_first_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     first_name: &str,
@@ -1764,7 +1767,7 @@ impl User {
       .await
   }
   pub async fn update_middle_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     middle_name: Option<&str>,
@@ -1785,7 +1788,7 @@ impl User {
       .await
   }
   pub async fn update_last_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     last_name: &str,
@@ -1806,7 +1809,7 @@ impl User {
       .await
   }
   pub async fn update_name_suffix<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     name_suffix: Option<&str>,
@@ -1827,7 +1830,7 @@ impl User {
       .await
   }
   pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
@@ -1848,7 +1851,7 @@ impl User {
       .await
   }
   pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
@@ -1866,7 +1869,7 @@ impl User {
       .await
   }
   pub async fn update_deleted_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     deleted_at: Option<&time::OffsetDateTime>,
@@ -1887,7 +1890,7 @@ impl User {
       .await
   }
   pub async fn update_gender<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     gender: Option<Gender>,
@@ -1908,7 +1911,7 @@ impl User {
       .await
   }
   pub async fn update_other_gender<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     other_gender: Option<&str>,
@@ -1932,7 +1935,7 @@ impl User {
 
 impl User {
   pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
+    Conn: diesel_async::AsyncConnection<Backend = postgres>,
   >(
     id: &uuid::Uuid,
     data: &UserNew<'_>,

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use core::fmt::Debug;
-use std::{collections::HashMap, hash::Hash, path::PathBuf};
+use std::{collections::HashMap, fmt::Display, hash::Hash, path::PathBuf};
 
 use merge::Merge;
 use serde::Deserialize;
@@ -86,7 +86,7 @@ pub struct TableConfig {
 #[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct ModelsConfig {
-  pub backend: Option<SqlBackend>,
+  pub backend: SqlBackend,
   pub mods: Option<Vec<String>>,
   pub pub_mods: Option<Vec<String>>,
   pub uses: Option<Vec<String>>,
@@ -94,8 +94,9 @@ pub struct ModelsConfig {
   pub tables: Option<HashMap<String, TableConfig>>,
   pub output: Option<String>,
   pub table_imports_root: Option<String>,
-  pub type_overrides: Option<HashMap<String, String>>,
-  pub ref_type_overrides: Option<HashMap<String, String>>,
+  pub type_override: Option<HashMap<String, String>>,
+  pub ref_type_override: Option<HashMap<String, String>>,
+  pub type_use: Option<HashMap<String, String>>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
@@ -105,6 +106,22 @@ pub enum SqlBackend {
   Postgres,
   MySql,
   Sqlite,
+}
+
+impl Merge for SqlBackend {
+  fn merge(&mut self, other: Self) {
+    *self = other;
+  }
+}
+
+impl Display for SqlBackend {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      SqlBackend::Postgres => write!(f, "postgres"),
+      SqlBackend::MySql => write!(f, "mysql"),
+      SqlBackend::Sqlite => write!(f, "sqlite"),
+    }
+  }
 }
 
 impl SqlBackend {

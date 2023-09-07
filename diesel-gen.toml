@@ -2,6 +2,13 @@
 output = "./src/db/model/mod.rs"
 backend = "postgres"
 
+[models.type_use]
+CredentialType = "crate::db::model::CredentialType"
+SubjectType = "crate::db::model::SubjectType"
+StaffRole = "crate::db::model::StaffRole"
+Gender = "crate::db::model::Gender"
+
+
 [models.tables."*"]
 derives = ["Clone", "Debug", "Default"]
 updater_derives = ["Clone", "Debug", "Default"]
@@ -13,13 +20,13 @@ inserter_derives = ["Clone", "Debug", "Default"]
 [models.tables."*".operations]
 enable = true
 
-[models.type_overrides]
+[models.type_override]
 CredentialType = "CredentialType"
 SubjectType = "SubjectType"
 StaffRole = "StaffRole"
 Gender = "Gender"
 
-[models.ref_type_overrides]
+[models.ref_type_override]
 CredentialType = "CredentialType"
 SubjectType = "SubjectType"
 StaffRole = "StaffRole"

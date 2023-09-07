@@ -1,16 +1,20 @@
+#![allow(dead_code)]
+
 use std::{
-  collections::HashMap, io::Write, path::PathBuf, str::FromStr, sync::OnceLock,
+  collections::{HashMap, HashSet},
+  io::Write,
+  sync::OnceLock,
 };
 
 use inflector::Inflector;
 use merge::Merge;
 
 use crate::{
-  config::{DieselConfig, ListConfig, ModelsConfig, TableConfig},
-  parse::{type_name, Column, File, Table, Type, TypeName},
+  config::{ListConfig, SqlBackend, TableConfig},
+  parse::{self, type_name, Column, File, ParseContext, Table, Type, TypeName},
 };
 
-fn rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
+pub fn rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
   writeln!(writer, "// @generated automatically by diesel-gen\n")?;
 
   writeln!(writer, "#![allow(unused)]")?;
@@ -21,6 +25,95 @@ fn rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
 
 fn to_singular_pascal_case(text: &str) -> String {
   text.to_pascal_case().to_singular()
+}
+
+pub fn table_uses<W: Write>(
+  table_imports_root: &str,
+  tables: &Vec<Table>,
+  table_configs: &HashMap<String, TableConfig>,
+  mut w: W,
+) -> anyhow::Result<()> {
+  let wildcard_table_config = table_configs.get("*");
+
+  if !tables.is_empty() {
+    writeln!(w, "use {}::{{", table_imports_root)?;
+    for table in tables {
+      let table_config = table_configs.get(&table.name);
+
+      if let Some(conf) = table_config {
+        if conf.skip.unwrap_or(false) {
+          continue;
+        }
+      }
+
+      if let Some(conf) = wildcard_table_config {
+        if conf.skip.unwrap_or(false) {
+          continue;
+        }
+      }
+
+      writeln!(w, "{},", table.name)?;
+    }
+    writeln!(w, "}};")?;
+  }
+
+  Ok(())
+}
+
+pub fn table_type_uses<W: Write>(
+  table: &Table,
+  types_uses: &HashMap<String, String>,
+  type_overrides: &HashMap<String, String>,
+  mut w: W,
+) -> anyhow::Result<()> {
+  let mut uses_set = HashSet::new();
+
+  for c in &table.columns {
+    if let Some(str) = get_type(type_overrides, &c.r#type) {
+      let tp = parse::r#type(&mut ParseContext::new(&str))?;
+
+      for i in tp.type_names() {
+        if let Some(ty) = types_uses.get(&i.to_string().replace(' ', "")) {
+          uses_set.insert(ty.clone());
+        }
+      }
+    }
+  }
+
+  for u in uses_set {
+    writeln!(w, "use {};", u)?;
+  }
+
+  Ok(())
+}
+
+pub fn tables_type_uses<W: Write>(
+  tables: &Vec<Table>,
+  types_uses: &HashMap<String, String>,
+  type_overrides: &HashMap<String, String>,
+  mut w: W,
+) -> anyhow::Result<()> {
+  let mut uses_set = HashSet::new();
+
+  for table in tables {
+    for c in &table.columns {
+      if let Some(str) = get_type(type_overrides, &c.r#type) {
+        let tp = parse::r#type(&mut ParseContext::new(&str))?;
+
+        for i in tp.type_names() {
+          if let Some(ty) = types_uses.get(&i.to_string().replace(' ', "")) {
+            uses_set.insert(ty.clone());
+          }
+        }
+      }
+    }
+  }
+
+  for u in uses_set {
+    writeln!(w, "use {};", u)?;
+  }
+
+  Ok(())
 }
 
 fn is_rust_keyword(str: &str) -> bool {
@@ -170,9 +263,9 @@ fn get_type(
     return Some(ty.to_string());
   }
 
-  if let Some(t) = tp_map.get(&ty.name.to_string().as_str()) {
+  if let Some(t) = tp_map.get(&ty.name().to_string().as_str()) {
     let params = ty
-      .params
+      .params()
       .iter()
       .map(|i| get_type(type_overrides, i))
       .collect::<Vec<_>>();
@@ -211,13 +304,13 @@ fn get_ref_type(
     return Some(ty.clone());
   }
 
-  if ty.name.is_string_type() {
+  if ty.name().is_string_type() {
     return Some(format!("&{}str", lifetime));
   }
 
-  if ty.name == TypeName::Nullable {
+  if *ty.name() == TypeName::Nullable {
     let params = ty
-      .params
+      .params()
       .iter()
       .map(|i| get_ref_type(type_overrides, i, Some(&lifetime)))
       .collect::<Vec<_>>();
@@ -237,9 +330,9 @@ fn get_ref_type(
     return Some(format!("&{}{}", lifetime, ty));
   }
 
-  if let Some(t) = tp_map.get(&ty.name.to_string().as_str()) {
+  if let Some(t) = tp_map.get(&ty.name().to_string().as_str()) {
     let params = ty
-      .params
+      .params()
       .iter()
       .map(|i| get_type(type_overrides, i))
       .collect::<Vec<_>>();
@@ -266,133 +359,49 @@ const DIESEL_INSERTER_DERIVE: &str = "#[derive(diesel::Insertable)]";
 
 const DIESEL_UPDATER_DERIVE: &str = "#[derive(diesel::AsChangeset)]";
 
+pub struct ModelsArgs<'a> {
+  pub file: &'a File,
+  pub backend: &'a SqlBackend,
+  pub table_configs: &'a HashMap<String, TableConfig>,
+  pub type_overrides: &'a HashMap<String, String>,
+  pub ref_type_overrides: &'a HashMap<String, String>,
+  pub pub_uses: &'a Vec<&'a str>,
+  pub pub_mods: &'a Vec<&'a str>,
+  pub uses: &'a Vec<&'a str>,
+  pub mods: &'a Vec<&'a str>,
+}
+
 pub fn models<W: Write>(
-  file: &File,
-  config: &DieselConfig,
-  models_config: &ModelsConfig,
+  &ModelsArgs {
+    file,
+    backend,
+    ref_type_overrides,
+    type_overrides,
+    table_configs,
+    mods,
+    pub_mods,
+    pub_uses,
+    uses,
+  }: &ModelsArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
-  let table_configs =
-    models_config.tables.as_ref().cloned().unwrap_or_default();
-
   let wildcard_table_config =
     table_configs.get("*").cloned().unwrap_or_default();
 
-  // remove spaces from type overrides to make it easier to match
-  let type_overrides = models_config
-    .type_overrides
-    .as_ref()
-    .cloned()
-    .unwrap_or_default()
-    .iter()
-    .map(|(x, y)| {
-      (
-        x.replace(' ', "").to_string(),
-        y.replace(' ', "").to_string(),
-      )
-    })
-    .collect::<HashMap<String, String>>();
-
-  let backend = models_config.backend.as_ref().map(|b| b.path());
-
-  // remove spaces from type overrides to make it easier to match
-  let ref_type_overrides = models_config
-    .ref_type_overrides
-    .as_ref()
-    .cloned()
-    .unwrap_or_default()
-    .iter()
-    .map(|(x, y)| {
-      (
-        x.replace(' ', "").to_string(),
-        y.replace(' ', "").to_string(),
-      )
-    })
-    .collect::<HashMap<String, String>>();
-
-  let optional_updater_fields = wildcard_table_config
-    .updater_fields_optional
-    .unwrap_or(true);
-
-  let import_root = models_config
-    .table_imports_root
-    .as_ref()
-    .cloned()
-    .unwrap_or(
-      config
-        .print_schema
-        .as_ref()
-        .cloned()
-        .unwrap_or_default()
-        .file
-        .unwrap_or(PathBuf::from_str("./schema.rs").unwrap())
-        .to_str()
-        .unwrap()
-        .trim_start_matches("./")
-        .split('/')
-        .filter_map(|mut e| {
-          if e == "mod.rs" {
-            return None;
-          }
-
-          if e == "src" {
-            return Some("crate");
-          }
-
-          if e.ends_with(".rs") {
-            e = e.trim_end_matches(".rs");
-
-            return Some(e);
-          }
-
-          Some(e)
-        })
-        .collect::<Vec<&str>>()
-        .join("::"),
-    );
-
-  rust_file_headers(&mut w)?;
-
-  if let Some(module) = file.module.as_deref() {
-    writeln!(w, "use {}::{}::{{", import_root, module)?;
-  } else {
-    writeln!(w, "use {}::{{", import_root)?;
+  for i in uses {
+    writeln!(w, "use {};", i)?;
   }
 
-  for t in &file.tables {
-    if let Some(config) = table_configs.get(&t.name) {
-      if config.skip.unwrap_or(false) {
-        continue;
-      }
-    }
-
-    writeln!(w, "  {},", &t.name)?;
+  for i in pub_uses {
+    writeln!(w, "pub use {};", i)?;
   }
 
-  writeln!(w, "}};\n")?;
-
-  if let Some(ref imports) = models_config.uses {
-    for i in imports {
-      writeln!(w, "use {};", i)?;
-    }
+  for m in mods {
+    writeln!(w, "mod {};", m)?;
   }
 
-  if let Some(ref forward_imports) = models_config.pub_uses {
-    for i in forward_imports {
-      writeln!(w, "pub use {};", i)?;
-    }
-  }
-
-  if let Some(ref mods) = models_config.mods {
-    for m in mods {
-      writeln!(w, "mod {};", m)?;
-    }
-  }
-
-  if let Some(ref forward_mods) = models_config.pub_mods {
-    for m in forward_mods {
-      writeln!(w, "pub mod {};", m)?;
-    }
+  for m in pub_mods {
+    writeln!(w, "pub mod {};", m)?;
   }
 
   for table in &file.tables {
@@ -402,13 +411,16 @@ pub fn models<W: Write>(
     table_configs.merge(wildcard_table_config.clone());
 
     model(
-      ModelArgs {
+      &ModelArgs {
         backend,
-        ref_type_overrides: &ref_type_overrides,
-        type_overrides: &type_overrides,
-        optional_updater_fields,
+        ref_type_overrides,
+        type_overrides,
         table,
         table_config: &table_configs,
+        mods: &vec![],
+        pub_mods: &vec![],
+        pub_uses: &vec![],
+        uses: &vec![],
       },
       &mut w,
     )?;
@@ -488,7 +500,7 @@ fn write_ref_fn_params<W: Write>(
 fn operation_sig<W: Write>(
   use_async: bool,
   name: &str,
-  backend: &str,
+  backend: &SqlBackend,
   lifetimes: Option<Vec<&str>>,
   mut w: W,
 ) -> std::io::Result<()> {
@@ -541,25 +553,50 @@ fn default_uses<W: Write>(
 }
 
 pub struct ModelArgs<'a> {
-  table: &'a Table,
-  table_config: &'a TableConfig,
-  backend: Option<&'a str>,
-  type_overrides: &'a HashMap<String, String>,
-  ref_type_overrides: &'a HashMap<String, String>,
-  optional_updater_fields: bool,
+  pub table: &'a Table,
+  pub table_config: &'a TableConfig,
+  pub backend: &'a SqlBackend,
+  pub type_overrides: &'a HashMap<String, String>,
+  pub ref_type_overrides: &'a HashMap<String, String>,
+  pub pub_uses: &'a Vec<&'a str>,
+  pub pub_mods: &'a Vec<&'a str>,
+  pub uses: &'a Vec<&'a str>,
+  pub mods: &'a Vec<&'a str>,
 }
 
 pub fn model<W: Write>(
-  ModelArgs {
+  &ModelArgs {
     backend,
-    optional_updater_fields,
     ref_type_overrides,
     table,
     table_config,
     type_overrides,
-  }: ModelArgs<'_>,
+    pub_mods,
+    pub_uses,
+    mods,
+    uses,
+  }: &ModelArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
+  let optional_updater_fields =
+    table_config.updater_fields_optional.unwrap_or(true);
+
+  for i in uses {
+    writeln!(w, "use {};", i)?;
+  }
+
+  for i in pub_uses {
+    writeln!(w, "pub use {};", i)?;
+  }
+
+  for m in mods {
+    writeln!(w, "mod {};", m)?;
+  }
+
+  for m in pub_mods {
+    writeln!(w, "pub mod {};", m)?;
+  }
+
   let mut d = table_config.derives.clone().unwrap_or_default();
 
   d.dedup();
@@ -580,9 +617,7 @@ pub fn model<W: Write>(
     table.primary_key.join(", ")
   )?;
 
-  if let Some(b) = backend {
-    writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
-  }
+  writeln!(w, "#[diesel(check_for_backend({}))]", backend)?;
 
   let inserter_prefix = table_config
     .inserter_struct_name_prefix
@@ -661,9 +696,7 @@ pub fn model<W: Write>(
 
     writeln!(w, "{}", DIESEL_INSERTER_DERIVE)?;
     writeln!(w, "#[diesel(table_name = {})]", table.name)?;
-    if let Some(b) = backend {
-      writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
-    }
+    writeln!(w, "#[diesel(check_for_backend({}))]", backend)?;
 
     let mut a = table_config.inserter_attributes.clone().unwrap_or_default();
 
@@ -709,9 +742,7 @@ pub fn model<W: Write>(
     }
     writeln!(w, "{}", DIESEL_UPDATER_DERIVE)?;
     writeln!(w, "#[diesel(table_name = {})]", table.name)?;
-    if let Some(b) = backend {
-      writeln!(w, "#[diesel(check_for_backend({}))]", b)?;
-    }
+    writeln!(w, "#[diesel(check_for_backend({}))]", backend)?;
 
     let mut a = table_config.updater_attributes.clone().unwrap_or_default();
 
@@ -790,13 +821,7 @@ pub fn model<W: Write>(
 
     let use_async = operations.r#async.unwrap_or(true);
 
-    if backend.is_none() {
-      return Err(anyhow::anyhow!("Backend not specified"));
-    }
-
     let primary_keys = table.primary_key_columns();
-
-    let backend = backend.unwrap();
 
     if enable_delete {
       writeln!(w, "impl {} {{", final_model_name)?;

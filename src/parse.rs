@@ -91,7 +91,13 @@ pub enum TypeName {
   Double,
   Tinyint,
   Nullable,
-  Unknown(String),
+  Custom(String),
+}
+
+impl Default for TypeName {
+  fn default() -> Self {
+    TypeName::Custom("".to_string())
+  }
 }
 
 impl TypeName {
@@ -184,7 +190,7 @@ impl Display for TypeName {
       TypeName::Double => DOUBLE,
       TypeName::Tinyint => TINYINT,
       TypeName::Nullable => NULLABLE,
-      TypeName::Unknown(name) => name,
+      TypeName::Custom(name) => name,
     })
   }
 }
@@ -236,7 +242,7 @@ impl FromStr for TypeName {
       type_name::DOUBLE => Ok(TypeName::Double),
       type_name::TINYINT => Ok(TypeName::Tinyint),
       type_name::NULLABLE => Ok(TypeName::Nullable),
-      s => Ok(TypeName::Unknown(s.to_string())),
+      s => Ok(TypeName::Custom(s.to_string())),
     }
   }
 }
@@ -297,6 +303,14 @@ impl<'a> ParseContext<'a> {
       current_index: start,
       until,
     }
+  }
+
+  pub fn starts_with_str(&self, str: &str) -> bool {
+    self.str().starts_with(str)
+  }
+
+  pub fn starts_with_char(&self, c: char) -> bool {
+    self.str().starts_with(c)
   }
 
   pub fn slice(&self, start: usize, until: usize) -> ParseContext<'a> {
@@ -504,7 +518,7 @@ impl<'a> ParseContext<'a> {
     Ok(self)
   }
 
-  pub fn expect_str(&mut self, str: &str) -> Result<(), ParseError> {
+  pub fn expect_str(&mut self, str: &str) -> Result<&mut Self, ParseError> {
     let mut chars = self.str().chars();
 
     for x in str.chars() {
@@ -526,7 +540,19 @@ impl<'a> ParseContext<'a> {
       }
     }
 
-    Ok(())
+    Ok(self)
+  }
+
+  pub fn expect_whitespace(&mut self) -> Result<&mut Self, ParseError> {
+    let c = self.current_char().unwrap();
+    if !c.is_whitespace() {
+      return Err(ParseError::from_parse_context(
+        format!("Unexpected character: '{}', expected whitespace", c),
+        self,
+      ));
+    }
+
+    Ok(self)
   }
 
   pub fn extract_around_pair(
@@ -677,20 +703,64 @@ impl<'a> ParseContext<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Type {
-  pub name: TypeName,
-  pub params: Vec<Type>,
+pub enum Type {
+  Owned {
+    name: TypeName,
+    params: Vec<Type>,
+  },
+  Borrowed {
+    shared: bool,
+    lifetime: Option<String>,
+    r#type: Box<Type>,
+  },
+  Dyn {
+    r#type: Box<Type>,
+  },
 }
 
 impl Type {
+  pub fn name(&self) -> &TypeName {
+    match self {
+      Type::Owned { name, .. } => name,
+      Type::Borrowed { r#type, .. } => r#type.name(),
+      Type::Dyn { r#type, .. } => r#type.name(),
+    }
+  }
+
+  pub fn params(&self) -> &Vec<Type> {
+    match self {
+      Type::Owned { params, .. } => params,
+      Type::Borrowed { r#type, .. } => r#type.params(),
+      Type::Dyn { r#type, .. } => r#type.params(),
+    }
+  }
+
+  pub fn type_names(&self) -> Vec<String> {
+    let mut names = vec![self.name().to_string()];
+
+    for param in self.params() {
+      names.extend(param.type_names());
+    }
+
+    names
+  }
+
   pub fn is_nullable(&self) -> bool {
-    self.name == TypeName::Nullable
+    *self.name() == TypeName::Nullable
+  }
+
+  pub fn is_owned(&self) -> bool {
+    matches!(self, Type::Owned { .. })
+  }
+
+  pub fn is_borrowed(&self) -> bool {
+    matches!(self, Type::Borrowed { .. })
   }
 
   pub fn is_nullable_type(&self, pred: impl Fn(&Type) -> bool) -> bool {
     self.is_nullable()
-      && self.params.len() == 1
-      && if let Some(t) = self.params.first() {
+      && self.params().len() == 1
+      && if let Some(t) = self.params().first() {
         pred(t)
       } else {
         false
@@ -698,39 +768,63 @@ impl Type {
   }
 
   pub fn is_datetime_type(&self) -> bool {
-    self.name.is_datetime_type() && self.params.is_empty()
+    self.name().is_datetime_type() && self.params().is_empty()
   }
 
   pub fn is_integer_type(&self) -> bool {
-    self.name.is_integer_type() && self.params.is_empty()
+    self.name().is_integer_type() && self.params().is_empty()
   }
 
   pub fn is_string_type(&self) -> bool {
-    self.name.is_string_type() && self.params.is_empty()
+    self.name().is_string_type() && self.params().is_empty()
   }
 
   pub fn is_boolean_type(&self) -> bool {
-    self.name.is_boolean_type() && self.params.is_empty()
+    self.name().is_boolean_type() && self.params().is_empty()
   }
 }
 
 impl Display for Type {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    if self.params.is_empty() {
-      write!(f, "{}", self.name)
-    } else {
-      write!(
-        f,
-        "{}<{}>",
-        self.name,
-        self
-          .params
-          .iter()
-          .map(|p| p.to_string())
-          .collect::<Vec<String>>()
-          .join(", ")
-      )
+    match self {
+      Type::Owned { name, params } => {
+        if params.is_empty() {
+          write!(f, "{}", name)?;
+        } else {
+          write!(f, "{}<", name)?;
+          for (i, param) in params.iter().enumerate() {
+            if i > 0 {
+              write!(f, ", ")?;
+            }
+            write!(f, "{}", param)?;
+          }
+          write!(f, ">")?;
+        }
+      }
+      Type::Borrowed {
+        shared,
+        lifetime,
+        r#type,
+      } => {
+        if let Some(lifetime) = lifetime {
+          if *shared {
+            write!(f, "&'{}", lifetime)?;
+          } else {
+            write!(f, "&'{} mut ", lifetime)?;
+          }
+        } else if *shared {
+          write!(f, "&")?;
+        } else {
+          write!(f, "&mut ")?;
+        }
+
+        write!(f, "{}", r#type)?;
+      }
+      Type::Dyn { r#type } => {
+        write!(f, "dyn {}", r#type)?;
+      }
     }
+    Ok(())
   }
 }
 
@@ -828,68 +922,172 @@ impl ParseError {
   }
 }
 
-fn parse_type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
+pub fn r#type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
   ctx.skip_whitespaces();
 
-  let mut type_name = String::new();
+  let mut path = String::new();
   let mut params = Vec::new();
-  let mut param_type_name = String::new();
+  let mut param_path = String::new();
   let mut depth = 0;
-  let mut started_identifier = false;
+  let mut started_path = false;
+  let mut can_start_path_sep = true;
+  let mut started_path_sep = false;
+
+  if ctx.starts_with_char('&') {
+    let mut ctx = ctx.clone();
+    ctx.ignore_char('&')?;
+    ctx.skip_whitespaces_start();
+
+    if ctx.starts_with_char('\'') {
+      let mut ctx = ctx.clone();
+      ctx.ignore_char('\'')?;
+      ctx.skip_whitespaces_start();
+      let iden = ctx.extract_identifier()?.str().to_string();
+      ctx.skip_whitespaces_start();
+
+      if ctx.starts_with_str("mut") {
+        let mut mctx = ctx.clone();
+        mctx.ignore_str("mut")?;
+
+        if let Some(c) = mctx.current_char() {
+          if c.is_whitespace() {
+            mctx.skip_whitespaces();
+
+            return Ok(Type::Borrowed {
+              shared: true,
+              lifetime: Some(iden),
+              r#type: Box::new(r#type(&mut mctx)?),
+            });
+          } else {
+            return Ok(Type::Borrowed {
+              shared: false,
+              lifetime: Some(iden),
+              r#type: Box::new(r#type(&mut ctx)?),
+            });
+          }
+        }
+      } else {
+        return Ok(Type::Borrowed {
+          shared: false,
+          lifetime: Some(iden),
+          r#type: Box::new(r#type(&mut ctx)?),
+        });
+      }
+    } else if ctx.starts_with_str("mut") {
+      let mut mctx = ctx.clone();
+      mctx.ignore_str("mut")?;
+
+      if let Some(c) = mctx.current_char() {
+        if c.is_whitespace() {
+          mctx.skip_whitespaces();
+
+          return Ok(Type::Borrowed {
+            shared: true,
+            lifetime: None,
+            r#type: Box::new(r#type(&mut mctx)?),
+          });
+        } else {
+          return Ok(Type::Borrowed {
+            shared: false,
+            lifetime: None,
+            r#type: Box::new(r#type(&mut ctx)?),
+          });
+        }
+      }
+    } else {
+      return Ok(Type::Borrowed {
+        shared: false,
+        lifetime: None,
+        r#type: Box::new(r#type(&mut ctx)?),
+      });
+    }
+  }
+
+  if ctx.starts_with_str("dyn") {
+    let mut ctx = ctx.clone();
+    ctx.ignore_str("dyn")?;
+    if let Some(c) = ctx.current_char() {
+      if c.is_whitespace() {
+        return Ok(Type::Dyn {
+          r#type: Box::new(r#type(&mut ctx)?),
+        });
+      }
+    }
+  }
 
   while let Some(c) = ctx.current_char() {
     match c {
       '<' => {
         depth += 1;
         if depth > 1 {
-          param_type_name.push(c);
+          param_path.push(c);
         }
-        started_identifier = false;
+        started_path = false;
       }
       '>' => {
         depth -= 1;
         if depth > 0 {
-          param_type_name.push(c);
+          param_path.push(c);
         } else {
-          params.push(parse_type(&mut ParseContext::new(&param_type_name))?);
-          param_type_name.clear();
+          params.push(r#type(&mut ParseContext::new(&param_path))?);
+          param_path.clear();
         }
-        started_identifier = false;
+        started_path = false;
       }
       ',' if depth > 0 => {
-        params.push(parse_type(&mut ParseContext::new(&param_type_name))?);
-        param_type_name.clear();
-        started_identifier = false;
+        params.push(r#type(&mut ParseContext::new(&param_path))?);
+        param_path.clear();
+        started_path = false;
       }
-      'A'..='Z' => {
+      'A'..='Z' if !started_path_sep => {
         if depth > 0 {
-          param_type_name.push(c);
+          param_path.push(c);
         } else {
-          type_name.push(c);
+          path.push(c);
         }
-        started_identifier = true;
+        started_path = true;
+        can_start_path_sep = true;
       }
-      'a'..='z' => {
+      'a'..='z' if !started_path_sep => {
         if depth > 0 {
-          param_type_name.push(c);
+          param_path.push(c);
         } else {
-          type_name.push(c);
+          path.push(c);
         }
-        started_identifier = true;
+        started_path = true;
+        can_start_path_sep = true;
       }
-      '_' => {
+      '_' if !started_path_sep => {
         if depth > 0 {
-          param_type_name.push(c);
+          param_path.push(c);
         } else {
-          type_name.push(c);
+          path.push(c);
         }
-        started_identifier = true;
+        started_path = true;
+        can_start_path_sep = true;
       }
-      '0'..='9' if started_identifier => {
+      '0'..='9' if started_path => {
         if depth > 0 {
-          param_type_name.push(c);
+          param_path.push(c);
         } else {
-          type_name.push(c);
+          path.push(c);
+        }
+      }
+      ':' if can_start_path_sep => {
+        started_path_sep = true;
+        can_start_path_sep = false;
+        if depth > 0 {
+          param_path.push(c);
+        } else {
+          path.push(c);
+        }
+      }
+      ':' if started_path_sep => {
+        started_path_sep = false;
+        if depth > 0 {
+          param_path.push(c);
+        } else {
+          path.push(c);
         }
       }
       ' ' | '\t' | '\n' => {}
@@ -904,8 +1102,8 @@ fn parse_type(ctx: &mut ParseContext<'_>) -> Result<Type, ParseError> {
     ctx.next();
   }
 
-  Ok(Type {
-    name: TypeName::from_str(&type_name).map_err(|_| {
+  Ok(Type::Owned {
+    name: TypeName::from_str(&path).map_err(|_| {
       ParseError::from_parse_context(
         "Could not parse type name".to_string(),
         ctx,
@@ -1126,7 +1324,7 @@ fn parse_column(ctx: &mut ParseContext<'_>) -> Result<Column, ParseError> {
   Ok(Column {
     name,
     attributes,
-    r#type: parse_type(&mut ParseContext::new(&ty))?,
+    r#type: r#type(&mut ParseContext::new(&ty))?,
   })
 }
 
@@ -1581,10 +1779,10 @@ mod test {
   #[test]
   fn sql_type_with_type_params() {
     assert_eq!(
-      parse_type(&mut ParseContext::new("Array<Int4>")),
-      Ok(Type {
+      r#type(&mut ParseContext::new("Array<Int4>")),
+      Ok(Type::Owned {
         name: TypeName::Array,
-        params: vec![Type {
+        params: vec![Type::Owned {
           name: TypeName::Int4,
           params: vec![],
         }],
@@ -1595,12 +1793,12 @@ mod test {
   #[test]
   fn sql_type_with_type_params_nested() {
     assert_eq!(
-      parse_type(&mut ParseContext::new("Array<Array<Int4>>")),
-      Ok(Type {
+      r#type(&mut ParseContext::new("Array<Array<Int4>>")),
+      Ok(Type::Owned {
         name: TypeName::Array,
-        params: vec![Type {
+        params: vec![Type::Owned {
           name: TypeName::Array,
-          params: vec![Type {
+          params: vec![Type::Owned {
             name: TypeName::Int4,
             params: vec![],
           },],
@@ -1612,21 +1810,21 @@ mod test {
   #[test]
   fn sql_type_with_multiple_type_params() {
     assert_eq!(
-      parse_type(&mut ParseContext::new("Array<Int4, Int4, Nullable<Int4>>")),
-      Ok(Type {
+      r#type(&mut ParseContext::new("Array<Int4, Int4, Nullable<Int4>>")),
+      Ok(Type::Owned {
         name: TypeName::Array,
         params: vec![
-          Type {
+          Type::Owned {
             name: TypeName::Int4,
             params: vec![],
           },
-          Type {
+          Type::Owned {
             name: TypeName::Int4,
             params: vec![],
           },
-          Type {
+          Type::Owned {
             name: TypeName::Nullable,
-            params: vec![Type {
+            params: vec![Type::Owned {
               name: TypeName::Int4,
               params: vec![],
             }],
@@ -1639,8 +1837,8 @@ mod test {
   #[test]
   fn sql_type_simple() {
     assert_eq!(
-      parse_type(&mut ParseContext::new("Int4")),
-      Ok(Type {
+      r#type(&mut ParseContext::new("Int4")),
+      Ok(Type::Owned {
         name: TypeName::Int4,
         params: vec![],
       })
@@ -1664,9 +1862,9 @@ mod test {
       Ok(Column {
         name: "id".to_string(),
         attributes: vec![],
-        r#type: Type {
+        r#type: Type::Owned {
           name: TypeName::Uuid,
-          params: vec![]
+          params: vec![],
         }
       })
     )
@@ -1679,9 +1877,9 @@ mod test {
       Ok(Column {
         name: "id".to_string(),
         attributes: vec![],
-        r#type: Type {
+        r#type: Type::Owned {
           name: TypeName::Uuid,
-          params: vec![]
+          params: vec![],
         }
       })
     )
@@ -1698,9 +1896,9 @@ mod test {
         attributes: vec![Attribute {
           content: "max_length=255".to_string()
         },],
-        r#type: Type {
+        r#type: Type::Owned {
           name: TypeName::Varchar,
-          params: vec![]
+          params: vec![],
         }
       })
     )
@@ -1722,9 +1920,9 @@ mod test {
             content: "min_length=100".to_string()
           },
         ],
-        r#type: Type {
+        r#type: Type::Owned {
           name: TypeName::Varchar,
-          params: vec![]
+          params: vec![],
         }
       })
     )
@@ -1746,21 +1944,21 @@ mod test {
             content: "min_length=100".to_string()
           },
         ],
-        r#type: Type {
+        r#type: Type::Owned {
           name: TypeName::Varchar,
           params: vec![
-            Type {
+            Type::Owned {
               name: TypeName::Int4,
               params: vec![],
             },
-            Type {
+            Type::Owned {
               name: TypeName::Nullable,
-              params: vec![Type {
+              params: vec![Type::Owned {
                 name: TypeName::Int4,
                 params: vec![],
               }],
             }
-          ]
+          ],
         }
       })
     )
@@ -1788,7 +1986,7 @@ mod test {
           Column {
             name: "id".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Uuid,
               params: vec![],
             }
@@ -1798,7 +1996,7 @@ mod test {
             attributes: vec![Attribute {
               content: "max_length=255".to_string()
             }],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Varchar,
               params: vec![],
             }
@@ -1806,7 +2004,7 @@ mod test {
           Column {
             name: "expires_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1814,7 +2012,7 @@ mod test {
           Column {
             name: "created_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1847,7 +2045,7 @@ mod test {
           Column {
             name: "id".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Uuid,
               params: vec![],
             }
@@ -1862,7 +2060,7 @@ mod test {
                 content: "max_length=255".to_string()
               }
             ],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Varchar,
               params: vec![],
             }
@@ -1870,7 +2068,7 @@ mod test {
           Column {
             name: "expires_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1878,7 +2076,7 @@ mod test {
           Column {
             name: "created_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1911,7 +2109,7 @@ mod test {
           Column {
             name: "id".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Uuid,
               params: vec![],
             }
@@ -1919,7 +2117,7 @@ mod test {
           Column {
             name: "created_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1927,7 +2125,7 @@ mod test {
           Column {
             name: "updated_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1935,9 +2133,9 @@ mod test {
           Column {
             name: "deleted_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Nullable,
-              params: vec![Type {
+              params: vec![Type::Owned {
                 name: TypeName::Timestamptz,
                 params: vec![],
               },],
@@ -1973,7 +2171,7 @@ mod test {
           Column {
             name: "id".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Uuid,
               params: vec![],
             }
@@ -1981,7 +2179,7 @@ mod test {
           Column {
             name: "created_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1989,7 +2187,7 @@ mod test {
           Column {
             name: "updated_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Timestamptz,
               params: vec![],
             }
@@ -1997,9 +2195,9 @@ mod test {
           Column {
             name: "deleted_at".to_string(),
             attributes: vec![],
-            r#type: Type {
+            r#type: Type::Owned {
               name: TypeName::Nullable,
-              params: vec![Type {
+              params: vec![Type::Owned {
                 name: TypeName::Timestamptz,
                 params: vec![],
               },],
@@ -2064,7 +2262,7 @@ mod test {
             Column {
               name: "id".to_string(),
               attributes: vec![],
-              r#type: Type {
+              r#type: Type::Owned {
                 name: TypeName::Uuid,
                 params: vec![],
               }
@@ -2072,7 +2270,7 @@ mod test {
             Column {
               name: "created_at".to_string(),
               attributes: vec![],
-              r#type: Type {
+              r#type: Type::Owned {
                 name: TypeName::Timestamptz,
                 params: vec![],
               }
@@ -2080,7 +2278,7 @@ mod test {
             Column {
               name: "updated_at".to_string(),
               attributes: vec![],
-              r#type: Type {
+              r#type: Type::Owned {
                 name: TypeName::Timestamptz,
                 params: vec![],
               }
@@ -2088,9 +2286,9 @@ mod test {
             Column {
               name: "deleted_at".to_string(),
               attributes: vec![],
-              r#type: Type {
+              r#type: Type::Owned {
                 name: TypeName::Nullable,
-                params: vec![Type {
+                params: vec![Type::Owned {
                   name: TypeName::Timestamptz,
                   params: vec![],
                 },],
@@ -2098,6 +2296,90 @@ mod test {
             },
           ],
         }]
+      })
+    )
+  }
+
+  #[test]
+  fn test_type_with_path_separator() {
+    assert_eq!(
+      r#type(&mut ParseContext::new("iam::StaffRole")),
+      Ok(Type::Owned {
+        name: TypeName::Custom("iam::StaffRole".to_string()),
+        params: vec![]
+      })
+    )
+  }
+
+  #[test]
+  fn test_dyn_type() {
+    assert_eq!(
+      r#type(&mut ParseContext::new("dyn ToSql")),
+      Ok(Type::Dyn {
+        r#type: Box::new(Type::Owned {
+          name: TypeName::Custom("ToSql".to_string()),
+          params: vec![]
+        })
+      })
+    )
+  }
+
+  #[test]
+  fn test_borrowed_type() {
+    assert_eq!(
+      r#type(&mut ParseContext::new("&ToSql")),
+      Ok(Type::Borrowed {
+        lifetime: None,
+        shared: false,
+        r#type: Box::new(Type::Owned {
+          name: TypeName::Custom("ToSql".to_string()),
+          params: vec![]
+        })
+      })
+    )
+  }
+
+  #[test]
+  fn test_borrowed_type_with_lifetime() {
+    assert_eq!(
+      r#type(&mut ParseContext::new("&'a ToSql")),
+      Ok(Type::Borrowed {
+        lifetime: Some("a".to_string()),
+        shared: false,
+        r#type: Box::new(Type::Owned {
+          name: TypeName::Custom("ToSql".to_string()),
+          params: vec![]
+        })
+      })
+    )
+  }
+
+  #[test]
+  fn test_shared_borrowed_type() {
+    assert_eq!(
+      r#type(&mut ParseContext::new("&mut ToSql")),
+      Ok(Type::Borrowed {
+        lifetime: None,
+        shared: true,
+        r#type: Box::new(Type::Owned {
+          name: TypeName::Custom("ToSql".to_string()),
+          params: vec![]
+        })
+      })
+    )
+  }
+
+  #[test]
+  fn test_shared_borrowed_type_with_lifetime() {
+    assert_eq!(
+      r#type(&mut ParseContext::new("&'a mut ToSql")),
+      Ok(Type::Borrowed {
+        lifetime: Some("a".to_string()),
+        shared: true,
+        r#type: Box::new(Type::Owned {
+          name: TypeName::Custom("ToSql".to_string()),
+          params: vec![]
+        })
       })
     )
   }
