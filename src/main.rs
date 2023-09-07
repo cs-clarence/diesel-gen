@@ -66,15 +66,16 @@ fn generate_models(
   let binding = model.mods.clone().unwrap_or_default();
   let mods = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
 
-  let binding = model.pub_mods.clone().unwrap_or_default();
+  for m in mods.iter() {
+    writeln!(buff, "mod {};", m)?;
+  }
 
+  let binding = model.pub_mods.clone().unwrap_or_default();
   let pub_mods = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
 
-  let binding = model.pub_uses.clone().unwrap_or_default();
-  let pub_uses = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
-
-  let binding = model.mods.clone().unwrap_or_default();
-  let uses = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
+  for m in pub_mods.iter() {
+    writeln!(buff, "pub mod {};", m)?;
+  }
 
   let table_imports_root = model
     .table_imports_root
@@ -104,10 +105,6 @@ fn generate_models(
       ref_type_overrides: &ref_type_overrides,
       type_overrides: &type_overrides,
       table_configs: &model.tables.clone().unwrap_or_default(),
-      mods: &mods,
-      pub_mods: &pub_mods,
-      pub_uses: &pub_uses,
-      uses: &uses,
     },
     &mut buff,
   )?;

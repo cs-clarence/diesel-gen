@@ -365,10 +365,6 @@ pub struct ModelsArgs<'a> {
   pub table_configs: &'a HashMap<String, TableConfig>,
   pub type_overrides: &'a HashMap<String, String>,
   pub ref_type_overrides: &'a HashMap<String, String>,
-  pub pub_uses: &'a Vec<&'a str>,
-  pub pub_mods: &'a Vec<&'a str>,
-  pub uses: &'a Vec<&'a str>,
-  pub mods: &'a Vec<&'a str>,
 }
 
 pub fn models<W: Write>(
@@ -378,31 +374,11 @@ pub fn models<W: Write>(
     ref_type_overrides,
     type_overrides,
     table_configs,
-    mods,
-    pub_mods,
-    pub_uses,
-    uses,
   }: &ModelsArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
   let wildcard_table_config =
     table_configs.get("*").cloned().unwrap_or_default();
-
-  for i in uses {
-    writeln!(w, "use {};", i)?;
-  }
-
-  for i in pub_uses {
-    writeln!(w, "pub use {};", i)?;
-  }
-
-  for m in mods {
-    writeln!(w, "mod {};", m)?;
-  }
-
-  for m in pub_mods {
-    writeln!(w, "pub mod {};", m)?;
-  }
 
   for table in &file.tables {
     let mut table_configs =
@@ -417,10 +393,6 @@ pub fn models<W: Write>(
         type_overrides,
         table,
         table_config: &table_configs,
-        mods: &vec![],
-        pub_mods: &vec![],
-        pub_uses: &vec![],
-        uses: &vec![],
       },
       &mut w,
     )?;
@@ -558,10 +530,6 @@ pub struct ModelArgs<'a> {
   pub backend: &'a SqlBackend,
   pub type_overrides: &'a HashMap<String, String>,
   pub ref_type_overrides: &'a HashMap<String, String>,
-  pub pub_uses: &'a Vec<&'a str>,
-  pub pub_mods: &'a Vec<&'a str>,
-  pub uses: &'a Vec<&'a str>,
-  pub mods: &'a Vec<&'a str>,
 }
 
 pub fn model<W: Write>(
@@ -571,31 +539,11 @@ pub fn model<W: Write>(
     table,
     table_config,
     type_overrides,
-    pub_mods,
-    pub_uses,
-    mods,
-    uses,
   }: &ModelArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
   let optional_updater_fields =
     table_config.updater_fields_optional.unwrap_or(true);
-
-  for i in uses {
-    writeln!(w, "use {};", i)?;
-  }
-
-  for i in pub_uses {
-    writeln!(w, "pub use {};", i)?;
-  }
-
-  for m in mods {
-    writeln!(w, "mod {};", m)?;
-  }
-
-  for m in pub_mods {
-    writeln!(w, "pub mod {};", m)?;
-  }
 
   let mut d = table_config.derives.clone().unwrap_or_default();
 

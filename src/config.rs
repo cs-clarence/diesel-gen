@@ -89,8 +89,6 @@ pub struct ModelsConfig {
   pub backend: SqlBackend,
   pub mods: Option<Vec<String>>,
   pub pub_mods: Option<Vec<String>>,
-  pub uses: Option<Vec<String>>,
-  pub pub_uses: Option<Vec<String>>,
   pub tables: Option<HashMap<String, TableConfig>>,
   pub output: Option<String>,
   pub table_imports_root: Option<String>,

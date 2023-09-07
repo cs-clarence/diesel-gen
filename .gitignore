@@ -2,3 +2,4 @@ target/*
 src/schema.rs
 cargo.lock
 .idea/
+/db/model
