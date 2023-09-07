@@ -54,6 +54,7 @@ fn generate_models(
     .open(&output_path)?;
 
   let mut buff: Vec<u8> = Vec::new();
+  write::rust_file_headers(&mut buff)?;
 
   let ref_type_overrides = util::remove_spaces_from_keys(
     &model.ref_type_override.clone().unwrap_or_default(),
@@ -77,12 +78,34 @@ fn generate_models(
     writeln!(buff, "pub mod {};", m)?;
   }
 
-  let table_imports_root = model
-    .table_imports_root
-    .clone()
-    .unwrap_or_else(|| util::import_root_from_path(&output_path));
+  let binding = model.uses.clone().unwrap_or_default();
+  let uses = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
+  for u in uses.iter() {
+    writeln!(buff, "use {};", u)?;
+  }
 
-  write::rust_file_headers(&mut buff)?;
+  let binding = model.pub_uses.clone().unwrap_or_default();
+  let pub_uses = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
+  for u in pub_uses.iter() {
+    writeln!(buff, "pub use {};", u)?;
+  }
+
+  let table_imports_root =
+    model.table_imports_root.clone().unwrap_or_else(|| {
+      util::import_root_from_path(
+        &parsed,
+        diesel_config
+          .print_schema
+          .clone()
+          .unwrap_or_default()
+          .file
+          .clone()
+          .unwrap_or_default()
+          .as_os_str()
+          .to_str()
+          .unwrap(),
+      )
+    });
 
   write::table_uses(
     &table_imports_root,

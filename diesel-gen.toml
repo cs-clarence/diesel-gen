@@ -1,6 +1,7 @@
 [models]
 output = "./src/db/model/mod.rs"
 backend = "postgres"
+pub_mods = ["enums"]
 
 [models.type_use]
 CredentialType = "crate::db::model::CredentialType"

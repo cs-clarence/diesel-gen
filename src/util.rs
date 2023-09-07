@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::parse::File;
+
 pub fn remove_spaces_from_keys(
   map: &HashMap<String, String>,
 ) -> HashMap<String, String> {
@@ -9,8 +11,8 @@ pub fn remove_spaces_from_keys(
     .collect::<HashMap<String, String>>()
 }
 
-pub fn import_root_from_path(path: &str) -> String {
-  path
+pub fn import_root_from_path(file: &File, path: &str) -> String {
+  let root = path
     .trim_start_matches("./")
     .split('/')
     .filter_map(|mut e| {
@@ -31,5 +33,11 @@ pub fn import_root_from_path(path: &str) -> String {
       Some(e)
     })
     .collect::<Vec<&str>>()
-    .join("::")
+    .join("::");
+
+  if let Some(module) = file.module.as_ref() {
+    format!("{}::{}", root, module)
+  } else {
+    root
+  }
 }

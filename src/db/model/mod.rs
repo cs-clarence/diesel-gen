@@ -3,6 +3,7 @@
 #![allow(unused)]
 #![allow(clippy::all)]
 
+pub mod enums;
 use crate::db::model::CredentialType;
 use crate::db::model::Gender;
 use crate::db::model::StaffRole;

@@ -386,6 +386,10 @@ pub fn models<W: Write>(
 
     table_configs.merge(wildcard_table_config.clone());
 
+    if table_configs.skip.unwrap_or(false) {
+      continue;
+    }
+
     model(
       &ModelArgs {
         backend,
@@ -492,10 +496,14 @@ fn operation_sig<W: Write>(
     writeln!(
       w,
       "Conn: diesel_async::AsyncConnection<Backend = {}>>(",
-      backend
+      backend.path()
     )?;
   } else {
-    writeln!(w, "Conn: diesel::Connection<Backend = {}>>(", backend)?;
+    writeln!(
+      w,
+      "Conn: diesel::Connection<Backend = {}>>(",
+      backend.path()
+    )?;
   }
 
   Ok(())
@@ -542,6 +550,10 @@ pub fn model<W: Write>(
   }: &ModelArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
+  if table_config.skip.unwrap_or(false) {
+    return Ok(());
+  }
+
   let optional_updater_fields =
     table_config.updater_fields_optional.unwrap_or(true);
 
@@ -565,7 +577,7 @@ pub fn model<W: Write>(
     table.primary_key.join(", ")
   )?;
 
-  writeln!(w, "#[diesel(check_for_backend({}))]", backend)?;
+  writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
   let inserter_prefix = table_config
     .inserter_struct_name_prefix
@@ -644,7 +656,7 @@ pub fn model<W: Write>(
 
     writeln!(w, "{}", DIESEL_INSERTER_DERIVE)?;
     writeln!(w, "#[diesel(table_name = {})]", table.name)?;
-    writeln!(w, "#[diesel(check_for_backend({}))]", backend)?;
+    writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
     let mut a = table_config.inserter_attributes.clone().unwrap_or_default();
 
@@ -690,7 +702,7 @@ pub fn model<W: Write>(
     }
     writeln!(w, "{}", DIESEL_UPDATER_DERIVE)?;
     writeln!(w, "#[diesel(table_name = {})]", table.name)?;
-    writeln!(w, "#[diesel(check_for_backend({}))]", backend)?;
+    writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
     let mut a = table_config.updater_attributes.clone().unwrap_or_default();
 
