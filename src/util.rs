@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use inflector::Inflector;
+
 use crate::parse::File;
 
 pub fn remove_spaces_from_keys(
@@ -40,4 +42,21 @@ pub fn import_root_from_path(file: &File, path: &str) -> String {
   } else {
     root
   }
+}
+
+pub fn final_name(
+  prefix: Option<&str>,
+  model_name: &str,
+  suffix: Option<&str>,
+) -> String {
+  format!(
+    "{}{}{}",
+    prefix.unwrap_or(""),
+    model_name,
+    suffix.unwrap_or("")
+  )
+}
+
+pub fn model_name(text: &str) -> String {
+  text.to_pascal_case().to_singular()
 }

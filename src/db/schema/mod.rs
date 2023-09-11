@@ -20,11 +20,28 @@ pub mod iam {
   }
 
   diesel::table! {
+      iam._prisma_migrations (id) {
+          #[max_length = 36]
+          id -> Varchar,
+          #[max_length = 64]
+          checksum -> Varchar,
+          finished_at -> Nullable<Timestamptz>,
+          #[max_length = 255]
+          migration_name -> Varchar,
+          logs -> Nullable<Text>,
+          rolled_back_at -> Nullable<Timestamptz>,
+          started_at -> Timestamptz,
+          applied_steps_count -> Int4,
+      }
+  }
+
+  diesel::table! {
       use diesel::sql_types::*;
       use super::sql_types::CredentialType;
 
       iam.credentials (id) {
           id -> Uuid,
+          identity_id -> Uuid,
           enabled -> Bool,
           #[sql_name = "type"]
           type_ -> CredentialType,
@@ -38,18 +55,19 @@ pub mod iam {
   diesel::table! {
       iam.email_address_verification_codes (id) {
           id -> Uuid,
+          #[max_length = 255]
+          value -> Varchar,
           expires_at -> Timestamptz,
           email_address_id -> Uuid,
           created_at -> Timestamptz,
           invalidated_at -> Nullable<Timestamptz>,
-          #[max_length = 255]
-          value -> Varchar,
       }
   }
 
   diesel::table! {
       iam.email_addresses (id) {
           id -> Uuid,
+          identity_id -> Uuid,
           #[max_length = 320]
           value -> Varchar,
           primary -> Bool,
@@ -60,10 +78,27 @@ pub mod iam {
   }
 
   diesel::table! {
+      use diesel::sql_types::*;
+      use super::sql_types::Gender;
+
+      iam.identities (id) {
+          id -> Uuid,
+          username -> Varchar,
+          display_picture_url -> Nullable<Varchar>,
+          first_name -> Varchar,
+          middle_name -> Nullable<Varchar>,
+          last_name -> Varchar,
+          name_suffix -> Nullable<Varchar>,
+          gender -> Nullable<Gender>,
+          other_gender -> Nullable<Text>,
+      }
+  }
+
+  diesel::table! {
       iam.password_reset_tokens (id) {
           id -> Uuid,
           #[max_length = 255]
-          token -> Varchar,
+          value -> Varchar,
           expires_at -> Timestamptz,
           created_at -> Timestamptz,
       }
@@ -75,6 +110,7 @@ pub mod iam {
 
       iam.refresh_tokens (id) {
           id -> Uuid,
+          identity_id -> Uuid,
           value -> Text,
           scope -> Text,
           audience -> Text,
@@ -87,46 +123,13 @@ pub mod iam {
   }
 
   diesel::table! {
-      iam.staff_credentials (staff_id, credential_id) {
-          staff_id -> Uuid,
-          credential_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      iam.staff_email_addresses (staff_id, email_address_id) {
-          staff_id -> Uuid,
-          email_address_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      iam.staff_password_reset_tokens (staff_id, password_reset_token_id) {
-          staff_id -> Uuid,
-          password_reset_token_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      iam.staff_refresh_tokens (staff_id, refresh_token_id) {
-          staff_id -> Uuid,
-          refresh_token_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
       use diesel::sql_types::*;
       use super::sql_types::StaffRole;
 
       iam.staffs (id) {
           id -> Uuid,
-          username -> Varchar,
-          display_picture_url -> Nullable<Varchar>,
-          first_name -> Varchar,
-          middle_name -> Nullable<Varchar>,
-          last_name -> Varchar,
-          name_suffix -> Nullable<Varchar>,
           role -> StaffRole,
+          identity_id -> Uuid,
           created_at -> Timestamptz,
           updated_at -> Timestamptz,
           deleted_at -> Nullable<Timestamptz>,
@@ -134,86 +137,31 @@ pub mod iam {
   }
 
   diesel::table! {
-      iam.user_credentials (user_id, credential_id) {
-          user_id -> Uuid,
-          credential_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      iam.user_email_addresses (user_id, email_address_id) {
-          user_id -> Uuid,
-          email_address_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      iam.user_password_reset_tokens (user_id, password_reset_token_id) {
-          user_id -> Uuid,
-          password_reset_token_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      iam.user_refresh_tokens (user_id, refresh_token_id) {
-          user_id -> Uuid,
-          refresh_token_id -> Uuid,
-      }
-  }
-
-  diesel::table! {
-      use diesel::sql_types::*;
-      use super::sql_types::Gender;
-
       iam.users (id) {
           id -> Uuid,
-          username -> Varchar,
-          display_picture_url -> Nullable<Varchar>,
-          first_name -> Varchar,
-          middle_name -> Nullable<Varchar>,
-          last_name -> Varchar,
-          name_suffix -> Nullable<Varchar>,
+          identity_id -> Uuid,
           created_at -> Timestamptz,
           updated_at -> Timestamptz,
           deleted_at -> Nullable<Timestamptz>,
-          gender -> Nullable<Gender>,
-          other_gender -> Nullable<Text>,
       }
   }
 
+  diesel::joinable!(credentials -> identities (identity_id));
   diesel::joinable!(email_address_verification_codes -> email_addresses (email_address_id));
-  diesel::joinable!(staff_credentials -> credentials (credential_id));
-  diesel::joinable!(staff_credentials -> staffs (staff_id));
-  diesel::joinable!(staff_email_addresses -> email_addresses (email_address_id));
-  diesel::joinable!(staff_email_addresses -> staffs (staff_id));
-  diesel::joinable!(staff_password_reset_tokens -> password_reset_tokens (password_reset_token_id));
-  diesel::joinable!(staff_password_reset_tokens -> staffs (staff_id));
-  diesel::joinable!(staff_refresh_tokens -> refresh_tokens (refresh_token_id));
-  diesel::joinable!(staff_refresh_tokens -> staffs (staff_id));
-  diesel::joinable!(user_credentials -> credentials (credential_id));
-  diesel::joinable!(user_credentials -> users (user_id));
-  diesel::joinable!(user_email_addresses -> email_addresses (email_address_id));
-  diesel::joinable!(user_email_addresses -> users (user_id));
-  diesel::joinable!(user_password_reset_tokens -> password_reset_tokens (password_reset_token_id));
-  diesel::joinable!(user_password_reset_tokens -> users (user_id));
-  diesel::joinable!(user_refresh_tokens -> refresh_tokens (refresh_token_id));
-  diesel::joinable!(user_refresh_tokens -> users (user_id));
+  diesel::joinable!(email_addresses -> identities (identity_id));
+  diesel::joinable!(refresh_tokens -> identities (identity_id));
+  diesel::joinable!(staffs -> identities (identity_id));
+  diesel::joinable!(users -> identities (identity_id));
 
   diesel::allow_tables_to_appear_in_same_query!(
+    _prisma_migrations,
     credentials,
     email_address_verification_codes,
     email_addresses,
+    identities,
     password_reset_tokens,
     refresh_tokens,
-    staff_credentials,
-    staff_email_addresses,
-    staff_password_reset_tokens,
-    staff_refresh_tokens,
     staffs,
-    user_credentials,
-    user_email_addresses,
-    user_password_reset_tokens,
-    user_refresh_tokens,
     users,
   );
 }

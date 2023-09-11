@@ -38,11 +38,18 @@ pub struct PrintSchema {
 #[serde(deny_unknown_fields)]
 pub struct DieselGenConfig {
   pub models: Option<ModelsConfig>,
+  pub async_graphql: Option<AyncGraphqlConfig>,
+
+  pub table_imports_root: Option<String>,
+  pub type_overrides: Option<HashMap<String, String>>,
+  pub ref_type_overrides: Option<HashMap<String, String>>,
+  pub type_uses: Option<HashMap<String, String>>,
+  pub tables: Option<HashMap<String, TableConfig>>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct ColumnConfig {
+pub struct FieldConfig {
   pub rename: Option<String>,
   #[merge(strategy = merge_option)]
   pub attributes: Option<ListConfig<String>>,
@@ -54,31 +61,49 @@ pub struct TableConfig {
   pub skip: Option<bool>,
   #[merge(strategy = merge_option)]
   pub attributes: Option<ListConfig<String>>,
+
   #[merge(strategy = merge_option)]
   pub updater_attributes: Option<ListConfig<String>>,
+
   #[merge(strategy = merge_option)]
   pub inserter_attributes: Option<ListConfig<String>>,
+
   #[merge(strategy = merge_option)]
   pub derives: Option<ListConfig<String>>,
+
   #[merge(strategy = merge_option)]
   pub updater_derives: Option<ListConfig<String>>,
+
   #[merge(strategy = merge_option)]
   pub inserter_derives: Option<ListConfig<String>>,
+
   #[merge(strategy = merge_option)]
-  pub columns: Option<MapConfig<String, ColumnConfig>>,
+  pub columns: Option<MapConfig<String, FieldConfig>>,
+
   pub model_struct_name_prefix: Option<String>,
+
   pub model_struct_name_suffix: Option<String>,
+
   pub inserter_struct: Option<bool>,
+
   #[merge(strategy = merge_option)]
   pub inserter_struct_omit_columns: Option<ListConfig<String>>,
+
   pub inserter_struct_name_prefix: Option<String>,
+
   pub inserter_struct_name_suffix: Option<String>,
+
   pub updater_struct: Option<bool>,
+
   #[merge(strategy = merge_option)]
   pub updater_struct_omit_columns: Option<ListConfig<String>>,
+
   pub updater_struct_name_prefix: Option<String>,
+
   pub updater_struct_name_suffix: Option<String>,
+
   pub updater_fields_optional: Option<bool>,
+
   #[merge(strategy = merge_option)]
   pub operations: Option<OperationsConfig>,
 }
@@ -91,12 +116,7 @@ pub struct ModelsConfig {
   pub pub_mods: Option<Vec<String>>,
   pub uses: Option<Vec<String>>,
   pub pub_uses: Option<Vec<String>>,
-  pub tables: Option<HashMap<String, TableConfig>>,
   pub output: Option<String>,
-  pub table_imports_root: Option<String>,
-  pub type_override: Option<HashMap<String, String>>,
-  pub ref_type_override: Option<HashMap<String, String>>,
-  pub type_use: Option<HashMap<String, String>>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug)]
@@ -143,20 +163,30 @@ pub struct OperationsConfig {
   #[merge(strategy = merge_option)]
   pub delete: Option<DeleteOperationConfig>,
   #[merge(strategy = merge_option)]
+  pub soft_delete: Option<SoftDeleteOperationConfig>,
+  #[merge(strategy = merge_option)]
   pub insert: Option<InsertOperationConfig>,
   #[merge(strategy = merge_option)]
   pub update: Option<UpdateOperationConfig>,
+  #[merge(strategy = merge_option)]
+  pub simple_paginate: Option<SimplePaginateOperationConfig>,
+  #[merge(strategy = merge_option)]
+  pub cursor_paginate: Option<CursorPaginateOperationConfig>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct SoftDeleteOperationConfig {
+  pub enable: Option<bool>,
+  pub soft_delete_column: Option<String>,
+  pub returning: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct DeleteOperationConfig {
   pub enable: Option<bool>,
-  pub hard_delete: Option<bool>,
-  pub hard_delete_returning: Option<bool>,
-  pub soft_delete: Option<bool>,
-  pub soft_delete_returning: Option<bool>,
-  pub soft_delete_column: Option<String>,
+  pub returning: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge)]
@@ -172,14 +202,27 @@ pub struct InsertOperationConfig {
 #[serde(deny_unknown_fields)]
 pub struct UpdateOperationConfig {
   pub enable: Option<bool>,
-  pub per_column: Option<bool>,
-  pub per_column_returning: Option<bool>,
+  pub returning: Option<bool>,
+  pub column_wise_update: Option<bool>,
+  pub column_wise_update_returning: Option<bool>,
   #[merge(strategy = merge_option)]
-  pub per_column_omit: Option<ListConfig<String>>,
-  pub whole_table: Option<bool>,
-  pub whole_table_returning: Option<bool>,
+  pub omit_column_wise_update: Option<ListConfig<String>>,
   #[merge(strategy = merge_option)]
   pub update_timestamp_columns: Option<ListConfig<String>>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct SimplePaginateOperationConfig {
+  pub enable: Option<bool>,
+  pub include_soft_deleted: Option<bool>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct CursorPaginateOperationConfig {
+  pub enable: Option<bool>,
+  pub include_soft_deleted: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -387,4 +430,35 @@ where
       }
     }
   }
+}
+
+#[derive(Deserialize, Clone, Debug, Default)]
+#[serde(deny_unknown_fields)]
+pub struct AyncGraphqlConfig {
+  pub output: Option<String>,
+  pub model_imports_root: Option<String>,
+
+  #[serde(default)]
+  pub output_types: HashMap<String, OutputTypeConfig>,
+
+  pub mods: Option<Vec<String>>,
+  pub pub_mods: Option<Vec<String>>,
+  pub uses: Option<Vec<String>>,
+  pub pub_uses: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, Clone, Debug, Default, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct OutputTypeConfig {
+  #[merge(skip)]
+  pub table: String,
+  pub impl_from: Option<bool>,
+  pub complex_object: Option<bool>,
+  pub derives: Option<ListConfig<String>>,
+  pub attributes: Option<ListConfig<String>>,
+  pub fields: Option<MapConfig<String, FieldConfig>>,
+
+  #[serde(default)]
+  #[merge(skip)]
+  pub inherits: Vec<String>,
 }

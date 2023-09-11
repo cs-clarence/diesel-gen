@@ -353,7 +353,7 @@ impl<'a> ParseContext<'a> {
     self.str[..self.current_index].chars().last()
   }
 
-  pub fn next(&mut self) -> Option<char> {
+  pub(crate) fn next(&mut self) -> Option<char> {
     if self.current_index >= self.until {
       return None;
     }
@@ -757,7 +757,7 @@ impl Type {
     matches!(self, Type::Borrowed { .. })
   }
 
-  pub fn is_nullable_type(&self, pred: impl Fn(&Type) -> bool) -> bool {
+  pub fn is_nullable_and(&self, pred: impl Fn(&Type) -> bool) -> bool {
     self.is_nullable()
       && self.params().len() == 1
       && if let Some(t) = self.params().first() {
@@ -767,19 +767,19 @@ impl Type {
       }
   }
 
-  pub fn is_datetime_type(&self) -> bool {
+  pub fn is_datetime(&self) -> bool {
     self.name().is_datetime_type() && self.params().is_empty()
   }
 
-  pub fn is_integer_type(&self) -> bool {
+  pub fn is_integer(&self) -> bool {
     self.name().is_integer_type() && self.params().is_empty()
   }
 
-  pub fn is_string_type(&self) -> bool {
+  pub fn is_string(&self) -> bool {
     self.name().is_string_type() && self.params().is_empty()
   }
 
-  pub fn is_boolean_type(&self) -> bool {
+  pub fn is_boolean(&self) -> bool {
     self.name().is_boolean_type() && self.params().is_empty()
   }
 }

@@ -13,7 +13,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum CliSubcommand {
-  Models,
+  Generate,
 }
 
 #[derive(Args)]
