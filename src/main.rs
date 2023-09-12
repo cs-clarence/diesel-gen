@@ -236,7 +236,7 @@ fn generate_async_graphql(
       &ModelImportsArgs {
         model_imports_root: &model_imports_root,
         model_names: &model_names,
-        output_type_configs: &async_graphql.output_types.values().collect(),
+        output_type_configs: &async_graphql.output_types,
         rename_prefix: Some("Model"),
       },
       &mut buff,

@@ -501,7 +501,7 @@ pub struct GraphqlFieldConfig {
 #[serde(deny_unknown_fields)]
 pub struct OutputTypeConfig {
   #[merge(skip)]
-  pub table: String,
+  pub table: Option<String>,
   pub impl_from: Option<bool>,
   pub complex_object: Option<bool>,
   pub derives: Option<ListConfig<String>>,

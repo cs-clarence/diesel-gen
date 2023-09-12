@@ -3,6 +3,7 @@ use std::{
   io::Write,
 };
 
+use inflector::Inflector;
 use merge::Merge;
 
 use crate::{
@@ -15,7 +16,7 @@ use crate::{
 };
 
 pub struct ModelImportsArgs<'a> {
-  pub output_type_configs: &'a Vec<&'a OutputTypeConfig>,
+  pub output_type_configs: &'a HashMap<String, OutputTypeConfig>,
   pub rename_prefix: Option<&'a str>,
   pub model_names: &'a HashMap<String, String>,
   pub model_imports_root: &'a str,
@@ -28,9 +29,13 @@ pub fn model_imports<W: Write>(
   let prefix = args.rename_prefix.unwrap_or_default();
   let mut uses = HashSet::<String>::new();
 
-  for config in args.output_type_configs.iter() {
-    let name = args.model_names.get(&config.table).ok_or_else(|| {
-      anyhow::anyhow!("model name for table {} not found", config.table)
+  for (name, config) in args.output_type_configs.iter() {
+    let name = name.to_snake_case().to_singular();
+
+    let table = config.table.as_ref().unwrap_or(&name);
+
+    let name = args.model_names.get(table).ok_or_else(|| {
+      anyhow::anyhow!("model name for table {} not found", table)
     })?;
 
     if prefix.is_empty() {
@@ -92,15 +97,19 @@ pub fn output_types<W: Write>(
     args.table_configs.get("*").cloned().unwrap_or_default();
 
   for (name, config) in args.output_type_configs {
+    let default_table_name = name.to_snake_case().to_singular();
+
+    let table_name = config.table.as_ref().unwrap_or(&default_table_name);
+
     let table = args
       .tables
       .iter()
-      .find(|t| t.name == config.table)
-      .ok_or_else(|| anyhow::anyhow!("table {} not found", config.table))?;
+      .find(|t| t.name == *table_name)
+      .ok_or_else(|| anyhow::anyhow!("table {} not found", table_name))?;
 
     let mut table_config = args
       .table_configs
-      .get(&config.table)
+      .get(table_name)
       .cloned()
       .unwrap_or_default();
 
@@ -367,7 +376,22 @@ pub fn output_type<W: Write>(
       }
     }
 
-    writeln!(w, "pub {}: {},", f.field_name, ty)?;
+    let rust_keyword = is_rust_keyword(&f.field_name);
+
+    if rust_keyword {
+      writeln!(w, "#[graphql(rename = \"{}\")]", &f.field_name)?;
+    }
+
+    writeln!(
+      w,
+      "pub {}: {},",
+      if rust_keyword {
+        format!("r#{}", f.field_name)
+      } else {
+        f.field_name.clone()
+      },
+      ty
+    )?;
   }
 
   writeln!(w, "}}")?;
