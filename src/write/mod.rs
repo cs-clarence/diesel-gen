@@ -328,7 +328,7 @@ pub fn model<W: Write>(
     .and_then(|t| t.updater_fields_optional)
     .unwrap_or(true);
 
-  let d = table_config.and_then(|t| t.derives.clone());
+  let d = table_config.and_then(|t| t.model_derives.clone());
 
   if let Some(mut d) = d {
     d.dedup();

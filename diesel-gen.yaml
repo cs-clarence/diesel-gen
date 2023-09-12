@@ -14,10 +14,9 @@ type_uses:
 
 tables:
   "*":
-    derives:
+    model_derives:
       - Clone
       - Debug
-      - Default
     updater_derives:
       - Clone
       - Debug
@@ -25,7 +24,6 @@ tables:
     inserter_derives:
       - Clone
       - Debug
-      - Default
     columns:
       type_:
         rename: r#type

@@ -70,10 +70,13 @@ fn generate_models(config: &Config, parsed_file: &File) -> anyhow::Result<()> {
 
     let table_imports_root =
       config.table_imports_root.clone().unwrap_or_else(|| {
-        util::import_root_from_path(
-          parsed_file,
-          config.schema.clone().to_str().unwrap(),
-        )
+        let path = util::to_rust_path(config.schema.clone().to_str().unwrap());
+
+        if let Some(module) = &parsed_file.module {
+          format!("{}::{}", path, module)
+        } else {
+          path
+        }
       });
 
     write::table_uses(
@@ -194,14 +197,17 @@ fn generate_async_graphql(
 
     let tables = &config.tables;
 
-    let wildcard_table_config = tables.get("*").cloned().unwrap_or_default();
+    let wildcard_table_config = tables.get("*");
 
     let model_names = parsed_file
       .tables
       .iter()
       .map(|v| {
-        let mut t = tables.get(&v.name).cloned().unwrap_or_default();
-        t.merge(wildcard_table_config.clone());
+        let t = tables
+          .get(&v.name)
+          .or(wildcard_table_config)
+          .cloned()
+          .unwrap_or_default();
 
         (
           v.name.clone(),
@@ -216,8 +222,7 @@ fn generate_async_graphql(
 
     let model_imports_root =
       async_graphql.model_imports_root.clone().unwrap_or_else(|| {
-        util::import_root_from_path(
-          parsed_file,
+        util::to_rust_path(
           &config
             .models
             .clone()
@@ -293,15 +298,19 @@ fn main() -> anyhow::Result<()> {
     serde_yaml::from_str::<Config>(&diesel_gen_config_content)?;
 
   if let Some(t) = diesel_gen_config.tables.get("*").cloned() {
-    for v in diesel_gen_config.tables.values_mut() {
-      v.merge(t.clone());
+    for (k, v) in diesel_gen_config.tables.iter_mut() {
+      if k != "*" {
+        v.merge(t.clone());
+      }
     }
   }
 
   if let Some(ag) = &mut diesel_gen_config.async_graphql {
     if let Some(t) = ag.output_types.get("*").cloned() {
-      for v in ag.output_types.values_mut() {
-        v.merge(t.clone());
+      for (k, v) in ag.output_types.iter_mut() {
+        if k != "*" {
+          v.merge(t.clone());
+        }
       }
     }
   }

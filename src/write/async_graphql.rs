@@ -6,7 +6,10 @@ use std::{
 use merge::Merge;
 
 use crate::{
-  config::{InheritConfig, OutputTypeConfig, TableConfig},
+  config::{
+    ColumnConfig, GraphqlFieldConfig, InheritConfig, OutputTypeConfig,
+    TableConfig,
+  },
   parse::{Column, Table},
   util::is_rust_keyword,
 };
@@ -173,7 +176,9 @@ pub struct FieldInfo<'a> {
   pub field_name: String,
   pub model_field_name: String,
   pub column: &'a Column,
+  pub field_config: Option<&'a GraphqlFieldConfig>,
   pub index: usize,
+  pub column_config: Option<&'a ColumnConfig>,
 }
 
 fn get_fields<'a>(
@@ -187,6 +192,8 @@ fn get_fields<'a>(
   let binding = [args.table];
 
   let tables = args.inherits.iter().chain(binding.iter());
+
+  let max = tables.clone().count();
 
   for (index, t) in tables.enumerate() {
     for column in t.columns.iter() {
@@ -204,7 +211,33 @@ fn get_fields<'a>(
       let table_config =
         args.table_configs.get(&t.name).or(wildcard_table_config);
 
-      let field_config = otc.fields.get(&column.name);
+      let field_configs = if index == max - 1 {
+        Some(&otc.fields)
+      } else {
+        otc.inherits.get(index).and_then(|i| i.fields())
+      };
+
+      let field_config = field_configs.and_then(|f| f.get(&column.name));
+
+      let column_config =
+        table_config.and_then(|t| t.columns.get(&column.name));
+
+      if let (Some(f), Some(c)) = (field_config, column_config) {
+        let model_skip = c.omit_in_model.unwrap_or(false);
+        let gql_skip = f.omit.unwrap_or(false);
+
+        if model_skip && !gql_skip {
+          anyhow::bail!(
+            "column {} is omitted in table {} but not in async_graphql config, omit it in async_graphql or remove the omit from the table config",
+            &column.name,
+            &t.name
+          );
+        }
+
+        if gql_skip {
+          continue;
+        }
+      }
 
       let field_name = field_config
         .and_then(|o| o.rename.as_ref())
@@ -216,12 +249,8 @@ fn get_fields<'a>(
         field_name.to_string()
       };
 
-      let model_field_name = table_config
-        .and_then(|t| {
-          t.columns
-            .get(&column.name)
-            .and_then(|c| c.rename.as_deref())
-        })
+      let model_field_name = column_config
+        .and_then(|c| c.rename.as_deref())
         .unwrap_or(&column.name);
 
       let model_field_name = if is_rust_keyword(model_field_name) {
@@ -237,6 +266,8 @@ fn get_fields<'a>(
           model_field_name,
           column,
           index,
+          field_config,
+          column_config,
         },
       );
     }
@@ -322,6 +353,20 @@ pub fn output_type<W: Write>(
         anyhow::anyhow!("type for field {} not found", f.column.name)
       })?;
 
+    if let Some(f) = f.field_config {
+      if let Some(ref a) = f.attributes {
+        for a in a {
+          writeln!(w, "#[{}]", a)?;
+        }
+      }
+
+      if let Some(shareable) = f.shareable {
+        if shareable {
+          writeln!(w, "#[graphql(shareable)]")?;
+        }
+      }
+    }
+
     writeln!(w, "pub {}: {},", f.field_name, ty)?;
   }
 
@@ -336,11 +381,15 @@ pub fn output_type<W: Write>(
     writeln!(w, ") -> Self {{")?;
     writeln!(w, "Self {{")?;
     for f in fields.iter() {
-      writeln!(
-        w,
-        "{}: val.{}.{},",
-        f.field_name, f.index, f.model_field_name
-      )?;
+      if args.inherits.is_empty() {
+        writeln!(w, "{}: val.{},", f.field_name, f.model_field_name)?;
+      } else {
+        writeln!(
+          w,
+          "{}: val.{}.{},",
+          f.field_name, f.index, f.model_field_name
+        )?;
+      }
     }
     writeln!(w, "}}")?;
     writeln!(w, "}}")?;

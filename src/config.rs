@@ -57,7 +57,7 @@ pub struct TableConfig {
   pub inserter_attributes: Option<ListConfig<String>>,
 
   #[merge(strategy = merge_option)]
-  pub derives: Option<ListConfig<String>>,
+  pub model_derives: Option<ListConfig<String>>,
 
   #[merge(strategy = merge_option)]
   pub updater_derives: Option<ListConfig<String>>,
@@ -451,8 +451,7 @@ pub struct AyncGraphqlConfig {
 #[serde(deny_unknown_fields)]
 pub struct InheritConfig {
   pub table: String,
-  pub fields: Option<MapConfig<String, ColumnConfig>>,
-  pub omit_fields: Option<ListConfig<String>>,
+  pub fields: Option<MapConfig<String, GraphqlFieldConfig>>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -469,9 +468,15 @@ impl Inherit {
       Inherit::Table(name) => InheritConfig {
         table: name,
         fields: None,
-        omit_fields: None,
       },
       Inherit::Config(config) => config,
+    }
+  }
+
+  pub fn fields(&self) -> Option<&MapConfig<String, GraphqlFieldConfig>> {
+    match self {
+      Inherit::Table(_) => None,
+      Inherit::Config(config) => config.fields.as_ref(),
     }
   }
 
@@ -485,9 +490,10 @@ impl Inherit {
 
 #[derive(Deserialize, Clone, Debug, Default, Merge)]
 #[serde(deny_unknown_fields)]
-pub struct FieldConfig {
+pub struct GraphqlFieldConfig {
   pub omit: Option<bool>,
   pub rename: Option<String>,
+  pub shareable: Option<bool>,
   pub attributes: Option<ListConfig<String>>,
 }
 
@@ -502,7 +508,7 @@ pub struct OutputTypeConfig {
   pub attributes: Option<ListConfig<String>>,
 
   #[serde(default)]
-  pub fields: MapConfig<String, FieldConfig>,
+  pub fields: MapConfig<String, GraphqlFieldConfig>,
 
   #[serde(default)]
   #[merge(skip)]

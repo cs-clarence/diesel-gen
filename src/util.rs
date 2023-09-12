@@ -4,7 +4,7 @@ use inflector::Inflector;
 
 use crate::{
   config::ColumnConfig,
-  parse::{type_name, File, Type, TypeName},
+  parse::{type_name, Type, TypeName},
 };
 
 pub fn remove_spaces_from_keys(
@@ -16,8 +16,8 @@ pub fn remove_spaces_from_keys(
     .collect::<HashMap<String, String>>()
 }
 
-pub fn import_root_from_path(file: &File, path: &str) -> String {
-  let root = path
+pub fn to_rust_path(path: &str) -> String {
+  path
     .trim_start_matches("./")
     .split('/')
     .filter_map(|mut e| {
@@ -38,13 +38,7 @@ pub fn import_root_from_path(file: &File, path: &str) -> String {
       Some(e)
     })
     .collect::<Vec<&str>>()
-    .join("::");
-
-  if let Some(module) = file.module.as_ref() {
-    format!("{}::{}", root, module)
-  } else {
-    root
-  }
+    .join("::")
 }
 
 pub fn final_name(
