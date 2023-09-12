@@ -338,12 +338,12 @@ pub fn output_type<W: Write>(
   };
 
   writeln!(w, "#[derive(async_graphql::SimpleObject)]",)?;
-  if args.complex_object {
-    writeln!(w, "#[graphql(complex)]",)?;
-  }
-
   if !args.derives.is_empty() {
     writeln!(w, "#[derive({})]", args.derives.join(", "))?;
+  }
+
+  if args.complex_object {
+    writeln!(w, "#[graphql(complex)]",)?;
   }
 
   if !args.attributes.is_empty() {
