@@ -18,8 +18,6 @@ pub enum CliSubcommand {
 
 #[derive(Args)]
 pub struct CliArgs {
-  #[clap(short = 'c', long, default_value = "./diesel.toml")]
-  pub diesel_config: PathBuf,
-  #[clap(short = 'C', long, default_value = "./diesel-gen.toml")]
-  pub diesel_gen_config: PathBuf,
+  #[clap(short = 'c', long, default_value = "./diesel-gen.yaml")]
+  pub config: PathBuf,
 }

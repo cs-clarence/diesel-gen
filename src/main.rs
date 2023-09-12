@@ -2,14 +2,13 @@ use std::{
   collections::HashMap,
   fs::{self, OpenOptions},
   io::Write,
-  path::PathBuf,
   process::{Command, Stdio},
   str::FromStr,
 };
 
 use clap::Parser;
 use diesel_gen::{
-  config::{DieselConfig, DieselGenConfig},
+  config::Config,
   parse::File,
   write::async_graphql::{ModelImportsArgs, OutputTypesArgs},
 };
@@ -19,12 +18,8 @@ use diesel_gen::write::ModelsArgs;
 use diesel_gen::*;
 use merge::Merge;
 
-fn generate_models(
-  diesel_config: &DieselConfig,
-  diesel_gen_config: &DieselGenConfig,
-  parsed_file: &File,
-) -> anyhow::Result<()> {
-  let model = diesel_gen_config.models.as_ref();
+fn generate_models(config: &Config, parsed_file: &File) -> anyhow::Result<()> {
+  let model = config.models.as_ref();
 
   if let Some(model) = model {
     let output_path = model
@@ -42,16 +37,10 @@ fn generate_models(
     let mut buff: Vec<u8> = Vec::new();
     write::rust_file_headers(&mut buff)?;
 
-    let ref_type_overrides = util::remove_spaces_from_keys(
-      &diesel_gen_config
-        .ref_type_overrides
-        .clone()
-        .unwrap_or_default(),
-    );
+    let ref_type_overrides =
+      util::remove_spaces_from_keys(&config.ref_type_overrides);
 
-    let type_overrides = util::remove_spaces_from_keys(
-      &diesel_gen_config.type_overrides.clone().unwrap_or_default(),
-    );
+    let type_overrides = util::remove_spaces_from_keys(&config.type_overrides);
 
     let binding = model.mods.clone().unwrap_or_default();
     let mods = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
@@ -79,29 +68,18 @@ fn generate_models(
       writeln!(buff, "pub use {};", u)?;
     }
 
-    let table_imports_root = diesel_gen_config
-      .table_imports_root
-      .clone()
-      .unwrap_or_else(|| {
+    let table_imports_root =
+      config.table_imports_root.clone().unwrap_or_else(|| {
         util::import_root_from_path(
           parsed_file,
-          diesel_config
-            .print_schema
-            .clone()
-            .unwrap_or_default()
-            .file
-            .clone()
-            .unwrap_or_default()
-            .as_os_str()
-            .to_str()
-            .unwrap(),
+          config.schema.clone().to_str().unwrap(),
         )
       });
 
     write::table_uses(
       &table_imports_root,
       &parsed_file.tables,
-      &diesel_gen_config.tables.clone().unwrap_or_default(),
+      &config.tables,
       &mut buff,
     )?;
 
@@ -109,7 +87,7 @@ fn generate_models(
       &TypeUsesArgs {
         tables: &parsed_file.tables,
         type_overrides: &type_overrides,
-        types_uses: &diesel_gen_config.type_uses.clone().unwrap_or_default(),
+        types_uses: &config.type_uses,
       },
       &mut buff,
     )?;
@@ -120,7 +98,7 @@ fn generate_models(
         backend: &model.backend,
         ref_type_overrides: &ref_type_overrides,
         type_overrides: &type_overrides,
-        table_configs: &diesel_gen_config.tables.clone().unwrap_or_default(),
+        table_configs: &config.tables,
       },
       &mut buff,
     )?;
@@ -152,24 +130,14 @@ fn generate_models(
 }
 
 fn generate_async_graphql(
-  diesel_config: &DieselConfig,
-  diesel_gen_config: &DieselGenConfig,
+  config: &Config,
   parsed_file: &File,
 ) -> anyhow::Result<()> {
-  let content = fs::read_to_string(
-    diesel_config
-      .print_schema
-      .as_ref()
-      .cloned()
-      .unwrap_or_default()
-      .file
-      .clone()
-      .unwrap_or(PathBuf::from_str("./schema.rs")?),
-  )?;
+  let content = fs::read_to_string(config.schema.clone())?;
 
   let parsed = parse::file(&mut ParseContext::new(&content))?;
 
-  let async_graphql = diesel_gen_config.async_graphql.as_ref();
+  let async_graphql = config.async_graphql.as_ref();
 
   if let Some(async_graphql) = async_graphql {
     let output_path = async_graphql
@@ -187,9 +155,7 @@ fn generate_async_graphql(
     let mut buff: Vec<u8> = Vec::new();
     write::rust_file_headers(&mut buff)?;
 
-    let type_overrides = util::remove_spaces_from_keys(
-      &diesel_gen_config.type_overrides.clone().unwrap_or_default(),
-    );
+    let type_overrides = util::remove_spaces_from_keys(&config.type_overrides);
 
     let binding = async_graphql.mods.clone().unwrap_or_default();
     let mods = binding.iter().map(|e| e.as_str()).collect::<Vec<&str>>();
@@ -221,12 +187,12 @@ fn generate_async_graphql(
       &TypeUsesArgs {
         tables: &parsed.tables,
         type_overrides: &type_overrides,
-        types_uses: &diesel_gen_config.type_uses.clone().unwrap_or_default(),
+        types_uses: &config.type_uses,
       },
       &mut buff,
     )?;
 
-    let tables = diesel_gen_config.tables.clone().unwrap_or_default();
+    let tables = &config.tables;
 
     let wildcard_table_config = tables.get("*").cloned().unwrap_or_default();
 
@@ -252,7 +218,7 @@ fn generate_async_graphql(
       async_graphql.model_imports_root.clone().unwrap_or_else(|| {
         util::import_root_from_path(
           parsed_file,
-          &diesel_gen_config
+          &config
             .models
             .clone()
             .unwrap_or_default()
@@ -276,12 +242,15 @@ fn generate_async_graphql(
       .map(|(k, v)| (k.clone(), format!("Model{}", v)))
       .collect::<HashMap<String, String>>();
 
+    let type_overrides = util::remove_spaces_from_keys(&config.type_overrides);
+
     write::async_graphql::output_types(
       &OutputTypesArgs {
         model_names: &model_names,
         output_type_configs: &async_graphql.output_types,
-        table_configs: &diesel_gen_config.tables.clone().unwrap_or_default(),
+        table_configs: &config.tables,
         tables: &parsed.tables,
+        type_overrides: &type_overrides,
       },
       &mut buff,
     )?;
@@ -318,32 +287,33 @@ fn generate_async_graphql(
 fn main() -> anyhow::Result<()> {
   let args = cli::Cli::parse();
 
-  let diesel_config_content = fs::read_to_string(args.args.diesel_config)?;
-  let diesel_gen_config_content =
-    fs::read_to_string(args.args.diesel_gen_config)?;
+  let diesel_gen_config_content = fs::read_to_string(args.args.config)?;
 
-  let diesel_config = toml::from_str::<DieselConfig>(&diesel_config_content)?;
+  let mut diesel_gen_config =
+    serde_yaml::from_str::<Config>(&diesel_gen_config_content)?;
 
-  let diesel_gen_config =
-    toml::from_str::<DieselGenConfig>(&diesel_gen_config_content)?;
+  if let Some(t) = diesel_gen_config.tables.get("*").cloned() {
+    for v in diesel_gen_config.tables.values_mut() {
+      v.merge(t.clone());
+    }
+  }
 
-  let content = fs::read_to_string(
-    diesel_config
-      .print_schema
-      .as_ref()
-      .cloned()
-      .unwrap_or_default()
-      .file
-      .clone()
-      .unwrap_or(PathBuf::from_str("./schema.rs")?),
-  )?;
+  if let Some(ag) = &mut diesel_gen_config.async_graphql {
+    if let Some(t) = ag.output_types.get("*").cloned() {
+      for v in ag.output_types.values_mut() {
+        v.merge(t.clone());
+      }
+    }
+  }
+
+  let content = fs::read_to_string(&diesel_gen_config.schema)?;
 
   let parsed = parse::file(&mut ParseContext::new(&content))?;
 
   match args.command {
     cli::CliSubcommand::Generate => {
-      generate_models(&diesel_config, &diesel_gen_config, &parsed)?;
-      generate_async_graphql(&diesel_config, &diesel_gen_config, &parsed)?;
+      generate_models(&diesel_gen_config, &parsed)?;
+      generate_async_graphql(&diesel_gen_config, &parsed)?;
     }
   }
 

@@ -17,6 +17,9 @@ use crate::db::schema::iam::{
   Clone,
   Debug,
   Default,
+  Clone,
+  Debug,
+  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -37,7 +40,7 @@ pub struct PrismaMigration {
   pub applied_steps_count: i32,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = _prisma_migrations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPrismaMigration<'a> {
@@ -51,7 +54,7 @@ pub struct NewPrismaMigration<'a> {
   pub applied_steps_count: &'a i32,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = _prisma_migrations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PrismaMigrationUpdate<'a> {
@@ -240,45 +243,10 @@ impl PrismaMigration {
   }
 }
 
-impl PrismaMigration {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    _prisma_migrations::table
-      .select(PrismaMigration::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<PrismaMigration>(conn)
-      .await
-  }
-}
-
-impl PrismaMigration {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    _prisma_migrations::table
-      .select(PrismaMigration::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<PrismaMigration>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -302,7 +270,7 @@ pub struct Credential {
   pub updated_at: time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewCredential<'a> {
@@ -316,7 +284,7 @@ pub struct NewCredential<'a> {
   pub updated_at: &'a time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct CredentialUpdate<'a> {
@@ -503,45 +471,10 @@ impl Credential {
   }
 }
 
-impl Credential {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    credentials::table
-      .select(Credential::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<Credential>(conn)
-      .await
-  }
-}
-
-impl Credential {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    credentials::table
-      .select(Credential::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<Credential>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -563,7 +496,7 @@ pub struct EmailAddressVerificationCode {
   pub invalidated_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewEmailAddressVerificationCode<'a> {
@@ -575,7 +508,7 @@ pub struct NewEmailAddressVerificationCode<'a> {
   pub invalidated_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailAddressVerificationCodeUpdate<'a> {
@@ -732,45 +665,10 @@ impl EmailAddressVerificationCode {
   }
 }
 
-impl EmailAddressVerificationCode {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    email_address_verification_codes::table
-      .select(EmailAddressVerificationCode::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<EmailAddressVerificationCode>(conn)
-      .await
-  }
-}
-
-impl EmailAddressVerificationCode {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    email_address_verification_codes::table
-      .select(EmailAddressVerificationCode::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<EmailAddressVerificationCode>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -793,7 +691,7 @@ pub struct EmailAddress {
   pub updated_at: time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewEmailAddress<'a> {
@@ -806,7 +704,7 @@ pub struct NewEmailAddress<'a> {
   pub updated_at: &'a time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailAddressUpdate<'a> {
@@ -992,45 +890,10 @@ impl EmailAddress {
   }
 }
 
-impl EmailAddress {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    email_addresses::table
-      .select(EmailAddress::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<EmailAddress>(conn)
-      .await
-  }
-}
-
-impl EmailAddress {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    email_addresses::table
-      .select(EmailAddress::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<EmailAddress>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -1055,7 +918,7 @@ pub struct Identity {
   pub other_gender: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = identities)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewIdentity<'a> {
@@ -1070,7 +933,7 @@ pub struct NewIdentity<'a> {
   pub other_gender: Option<&'a str>,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = identities)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct IdentityUpdate<'a> {
@@ -1277,45 +1140,10 @@ impl Identity {
   }
 }
 
-impl Identity {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    identities::table
-      .select(Identity::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<Identity>(conn)
-      .await
-  }
-}
-
-impl Identity {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    identities::table
-      .select(Identity::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<Identity>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -1335,7 +1163,7 @@ pub struct PasswordResetToken {
   pub created_at: time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPasswordResetToken<'a> {
@@ -1345,7 +1173,7 @@ pub struct NewPasswordResetToken<'a> {
   pub created_at: &'a time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PasswordResetTokenUpdate<'a> {
@@ -1462,45 +1290,10 @@ impl PasswordResetToken {
   }
 }
 
-impl PasswordResetToken {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    password_reset_tokens::table
-      .select(PasswordResetToken::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<PasswordResetToken>(conn)
-      .await
-  }
-}
-
-impl PasswordResetToken {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    password_reset_tokens::table
-      .select(PasswordResetToken::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<PasswordResetToken>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -1526,7 +1319,7 @@ pub struct RefreshToken {
   pub invalidated_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRefreshToken<'a> {
@@ -1542,7 +1335,7 @@ pub struct NewRefreshToken<'a> {
   pub invalidated_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct RefreshTokenUpdate<'a> {
@@ -1767,45 +1560,10 @@ impl RefreshToken {
   }
 }
 
-impl RefreshToken {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    refresh_tokens::table
-      .select(RefreshToken::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<RefreshToken>(conn)
-      .await
-  }
-}
-
-impl RefreshToken {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    refresh_tokens::table
-      .select(RefreshToken::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<RefreshToken>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -1827,7 +1585,7 @@ pub struct Staff {
   pub deleted_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = staffs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewStaff<'a> {
@@ -1839,7 +1597,7 @@ pub struct NewStaff<'a> {
   pub deleted_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = staffs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct StaffUpdate<'a> {
@@ -2026,49 +1784,10 @@ impl Staff {
   }
 }
 
-impl Staff {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::ExpressionMethods;
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    staffs::table
-      .filter(staffs::deleted_at.is_not_null())
-      .select(Staff::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<Staff>(conn)
-      .await
-  }
-}
-
-impl Staff {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::ExpressionMethods;
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    staffs::table
-      .filter(staffs::deleted_at.is_not_null())
-      .select(Staff::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<Staff>(conn)
-      .await
-  }
-}
-
 #[derive(
+  Clone,
+  Debug,
+  Default,
   Clone,
   Debug,
   Default,
@@ -2089,7 +1808,7 @@ pub struct User {
   pub deleted_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewUser<'a> {
@@ -2100,7 +1819,7 @@ pub struct NewUser<'a> {
   pub deleted_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct UserUpdate<'a> {
@@ -2262,48 +1981,6 @@ impl User {
       .values(data)
       .returning(User::as_returning())
       .get_result::<User>(&mut conn)
-      .await
-  }
-}
-
-impl User {
-  pub async fn simple_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::ExpressionMethods;
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    users::table
-      .filter(users::deleted_at.is_not_null())
-      .select(User::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<User>(conn)
-      .await
-  }
-}
-
-impl User {
-  pub async fn cursor_paginate<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    offset: usize,
-    limit: usize,
-    mut conn: Conn,
-  ) -> Result<Vec<Self>, diesel::result::Error> {
-    use diesel::ExpressionMethods;
-    use diesel::SelectableHelper;
-    use diesel_async::RunQueryDsl;
-    users::table
-      .filter(users::deleted_at.is_not_null())
-      .select(User::as_select())
-      .offset(offset)
-      .limit(limit)
-      .load::<User>(conn)
       .await
   }
 }

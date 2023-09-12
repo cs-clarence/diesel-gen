@@ -1,0 +1,61 @@
+schema: ./src/db/schema/mod.rs
+
+models:
+  output: ./src/db/model/mod.rs
+  backend: postgres
+  pub_mods:
+    - enums
+
+type_uses:
+  CredentialType: crate::db::model::CredentialType
+  SubjectType: crate::db::model::SubjectType
+  StaffRole: crate::db::model::StaffRole
+  Gender: crate::db::model::Gender
+
+tables:
+  "*":
+    derives:
+      - Clone
+      - Debug
+      - Default
+    updater_derives:
+      - Clone
+      - Debug
+      - Default
+    inserter_derives:
+      - Clone
+      - Debug
+      - Default
+    columns:
+      type_:
+        rename: r#type
+    operations:
+      enable: true
+      simple_paginate:
+        enable: false
+      cursor_paginate:
+        enable: false
+
+type_overrides:
+  CredentialType: CredentialType
+  SubjectType: SubjectType
+  StaffRole: StaffRole
+  Gender: Gender
+
+ref_type_overrides:
+  CredentialType: CredentialType
+  SubjectType: SubjectType
+  StaffRole: StaffRole
+  Gender: Gender
+
+async_graphql:
+  output: ./src/gql/mod.rs
+  output_types:
+    User:
+      table: users
+      complex_object: true
+      fields:
+        type:
+          omit: true
+      inherits:
+        - identities

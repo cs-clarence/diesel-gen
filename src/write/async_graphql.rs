@@ -6,8 +6,9 @@ use std::{
 use merge::Merge;
 
 use crate::{
-  config::{OutputTypeConfig, TableConfig},
-  parse::Table,
+  config::{InheritConfig, OutputTypeConfig, TableConfig},
+  parse::{Column, Table},
+  util::is_rust_keyword,
 };
 
 pub struct ModelImportsArgs<'a> {
@@ -40,8 +41,9 @@ pub fn model_imports<W: Write>(
     }
 
     for inherit in config.inherits.iter() {
-      let name = args.model_names.get(inherit).ok_or_else(|| {
-        anyhow::anyhow!("model name for table {} not found", inherit)
+      let ic = inherit.clone().into_config();
+      let name = args.model_names.get(&ic.table).ok_or_else(|| {
+        anyhow::anyhow!("model name for table {} not found", &ic.table)
       })?;
 
       if prefix.is_empty() {
@@ -76,6 +78,7 @@ pub struct OutputTypesArgs<'a> {
   pub table_configs: &'a HashMap<String, TableConfig>,
   pub output_type_configs: &'a HashMap<String, OutputTypeConfig>,
   pub model_names: &'a HashMap<String, String>,
+  pub type_overrides: &'a HashMap<String, String>,
 }
 
 pub fn output_types<W: Write>(
@@ -85,16 +88,7 @@ pub fn output_types<W: Write>(
   let wildcard_table_config =
     args.table_configs.get("*").cloned().unwrap_or_default();
 
-  let wildcard_output_type_config = args
-    .output_type_configs
-    .get("*")
-    .cloned()
-    .unwrap_or_default();
-
   for (name, config) in args.output_type_configs {
-    let mut config = config.clone();
-    config.merge(wildcard_output_type_config.clone());
-
     let table = args
       .tables
       .iter()
@@ -109,10 +103,19 @@ pub fn output_types<W: Write>(
 
     table_config.merge(wildcard_table_config.clone());
 
+    let inherits = &config
+      .inherits
+      .iter()
+      .map(|e| e.clone().into_config())
+      .collect::<Vec<InheritConfig>>();
+
+    let inherit_names =
+      inherits.iter().map(|i| &i.table).collect::<Vec<&String>>();
+
     let inherits = args
       .tables
       .iter()
-      .filter(|t| config.inherits.contains(&t.name))
+      .filter(|t| inherit_names.contains(&&t.name))
       .collect::<Vec<&Table>>();
 
     output_type(
@@ -128,26 +131,15 @@ pub fn output_types<W: Write>(
         attributes: config.attributes.clone().unwrap_or_default().vec(),
         derives: config.derives.clone().unwrap_or_default().vec(),
         model_names: args.model_names,
+        tables: args.tables,
+        type_overrides: args.type_overrides,
+        output_type_config: config,
       },
       &mut w,
     )?;
   }
 
   Ok(())
-}
-
-pub struct OutputTypeArgs<'a> {
-  pub name: &'a str,
-  pub table: &'a Table,
-  pub model_names: &'a HashMap<String, String>,
-  pub impl_from: bool,
-  pub wildcard_table_config: &'a TableConfig,
-  pub table_config: &'a TableConfig,
-  pub attributes: &'a Vec<String>,
-  pub derives: &'a Vec<String>,
-  pub inherits: &'a Vec<&'a Table>,
-  pub table_configs: &'a HashMap<String, TableConfig>,
-  pub complex_object: bool,
 }
 
 struct WriteFromArgs<'a> {
@@ -162,10 +154,116 @@ fn write_from<W: Write>(
   if args.inherits.is_empty() {
     writeln!(w, "{}", args.model_name)?;
   } else {
-    writeln!(w, "({}, {})", args.model_name, args.inherits.join(", "))?;
+    writeln!(w, "({}, {})", args.inherits.join(", "), args.model_name)?;
   }
 
   Ok(())
+}
+
+struct GetFieldsArgs<'a> {
+  pub table: &'a Table,
+  pub inherits: &'a Vec<&'a Table>,
+  pub table_configs: &'a HashMap<String, TableConfig>,
+  pub tables: &'a Vec<Table>,
+  pub output_type_config: &'a OutputTypeConfig,
+}
+
+#[derive(Clone, Debug)]
+pub struct FieldInfo<'a> {
+  pub field_name: String,
+  pub model_field_name: String,
+  pub column: &'a Column,
+  pub index: usize,
+}
+
+fn get_fields<'a>(
+  args: &'a GetFieldsArgs<'a>,
+) -> anyhow::Result<Vec<FieldInfo<'a>>> {
+  let mut fields = HashMap::<String, FieldInfo>::new();
+
+  let wildcard_table_config = args.table_configs.get("*");
+  let otc = args.output_type_config;
+
+  let binding = [args.table];
+
+  let tables = args.inherits.iter().chain(binding.iter());
+
+  for (index, t) in tables.enumerate() {
+    for column in t.columns.iter() {
+      if let Some(f) = fields.get(&column.name) {
+        if f.column.r#type != column.r#type {
+          anyhow::bail!(
+          "column {} has different types: {} and {}, rename or omit one of them in the config file",
+          column.name,
+          f.column.r#type,
+          column.r#type
+        );
+        }
+      }
+
+      let table_config =
+        args.table_configs.get(&t.name).or(wildcard_table_config);
+
+      let field_config = otc.fields.get(&column.name);
+
+      let field_name = field_config
+        .and_then(|o| o.rename.as_ref())
+        .unwrap_or(&column.name);
+
+      let field_name = if is_rust_keyword(field_name) {
+        format!("r#{}", field_name)
+      } else {
+        field_name.to_string()
+      };
+
+      let model_field_name = table_config
+        .and_then(|t| {
+          t.columns
+            .get(&column.name)
+            .and_then(|c| c.rename.as_deref())
+        })
+        .unwrap_or(&column.name);
+
+      let model_field_name = if is_rust_keyword(model_field_name) {
+        format!("r#{}", model_field_name)
+      } else {
+        model_field_name.to_string()
+      };
+
+      fields.insert(
+        field_name.clone(),
+        FieldInfo {
+          field_name,
+          model_field_name,
+          column,
+          index,
+        },
+      );
+    }
+  }
+
+  let mut fields = fields.values().cloned().collect::<Vec<_>>();
+
+  fields.sort_by_key(|f| f.field_name.clone());
+
+  Ok(fields)
+}
+
+pub struct OutputTypeArgs<'a> {
+  pub name: &'a str,
+  pub table: &'a Table,
+  pub tables: &'a Vec<Table>,
+  pub model_names: &'a HashMap<String, String>,
+  pub impl_from: bool,
+  pub wildcard_table_config: &'a TableConfig,
+  pub table_config: &'a TableConfig,
+  pub attributes: &'a Vec<String>,
+  pub derives: &'a Vec<String>,
+  pub inherits: &'a Vec<&'a Table>,
+  pub table_configs: &'a HashMap<String, TableConfig>,
+  pub complex_object: bool,
+  pub type_overrides: &'a HashMap<String, String>,
+  pub output_type_config: &'a OutputTypeConfig,
 }
 
 pub fn output_type<W: Write>(
@@ -206,7 +304,26 @@ pub fn output_type<W: Write>(
     }
   }
 
+  let get_field_args = GetFieldsArgs {
+    table: args.table,
+    inherits: args.inherits,
+    table_configs: args.table_configs,
+    tables: args.tables,
+    output_type_config: args.output_type_config,
+  };
+
+  let fields = get_fields(&get_field_args)?;
+
   writeln!(w, "pub struct {output_type} {{", output_type = &args.name)?;
+
+  for f in fields.iter() {
+    let ty = crate::util::get_type(args.type_overrides, &f.column.r#type)
+      .ok_or_else(|| {
+        anyhow::anyhow!("type for field {} not found", f.column.name)
+      })?;
+
+    writeln!(w, "pub {}: {},", f.field_name, ty)?;
+  }
 
   writeln!(w, "}}")?;
 
@@ -217,7 +334,15 @@ pub fn output_type<W: Write>(
     write!(w, "fn from(val: ")?;
     write_from(&wfa, &mut w)?;
     writeln!(w, ") -> Self {{")?;
-    writeln!(w, "todo!()")?;
+    writeln!(w, "Self {{")?;
+    for f in fields.iter() {
+      writeln!(
+        w,
+        "{}: val.{}.{},",
+        f.field_name, f.index, f.model_field_name
+      )?;
+    }
+    writeln!(w, "}}")?;
     writeln!(w, "}}")?;
     writeln!(w, "}}",)?;
   }

@@ -6,53 +6,41 @@ use std::{collections::HashMap, fmt::Display, hash::Hash, path::PathBuf};
 use merge::Merge;
 use serde::Deserialize;
 
-#[derive(Deserialize, Default, Clone, Debug)]
-pub struct DieselConfig {
-  #[serde(default)]
-  pub print_schema: Option<PrintSchema>,
-}
-
-#[derive(Default, Deserialize, Clone, Debug)]
-pub struct PrintSchema {
-  #[serde(default)]
-  pub file: Option<PathBuf>,
-  // #[serde(default)]
-  // pub with_docs: print_schema::DocConfig,
-  // #[serde(default)]
-  // pub filter: Filtering,
-  // #[serde(default)]
-  // pub column_sorting: ColumnSorting,
-  #[serde(default)]
-  pub schema: Option<String>,
-  #[serde(default)]
-  pub patch_file: Option<PathBuf>,
-  #[serde(default)]
-  pub import_types: Option<Vec<String>>,
-  #[serde(default)]
-  pub generate_missing_sql_type_definitions: Option<bool>,
-  #[serde(default)]
-  pub custom_type_derives: Option<Vec<String>>,
-}
-
 #[derive(Default, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
-pub struct DieselGenConfig {
+pub struct Config {
+  pub schema: PathBuf,
+
   pub models: Option<ModelsConfig>,
   pub async_graphql: Option<AyncGraphqlConfig>,
 
   pub table_imports_root: Option<String>,
-  pub type_overrides: Option<HashMap<String, String>>,
-  pub ref_type_overrides: Option<HashMap<String, String>>,
-  pub type_uses: Option<HashMap<String, String>>,
-  pub tables: Option<HashMap<String, TableConfig>>,
+  #[serde(default)]
+  pub type_overrides: HashMap<String, String>,
+  #[serde(default)]
+  pub ref_type_overrides: HashMap<String, String>,
+  #[serde(default)]
+  pub type_uses: HashMap<String, String>,
+  #[serde(default)]
+  pub tables: HashMap<String, TableConfig>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct FieldConfig {
+pub struct ColumnConfig {
+  pub omit_in_model: Option<bool>,
+  pub omit_in_updater: Option<bool>,
+  pub omit_in_inserter: Option<bool>,
+
   pub rename: Option<String>,
   #[merge(strategy = merge_option)]
-  pub attributes: Option<ListConfig<String>>,
+  pub model_attributes: Option<ListConfig<String>>,
+
+  #[merge(strategy = merge_option)]
+  pub inserter_attributes: Option<ListConfig<String>>,
+
+  #[merge(strategy = merge_option)]
+  pub updater_attributes: Option<ListConfig<String>>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge)]
@@ -77,8 +65,8 @@ pub struct TableConfig {
   #[merge(strategy = merge_option)]
   pub inserter_derives: Option<ListConfig<String>>,
 
-  #[merge(strategy = merge_option)]
-  pub columns: Option<MapConfig<String, FieldConfig>>,
+  #[serde(default)]
+  pub columns: MapConfig<String, ColumnConfig>,
 
   pub model_struct_name_prefix: Option<String>,
 
@@ -226,12 +214,12 @@ pub struct CursorPaginateOperationConfig {
 }
 
 #[derive(Deserialize, Clone, Debug)]
-#[serde(untagged)]
 #[serde(deny_unknown_fields)]
+#[serde(untagged)]
 pub enum ListConfig<T> {
-  Value(Vec<T>),
-  Replace { replace: Vec<T> },
-  Merge { merge: Vec<T> },
+  Values(Vec<T>),
+  Replace(ReplaceConfig<Vec<T>>),
+  Merge(MergeConfig<Vec<T>>),
 }
 
 impl<T> PartialEq for ListConfig<T>
@@ -245,20 +233,20 @@ where
 
 impl<T> Default for ListConfig<T> {
   fn default() -> Self {
-    ListConfig::Value(Vec::new())
+    ListConfig::Values(Vec::new())
   }
 }
 
 impl<T> Merge for ListConfig<T> {
   fn merge(&mut self, other: Self) {
     match other {
-      ListConfig::Value(value) => {
+      ListConfig::Values(value) => {
         self.vec_mut().extend(value);
       }
-      ListConfig::Replace { replace } => {
-        *self = ListConfig::Replace { replace };
+      ListConfig::Replace(replace) => {
+        *self = ListConfig::Replace(replace);
       }
-      ListConfig::Merge { merge } => {
+      ListConfig::Merge(MergeConfig { merge }) => {
         self.vec_mut().extend(merge);
       }
     }
@@ -280,25 +268,25 @@ where
 impl<T> ListConfig<T> {
   pub fn into_vec(self) -> Vec<T> {
     match self {
-      ListConfig::Value(v) => v,
-      ListConfig::Replace { replace } => replace,
-      ListConfig::Merge { merge } => merge,
+      ListConfig::Values(v) => v,
+      ListConfig::Replace(replace) => replace.replace,
+      ListConfig::Merge(merge) => merge.merge,
     }
   }
 
   pub fn vec(&self) -> &Vec<T> {
     match self {
-      ListConfig::Value(v) => v,
-      ListConfig::Replace { replace } => replace,
-      ListConfig::Merge { merge } => merge,
+      ListConfig::Values(v) => v,
+      ListConfig::Replace(replace) => &replace.replace,
+      ListConfig::Merge(merge) => &merge.merge,
     }
   }
 
   pub fn vec_mut(&mut self) -> &mut Vec<T> {
     match self {
-      ListConfig::Value(v) => v,
-      ListConfig::Replace { replace } => replace,
-      ListConfig::Merge { merge } => merge,
+      ListConfig::Values(v) => v,
+      ListConfig::Replace(replace) => &mut replace.replace,
+      ListConfig::Merge(merge) => &mut merge.merge,
     }
   }
 
@@ -364,14 +352,24 @@ where
 }
 
 #[derive(Deserialize, Clone, Debug)]
+pub struct ReplaceConfig<T> {
+  replace: T,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct MergeConfig<T> {
+  merge: T,
+}
+
+#[derive(Deserialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum MapConfig<K, V>
 where
   K: Eq + Hash,
 {
-  Value(HashMap<K, V>),
-  Replace { replace: HashMap<K, V> },
-  Merge { merge: HashMap<K, V> },
+  Values(HashMap<K, V>),
+  Replace(ReplaceConfig<HashMap<K, V>>),
+  Merge(MergeConfig<HashMap<K, V>>),
 }
 
 impl<K, V> Default for MapConfig<K, V>
@@ -379,7 +377,7 @@ where
   K: Eq + Hash,
 {
   fn default() -> Self {
-    MapConfig::Value(HashMap::new())
+    MapConfig::Values(HashMap::new())
   }
 }
 
@@ -389,17 +387,17 @@ where
 {
   pub fn map_mut(&mut self) -> &mut HashMap<K, V> {
     match self {
-      MapConfig::Value(v) => v,
-      MapConfig::Replace { replace } => replace,
-      MapConfig::Merge { merge } => merge,
+      MapConfig::Values(v) => v,
+      MapConfig::Replace(replace) => &mut replace.replace,
+      MapConfig::Merge(merge) => &mut merge.merge,
     }
   }
 
   pub fn map(&self) -> &HashMap<K, V> {
     match self {
-      MapConfig::Value(v) => v,
-      MapConfig::Replace { replace } => replace,
-      MapConfig::Merge { merge } => merge,
+      MapConfig::Values(v) => v,
+      MapConfig::Replace(replace) => &replace.replace,
+      MapConfig::Merge(merge) => &merge.merge,
     }
   }
 
@@ -419,13 +417,15 @@ where
 {
   fn merge(&mut self, other: Self) {
     match other {
-      MapConfig::Value(value) => {
+      MapConfig::Values(value) => {
         self.map_mut().extend(value);
       }
-      MapConfig::Replace { replace } => {
-        *self = MapConfig::Replace { replace };
+      MapConfig::Replace(replace) => {
+        *self = MapConfig::Replace(ReplaceConfig {
+          replace: replace.replace,
+        });
       }
-      MapConfig::Merge { merge } => {
+      MapConfig::Merge(MergeConfig { merge }) => {
         self.map_mut().extend(merge);
       }
     }
@@ -447,6 +447,50 @@ pub struct AyncGraphqlConfig {
   pub pub_uses: Option<Vec<String>>,
 }
 
+#[derive(Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct InheritConfig {
+  pub table: String,
+  pub fields: Option<MapConfig<String, ColumnConfig>>,
+  pub omit_fields: Option<ListConfig<String>>,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(untagged)]
+
+pub enum Inherit {
+  Table(String),
+  Config(InheritConfig),
+}
+
+impl Inherit {
+  pub fn into_config(self) -> InheritConfig {
+    match self {
+      Inherit::Table(name) => InheritConfig {
+        table: name,
+        fields: None,
+        omit_fields: None,
+      },
+      Inherit::Config(config) => config,
+    }
+  }
+
+  pub fn table(&self) -> &str {
+    match self {
+      Inherit::Table(name) => name,
+      Inherit::Config(config) => &config.table,
+    }
+  }
+}
+
+#[derive(Deserialize, Clone, Debug, Default, Merge)]
+#[serde(deny_unknown_fields)]
+pub struct FieldConfig {
+  pub omit: Option<bool>,
+  pub rename: Option<String>,
+  pub attributes: Option<ListConfig<String>>,
+}
+
 #[derive(Deserialize, Clone, Debug, Default, Merge)]
 #[serde(deny_unknown_fields)]
 pub struct OutputTypeConfig {
@@ -456,9 +500,11 @@ pub struct OutputTypeConfig {
   pub complex_object: Option<bool>,
   pub derives: Option<ListConfig<String>>,
   pub attributes: Option<ListConfig<String>>,
-  pub fields: Option<MapConfig<String, FieldConfig>>,
+
+  #[serde(default)]
+  pub fields: MapConfig<String, FieldConfig>,
 
   #[serde(default)]
   #[merge(skip)]
-  pub inherits: Vec<String>,
+  pub inherits: Vec<Inherit>,
 }

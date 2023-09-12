@@ -5,15 +5,12 @@ pub mod async_graphql;
 use std::{
   collections::{HashMap, HashSet},
   io::Write,
-  sync::OnceLock,
 };
-
-use merge::Merge;
 
 use crate::{
   config::{SqlBackend, TableConfig},
-  parse::{self, type_name, Column, File, ParseContext, Table, Type, TypeName},
-  util::model_name,
+  parse::{self, Column, File, ParseContext, Table},
+  util::{get_field_name, get_ref_type, get_type, model_name},
 };
 
 pub fn rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
@@ -119,239 +116,6 @@ pub fn type_uses<W: Write>(
   Ok(())
 }
 
-fn is_rust_keyword(str: &str) -> bool {
-  matches!(
-    str,
-    "abstract"
-      | "alignof"
-      | "as"
-      | "become"
-      | "box"
-      | "break"
-      | "const"
-      | "continue"
-      | "crate"
-      | "do"
-      | "else"
-      | "enum"
-      | "extern"
-      | "false"
-      | "final"
-      | "fn"
-      | "for"
-      | "if"
-      | "impl"
-      | "in"
-      | "let"
-      | "loop"
-      | "macro"
-      | "match"
-      | "mod"
-      | "move"
-      | "mut"
-      | "offsetof"
-      | "override"
-      | "priv"
-      | "proc"
-      | "pub"
-      | "pure"
-      | "ref"
-      | "return"
-      | "Self"
-      | "self"
-      | "sizeof"
-      | "static"
-      | "struct"
-      | "super"
-      | "trait"
-      | "true"
-      | "type"
-      | "typeof"
-  )
-}
-
-fn get_field_name(table_config: &TableConfig, column_name: &str) -> String {
-  fn imp(table: &TableConfig, column_name: &str) -> String {
-    if let Some(columns) = table.columns.as_ref() {
-      if let Some(column) = columns.get(column_name) {
-        return column.rename.as_deref().unwrap_or(column_name).to_string();
-      }
-    }
-
-    column_name.to_string()
-  }
-
-  let field_name = imp(table_config, column_name);
-
-  if is_rust_keyword(&field_name) {
-    format!("r#{}", field_name)
-  } else {
-    field_name
-  }
-}
-
-macro_rules! hash_map {
-  {$($key:expr => $value:expr),* $(,)?} => {{
-    let mut map = HashMap::new();
-    $(map.insert($key, $value);)*
-    map
-  }};
-}
-
-static RUST_TYPE_MAP: OnceLock<HashMap<&'static str, &'static str>> =
-  OnceLock::new();
-
-fn init_type_map() {
-  use type_name::*;
-  _ = RUST_TYPE_MAP.set(hash_map! {
-   ARRAY => "Vec",
-   INT2 => "i16",
-   SMALLINT=> "i16",
-   INT4 => "i32",
-   INTEGER => "i32",
-   UNSIGNED => "Unsigned",
-   INT8 => "i64",
-   BIGINT => "i64",
-   NUMERIC => "bigdecimal::BigDecimal",
-   DECIMAL => "bigdecimal::BigDecimal",
-   TEXT => "String",
-   DATE => "time::Date",
-   TIME => "time::Time",
-   DATETIME => "time::OffsetDateTime",
-   TIMESTAMP => "time::OffsetDateTime",
-   TIMESTAMPTZ => "time::OffsetDateTime",
-   FLOAT4 => "f32",
-   FLOAT8 => "f64",
-   FLOAT => "f32",
-   BOOL => "bool",
-   JSON => "serde_json::Value",
-   JSONB => "serde_json::Value",
-   UUID => "uuid::Uuid",
-   CHAR => "char",
-   VARCHAR =>"String",
-   DOUBLE => "f64",
-   TINYINT => "i8",
-   NULLABLE => "Option",
-
-  // Unsupported types
-   BYTEA => "Bytea",
-   BINARY =>"Binary",
-   VARBINARY => "Varbinary",
-   BLOB => "Blob",
-   TINYBLOB => "Tinyblob",
-   MEDIUMBLOB => "Mediumblob",
-   LONGBLOB => "Longblob",
-   BIT => "Bit",
-   INET => "Inet",
-   TINYTEXT => "Tinytext",
-   MEDIUMTEXT => "Mediumtext",
-   LONGTEXT => "Longtext",
-  });
-}
-
-fn get_type(
-  type_overrides: &HashMap<String, String>,
-  ty: &Type,
-) -> Option<String> {
-  init_type_map();
-  let ts = ty.to_string().replace(' ', "");
-
-  if let Some(ty) = type_overrides.get(&ts) {
-    return Some(ty.clone());
-  }
-
-  let tp_map = RUST_TYPE_MAP.get().expect("RUST_TYPE_MAP not initialized");
-
-  if let Some(ty) = tp_map.get(ts.as_str()) {
-    return Some(ty.to_string());
-  }
-
-  if let Some(t) = tp_map.get(&ty.name().to_string().as_str()) {
-    let params = ty
-      .params()
-      .iter()
-      .map(|i| get_type(type_overrides, i))
-      .collect::<Vec<_>>();
-
-    if params.iter().any(|i| i.is_none()) {
-      return None;
-    }
-
-    let params = params.into_iter().map(|i| i.unwrap()).collect::<Vec<_>>();
-
-    return Some(format!("{}<{}>", t, params.join(", ")));
-  }
-
-  None
-}
-
-fn get_ref_type(
-  type_overrides: &HashMap<String, String>,
-  ty: &Type,
-  lifetime: Option<&str>,
-) -> Option<String> {
-  init_type_map();
-  let ts = ty.to_string().replace(' ', "");
-
-  let lifetime = if let Some(lifetime) = lifetime {
-    if lifetime.is_empty() {
-      "".to_string()
-    } else {
-      format!("{} ", lifetime)
-    }
-  } else {
-    "".to_string()
-  };
-
-  if let Some(ty) = type_overrides.get(&ts) {
-    return Some(ty.clone());
-  }
-
-  if ty.name().is_string_type() {
-    return Some(format!("&{}str", lifetime));
-  }
-
-  if *ty.name() == TypeName::Nullable {
-    let params = ty
-      .params()
-      .iter()
-      .map(|i| get_ref_type(type_overrides, i, Some(&lifetime)))
-      .collect::<Vec<_>>();
-
-    if params.iter().any(|i| i.is_none()) {
-      return None;
-    }
-
-    let params = params.into_iter().map(|i| i.unwrap()).collect::<Vec<_>>();
-
-    return Some(format!("Option<{}>", params.join(", ")));
-  }
-
-  let tp_map = RUST_TYPE_MAP.get().expect("RUST_TYPE_MAP not initialized");
-
-  if let Some(ty) = tp_map.get(ts.as_str()) {
-    return Some(format!("&{}{}", lifetime, ty));
-  }
-
-  if let Some(t) = tp_map.get(&ty.name().to_string().as_str()) {
-    let params = ty
-      .params()
-      .iter()
-      .map(|i| get_type(type_overrides, i))
-      .collect::<Vec<_>>();
-
-    if params.iter().any(|i| i.is_none()) {
-      return None;
-    }
-
-    let params = params.into_iter().map(|i| i.unwrap()).collect::<Vec<_>>();
-
-    return Some(format!("&{}{}<{}>", lifetime, t, params.join(", ")));
-  }
-
-  None
-}
-
 const DIESEL_DEFAULT_DERIVE: &str =
     "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable)]";
 
@@ -380,17 +144,15 @@ pub fn models<W: Write>(
   }: &ModelsArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
-  let wildcard_table_config =
-    table_configs.get("*").cloned().unwrap_or_default();
+  let wildcard_table_config = table_configs.get("*");
 
   for table in &file.tables {
-    let mut table_configs =
-      table_configs.get(&table.name).cloned().unwrap_or_default();
+    let table_config = table_configs.get(&table.name).or(wildcard_table_config);
 
-    table_configs.merge(wildcard_table_config.clone());
-
-    if table_configs.skip.unwrap_or(false) {
-      continue;
+    if let Some(conf) = table_config {
+      if conf.skip.unwrap_or(false) {
+        continue;
+      }
     }
 
     model(
@@ -399,7 +161,7 @@ pub fn models<W: Write>(
         ref_type_overrides,
         type_overrides,
         table,
-        table_config: &table_configs,
+        table_config,
       },
       &mut w,
     )?;
@@ -546,7 +308,7 @@ fn default_operation_uses<W: Write>(
 
 pub struct ModelArgs<'a> {
   pub table: &'a Table,
-  pub table_config: &'a TableConfig,
+  pub table_config: Option<&'a TableConfig>,
   pub backend: &'a SqlBackend,
   pub type_overrides: &'a HashMap<String, String>,
   pub ref_type_overrides: &'a HashMap<String, String>,
@@ -562,18 +324,17 @@ pub fn model<W: Write>(
   }: &ModelArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
-  if table_config.skip.unwrap_or(false) {
-    return Ok(());
-  }
+  let optional_updater_fields = table_config
+    .and_then(|t| t.updater_fields_optional)
+    .unwrap_or(true);
 
-  let optional_updater_fields =
-    table_config.updater_fields_optional.unwrap_or(true);
+  let d = table_config.and_then(|t| t.derives.clone());
 
-  let mut d = table_config.derives.clone().unwrap_or_default();
-
-  d.dedup();
-  if !d.is_empty() {
-    writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+  if let Some(mut d) = d {
+    d.dedup();
+    if !d.is_empty() {
+      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+    }
   }
 
   if table.only_primary_key_columns() {
@@ -592,30 +353,28 @@ pub fn model<W: Write>(
   writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
   let inserter_prefix = table_config
-    .inserter_struct_name_prefix
-    .clone()
-    .unwrap_or_else(|| "New".to_string());
+    .and_then(|t| t.inserter_struct_name_prefix.as_deref())
+    .unwrap_or("New");
 
   let inserter_suffix = table_config
-    .inserter_struct_name_suffix
-    .clone()
-    .unwrap_or_default();
+    .and_then(|t| t.inserter_struct_name_suffix.as_deref())
+    .unwrap_or("");
+
   let updater_prefix = table_config
-    .updater_struct_name_prefix
-    .clone()
-    .unwrap_or_default();
+    .and_then(|t| t.updater_struct_name_prefix.as_deref())
+    .unwrap_or("");
+
   let updater_suffix = table_config
-    .updater_struct_name_suffix
-    .clone()
-    .unwrap_or_else(|| "Update".to_string());
+    .and_then(|t| t.updater_struct_name_suffix.as_deref())
+    .unwrap_or("Update");
+
   let model_prefix = table_config
-    .model_struct_name_prefix
-    .clone()
-    .unwrap_or_default();
+    .and_then(|t| t.model_struct_name_prefix.as_deref())
+    .unwrap_or("");
+
   let model_suffix = table_config
-    .model_struct_name_suffix
-    .clone()
-    .unwrap_or_default();
+    .and_then(|t| t.model_struct_name_suffix.as_deref())
+    .unwrap_or("");
 
   let struct_name = model_name(&table.name);
 
@@ -626,24 +385,41 @@ pub fn model<W: Write>(
   let final_updater_name =
     format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
 
-  let mut a = table_config.attributes.clone().unwrap_or_default();
+  let a = table_config.and_then(|t| t.attributes.clone());
 
-  a.dedup();
+  if let Some(mut a) = a {
+    a.dedup();
 
-  if !a.is_empty() {
-    for a in a {
-      writeln!(w, "#[{}]", a)?;
+    if !a.is_empty() {
+      for a in a {
+        writeln!(w, "#[{}]", a)?;
+      }
     }
   }
 
   writeln!(w, "pub struct {} {{", final_model_name)?;
 
   for c in &table.columns {
-    let field_name = get_field_name(table_config, &c.name);
+    let config = table_config.and_then(|t| t.columns.get(&c.name));
+
+    if let Some(c) = config {
+      if c.omit_in_model.unwrap_or(false) {
+        continue;
+      }
+
+      if let Some(a) = &c.model_attributes {
+        for a in a {
+          writeln!(w, "  #[{}]", a)?;
+        }
+      }
+    }
+
+    let field_name = get_field_name(config, &c.name);
 
     if field_name != c.name {
       writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
     }
+
     writeln!(
       w,
       "  pub {}: {},",
@@ -656,38 +432,58 @@ pub fn model<W: Write>(
 
   writeln!(w, "}}\n")?;
 
-  let inserter_structs = table_config.inserter_struct.unwrap_or(true);
+  let inserter_structs =
+    table_config.and_then(|t| t.inserter_struct).unwrap_or(true);
 
   if inserter_structs {
-    let mut d = table_config.inserter_derives.clone().unwrap_or_default();
+    let d = table_config.and_then(|t| t.inserter_derives.clone());
 
-    d.dedup();
-    if !d.is_empty() {
-      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+    if let Some(mut d) = d {
+      d.dedup();
+      if !d.is_empty() {
+        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+      }
     }
 
     writeln!(w, "{}", DIESEL_INSERTER_DERIVE)?;
     writeln!(w, "#[diesel(table_name = {})]", table.name)?;
     writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
-    let mut a = table_config.inserter_attributes.clone().unwrap_or_default();
+    let a = table_config.and_then(|t| t.inserter_attributes.clone());
 
-    a.dedup();
+    if let Some(mut a) = a {
+      a.dedup();
 
-    if !a.is_empty() {
-      for a in a {
-        writeln!(w, "#[{}]", a)?;
+      if !a.is_empty() {
+        for a in a {
+          writeln!(w, "#[{}]", a)?;
+        }
       }
     }
 
     let lifetime = "'a";
     writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
     for c in &table.columns {
-      let field_name = get_field_name(table_config, &c.name);
+      let config = table_config.and_then(|t| t.columns.get(&c.name));
+
+      if let Some(c) = config {
+        if c.omit_in_inserter.unwrap_or(false) {
+          continue;
+        }
+
+        if let Some(a) = &c.inserter_attributes {
+          for a in a {
+            writeln!(w, "  #[{}]", a)?;
+          }
+        }
+      }
+
+      let field_name = get_field_name(config, &c.name);
 
       if field_name != c.name {
         writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
       }
+
       writeln!(
         w,
         "  pub {}: {},",
@@ -703,33 +499,52 @@ pub fn model<W: Write>(
 
   let non_primary_key_columns = table.non_primary_key_columns();
 
-  let updater_structs = table_config.updater_struct.unwrap_or(true);
+  let updater_structs =
+    table_config.and_then(|t| t.updater_struct).unwrap_or(true);
 
   if updater_structs && !table.only_primary_key_columns() {
-    let mut d = table_config.updater_derives.clone().unwrap_or_default();
+    let d = table_config.and_then(|t| t.updater_derives.clone());
 
-    d.dedup();
-    if !d.is_empty() {
-      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+    if let Some(mut d) = d {
+      d.dedup();
+      if !d.is_empty() {
+        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+      }
     }
+
     writeln!(w, "{}", DIESEL_UPDATER_DERIVE)?;
     writeln!(w, "#[diesel(table_name = {})]", table.name)?;
     writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
-    let mut a = table_config.updater_attributes.clone().unwrap_or_default();
+    let a = table_config.and_then(|t| t.updater_attributes.clone());
 
-    a.dedup();
-
-    if !a.is_empty() {
-      for a in a {
-        writeln!(w, "#[{}]", a)?;
+    if let Some(mut a) = a {
+      a.dedup();
+      if !a.is_empty() {
+        for a in a {
+          writeln!(w, "#[{}]", a)?;
+        }
       }
     }
 
     let lifetime = "'a";
     writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
     for c in &non_primary_key_columns {
-      let field_name = get_field_name(table_config, &c.name);
+      let config = table_config.and_then(|t| t.columns.get(&c.name));
+
+      if let Some(c) = config {
+        if c.omit_in_updater.unwrap_or(false) {
+          continue;
+        }
+
+        if let Some(a) = &c.updater_attributes {
+          for a in a {
+            writeln!(w, "  #[{}]", a)?;
+          }
+        }
+      }
+
+      let field_name = get_field_name(config, &c.name);
 
       if field_name != c.name {
         writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
@@ -752,8 +567,7 @@ pub fn model<W: Write>(
     writeln!(w, "}}\n")?;
 
     let operations = table_config
-      .operations
-      .as_ref()
+      .and_then(|t| t.operations.as_ref())
       .cloned()
       .unwrap_or_default();
 
@@ -815,7 +629,6 @@ pub fn model<W: Write>(
           ref_type_overrides,
           primary_keys: &primary_keys,
           table,
-          table_config,
           timestamp_columns: &timestamp_columns,
           backend,
         },
@@ -838,7 +651,6 @@ pub fn model<W: Write>(
             ref_type_overrides,
             primary_keys: &primary_keys,
             table,
-            table_config,
             timestamp_columns: &timestamp_columns,
             backend,
             soft_delete_column: c,
@@ -917,7 +729,7 @@ struct InsertArgs<'a> {
   pub inserter_name: &'a str,
   pub use_async: bool,
   pub table: &'a Table,
-  pub table_config: &'a TableConfig,
+  pub table_config: Option<&'a TableConfig>,
   pub backend: &'a SqlBackend,
   pub primary_keys: &'a Vec<&'a Column>,
   pub type_overrides: &'a HashMap<String, String>,
@@ -969,7 +781,7 @@ struct UpdateArgs<'a> {
   non_primary_key_columns: &'a Vec<&'a Column>,
   timestamp_columns: &'a Vec<&'a Column>,
   table: &'a Table,
-  table_config: &'a TableConfig,
+  table_config: Option<&'a TableConfig>,
   backend: &'a SqlBackend,
   column_wise_update: bool,
 }
@@ -1024,7 +836,8 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   if args.column_wise_update {
     for c in args.non_primary_key_columns {
-      let field_name = get_field_name(args.table_config, &c.name);
+      let config = args.table_config.and_then(|t| t.columns.get(&c.name));
+      let field_name = get_field_name(config, &c.name);
 
       operation_sig(
         args.use_async,
@@ -1109,7 +922,6 @@ struct DeleteArgs<'a> {
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   table: &'a Table,
-  table_config: &'a TableConfig,
   timestamp_columns: &'a Vec<&'a Column>,
   backend: &'a SqlBackend,
 }
@@ -1159,7 +971,6 @@ struct SoftDeleteArgs<'a> {
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   table: &'a Table,
-  table_config: &'a TableConfig,
   timestamp_columns: &'a Vec<&'a Column>,
   backend: &'a SqlBackend,
   soft_delete_column: &'a Column,
