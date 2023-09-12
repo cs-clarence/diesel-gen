@@ -97,6 +97,10 @@ pub fn output_types<W: Write>(
     args.table_configs.get("*").cloned().unwrap_or_default();
 
   for (name, config) in args.output_type_configs {
+    if name == "*" {
+      continue;
+    }
+
     let default_table_name = name.to_snake_case().to_singular();
 
     let table_name = config.table.as_ref().unwrap_or(&default_table_name);
