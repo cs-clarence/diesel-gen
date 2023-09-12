@@ -34,7 +34,7 @@ pub fn model_imports<W: Write>(
       continue;
     }
 
-    let name = name.to_snake_case().to_singular();
+    let name = name.to_snake_case().to_plural();
 
     let table = config.table.as_ref().unwrap_or(&name);
 
@@ -105,7 +105,7 @@ pub fn output_types<W: Write>(
       continue;
     }
 
-    let default_table_name = name.to_snake_case().to_singular();
+    let default_table_name = name.to_snake_case().to_plural();
 
     let table_name = config.table.as_ref().unwrap_or(&default_table_name);
 
