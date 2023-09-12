@@ -30,6 +30,10 @@ pub fn model_imports<W: Write>(
   let mut uses = HashSet::<String>::new();
 
   for (name, config) in args.output_type_configs.iter() {
+    if name == "*" {
+      continue;
+    }
+
     let name = name.to_snake_case().to_singular();
 
     let table = config.table.as_ref().unwrap_or(&name);
