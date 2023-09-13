@@ -223,6 +223,7 @@ fn write_ref_fn_params<W: Write>(
   type_overrides: &HashMap<String, String>,
   ref_type_overrides: &HashMap<String, String>,
   cols: &Vec<&Column>,
+  lifetime: Option<&str>,
   mut w: W,
 ) -> std::io::Result<()> {
   for c in cols {
@@ -233,7 +234,7 @@ fn write_ref_fn_params<W: Write>(
       if c.r#type.is_simple() {
         get_type(type_overrides, &c.r#type).expect("Unknown type encountered")
       } else {
-        get_ref_type(ref_type_overrides, &c.r#type, None)
+        get_ref_type(ref_type_overrides, &c.r#type, lifetime)
           .expect("Unknown type encountered")
       }
     )?;
@@ -243,24 +244,16 @@ fn write_ref_fn_params<W: Write>(
 }
 
 fn operation_sig<W: Write>(
-  use_async: bool,
   name: &str,
   conn_t_name: &str,
   lifetimes: Option<Vec<&str>>,
   mut w: W,
 ) -> std::io::Result<()> {
-  if use_async {
-    writeln!(w, "  pub async fn {}<{}", name, conn_t_name)?;
-  } else {
-    writeln!(w, "  pub fn {}<{}", name, conn_t_name)?;
-  }
-
+  writeln!(w, "  pub fn {}<", name)?;
   if let Some(lifetimes) = lifetimes {
-    for lf in lifetimes {
-      writeln!(w, "{}, ", lf)?;
-    }
+    writeln!(w, "{}, ", lifetimes.join(", "))?;
   }
-  writeln!(w, ">(")?;
+  writeln!(w, "{}>(", conn_t_name)?;
 
   Ok(())
 }
@@ -765,10 +758,17 @@ struct InsertArgs<'a> {
 
 fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(args.use_async, "insert", "Conn", None, &mut w)?;
-  write!(w, "data: &{}<'_>, ", args.inserter_name)?;
-  write!(w, "conn: &mut Conn")?;
-  write!(w, "\n) -> Result<Self, diesel::result::Error> ")?;
+  operation_sig("insert", "Conn", Some(vec!["'a"]), &mut w)?;
+  write!(w, "data: &'a {}<'a>, ", args.inserter_name)?;
+  write!(w, "conn: &'a mut Conn")?;
+
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, false, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   write!(w, "{{")?;
 
@@ -788,7 +788,6 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
         .values(data)
         .returning({model}::as_returning())
         .get_result::<{model}>(conn)
-        .await
     ",
     table = args.table.name,
     model = args.model_name
@@ -818,16 +817,23 @@ struct UpdateArgs<'a> {
 fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
 
-  operation_sig(args.use_async, "update", "Conn", None, &mut w)?;
+  operation_sig("update", "Conn", Some(vec!["'a"]), &mut w)?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
     args.primary_keys,
+    Some("'a"),
     &mut w,
   )?;
-  write!(w, "changes: & {}<'_>, ", args.updater_name)?;
-  write!(w, "conn: &mut Conn")?;
-  write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+  write!(w, "changes: &'a {}<'a>, ", args.updater_name)?;
+  write!(w, "conn: &'a mut Conn")?;
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, false, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   write!(w, "{{")?;
   default_operation_uses(
@@ -865,7 +871,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   writeln!(
     w,
-    ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
+    ".returning({model}::as_returning()).get_result::<{model}>(conn)",
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
@@ -876,13 +882,12 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       let field_name = get_field_name(config, &c.name);
 
       operation_sig(
-        args.use_async,
         &format!(
           "update_{}",
           field_name.strip_prefix("r#").unwrap_or(&field_name)
         ),
         "Conn",
-        None,
+        Some(vec!["'a"]),
         &mut w,
       )?;
 
@@ -890,18 +895,28 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
         args.type_overrides,
         args.ref_type_overrides,
         args.primary_keys,
+        Some("'a"),
         &mut w,
       )?;
+
+      let ty = if c.r#type.is_simple() {
+        get_type(args.type_overrides, &c.r#type)
+      } else {
+        get_ref_type(args.ref_type_overrides, &c.r#type, Some("'a"))
+      }
+      .ok_or_else(|| {
+        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+      })?;
+
+      write!(w, "{}: {}, ", &c.name, ty,)?;
+      write!(w, "conn: &'a mut Conn")?;
+
       write!(
         w,
-        "{}: {}, ",
-        &c.name,
-        get_ref_type(args.ref_type_overrides, &c.r#type, None).ok_or_else(
-          || { anyhow::anyhow!("Unknown type: {}", c.r#type.to_string()) }
-        )?
+        "\n  ) -> {}{}",
+        return_type(args.use_async, false, args.model_name),
+        if args.use_async { " + 'a" } else { "" },
       )?;
-      write!(w, "conn: &mut Conn")?;
-      write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
       operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
       write!(w, "{{")?;
       default_operation_uses(
@@ -947,7 +962,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
       writeln!(
         w,
-        ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
+        ".returning({model}::as_returning()).get_result::<{model}>(conn)",
         model = args.model_name
       )?;
       writeln!(w, "}}")?;
@@ -972,15 +987,23 @@ struct DeleteArgs<'a> {
 
 fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(args.use_async, "delete", "Conn", None, &mut w)?;
+  operation_sig("delete", "Conn", Some(vec!["'a"]), &mut w)?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
     args.primary_keys,
+    Some("'a"),
     &mut w,
   )?;
-  write!(w, "conn: &mut Conn")?;
-  write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+  write!(w, "conn: &'a mut Conn")?;
+
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, false, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   write!(w, "{{")?;
 
@@ -1006,7 +1029,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   writeln!(
     w,
-    ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
+    ".returning({model}::as_returning()).get_result::<{model}>(conn)",
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
@@ -1046,15 +1069,21 @@ fn soft_delete<W: Write>(
             ));
   }
 
-  operation_sig(args.use_async, "soft_delete", "Conn", None, &mut w)?;
+  operation_sig("soft_delete", "Conn", Some(vec!["'a"]), &mut w)?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
     args.primary_keys,
+    Some("'a"),
     &mut w,
   )?;
-  write!(w, "conn: &mut Conn")?;
-  write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+  write!(w, "conn: &'a mut Conn")?;
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, false, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   write!(w, "{{")?;
   default_operation_uses(
@@ -1117,7 +1146,7 @@ fn soft_delete<W: Write>(
 
   writeln!(
     w,
-    ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
+    ".returning({model}::as_returning()).get_result::<{model}>(conn)",
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
@@ -1141,9 +1170,14 @@ fn simple_paginate<W: Write>(
   mut w: W,
 ) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(args.use_async, "simple_paginate", "Conn", None, &mut w)?;
-  write!(w, "offset: usize, limit: usize, conn: &mut Conn")?;
-  writeln!(w, "\n  ) -> Result<Vec<Self>, diesel::result::Error> ")?;
+  operation_sig("simple_paginate", "Conn", None, &mut w)?;
+  write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, true, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   writeln!(w, "{{")?;
   default_operation_uses(
@@ -1193,7 +1227,7 @@ fn simple_paginate<W: Write>(
     }
   }
 
-  writeln!(w, ".select({model}::as_select()).offset(offset).limit(limit).load::<{model}>(conn).await",
+  writeln!(w, ".select({model}::as_select()).offset(offset).limit(limit).load::<{model}>(conn)",
     model = args.model_name
   )?;
 
@@ -1216,9 +1250,16 @@ fn cursor_paginate<W: Write>(
   mut w: W,
 ) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(args.use_async, "cursor_paginate", "Conn", None, &mut w)?;
-  write!(w, "offset: usize, limit: usize, conn: &mut Conn")?;
-  writeln!(w, "\n  ) -> Result<Vec<Self>, diesel::result::Error> ")?;
+  operation_sig("cursor_paginate", "Conn", None, &mut w)?;
+  write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
+
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, true, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   writeln!(w, "{{")?;
   default_operation_uses(
@@ -1268,11 +1309,34 @@ fn cursor_paginate<W: Write>(
     }
   }
 
-  writeln!(w, ".select({model}::as_select()).offset(offset).limit(limit).load::<{model}>(conn).await",
+  writeln!(w, ".select({model}::as_select()).offset(offset).limit(limit).load::<{model}>(conn)",
     model = args.model_name
   )?;
 
   writeln!(w, "}}")?;
   writeln!(w, "}}\n")?;
   Ok(())
+}
+
+fn return_type(use_async: bool, multiple: bool, model_name: &str) -> String {
+  if use_async {
+    if multiple {
+      format!(
+      "impl std::future::Future<Output = Result<Vec<{model}>, diesel::result::Error>> + Send",
+      model = model_name
+    )
+    } else {
+      format!(
+      "impl std::future::Future<Output = Result<{model}, diesel::result::Error>> + Send",
+      model = model_name
+    )
+    }
+  } else if multiple {
+    format!(
+      "Result<Vec<{model}>, diesel::result::Error>",
+      model = model_name
+    )
+  } else {
+    format!("Result<{model}, diesel::result::Error>", model = model_name)
+  }
 }
