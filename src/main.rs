@@ -324,6 +324,12 @@ fn main() -> anyhow::Result<()> {
       generate_models(&diesel_gen_config, &parsed)?;
       generate_async_graphql(&diesel_gen_config, &parsed)?;
     }
+    cli::CliSubcommand::Config { subcommand } => match subcommand {
+      cli::ConfigSubcommands::Schema => {
+        let schema = schemars::schema_for!(Config);
+        serde_json::to_writer_pretty(std::io::stdout(), &schema)?;
+      }
+    },
   }
 
   Ok(())

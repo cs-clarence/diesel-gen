@@ -4,9 +4,10 @@ use core::fmt::Debug;
 use std::{collections::HashMap, fmt::Display, hash::Hash, path::PathBuf};
 
 use merge::Merge;
+use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
   pub schema: PathBuf,
@@ -25,7 +26,7 @@ pub struct Config {
   pub tables: HashMap<String, TableConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge, PartialEq)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ColumnConfig {
   pub omit_in_model: Option<bool>,
@@ -43,7 +44,7 @@ pub struct ColumnConfig {
   pub updater_attributes: Option<ListConfig<String>>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TableConfig {
   pub skip: Option<bool>,
@@ -96,7 +97,7 @@ pub struct TableConfig {
   pub operations: Option<OperationsConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ModelsConfig {
   pub backend: SqlBackend,
@@ -107,7 +108,7 @@ pub struct ModelsConfig {
   pub output: Option<String>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug)]
+#[derive(Default, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum SqlBackend {
   #[default]
@@ -142,7 +143,7 @@ impl SqlBackend {
   }
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OperationsConfig {
   #[serde(rename = "async")]
@@ -162,7 +163,7 @@ pub struct OperationsConfig {
   pub cursor_paginate: Option<CursorPaginateOperationConfig>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SoftDeleteOperationConfig {
   pub enable: Option<bool>,
@@ -170,14 +171,14 @@ pub struct SoftDeleteOperationConfig {
   pub returning: Option<bool>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DeleteOperationConfig {
   pub enable: Option<bool>,
   pub returning: Option<bool>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InsertOperationConfig {
   pub enable: Option<bool>,
@@ -186,7 +187,7 @@ pub struct InsertOperationConfig {
   pub returning: Option<bool>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateOperationConfig {
   pub enable: Option<bool>,
@@ -199,21 +200,21 @@ pub struct UpdateOperationConfig {
   pub update_timestamp_columns: Option<ListConfig<String>>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SimplePaginateOperationConfig {
   pub enable: Option<bool>,
   pub include_soft_deleted: Option<bool>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, Merge)]
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CursorPaginateOperationConfig {
   pub enable: Option<bool>,
   pub include_soft_deleted: Option<bool>,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
 pub enum ListConfig<T> {
@@ -351,17 +352,17 @@ where
   }
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
 pub struct ReplaceConfig<T> {
   replace: T,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
 pub struct MergeConfig<T> {
   merge: T,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
 #[serde(untagged)]
 pub enum MapConfig<K, V>
 where
@@ -432,7 +433,7 @@ where
   }
 }
 
-#[derive(Deserialize, Clone, Debug, Default)]
+#[derive(Deserialize, Clone, Debug, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AyncGraphqlConfig {
   pub output: Option<String>,
@@ -447,14 +448,14 @@ pub struct AyncGraphqlConfig {
   pub pub_uses: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InheritConfig {
   pub table: String,
   pub fields: Option<MapConfig<String, GraphqlFieldConfig>>,
 }
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
 #[serde(untagged)]
 
 pub enum Inherit {
@@ -488,7 +489,7 @@ impl Inherit {
   }
 }
 
-#[derive(Deserialize, Clone, Debug, Default, Merge)]
+#[derive(Deserialize, Clone, Debug, Default, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GraphqlFieldConfig {
   pub omit: Option<bool>,
@@ -497,7 +498,7 @@ pub struct GraphqlFieldConfig {
   pub attributes: Option<ListConfig<String>>,
 }
 
-#[derive(Deserialize, Clone, Debug, Default, Merge)]
+#[derive(Deserialize, Clone, Debug, Default, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OutputTypeConfig {
   #[merge(skip)]

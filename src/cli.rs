@@ -14,6 +14,15 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum CliSubcommand {
   Generate,
+  Config {
+    #[command(subcommand)]
+    subcommand: ConfigSubcommands,
+  },
+}
+
+#[derive(Subcommand)]
+pub enum ConfigSubcommands {
+  Schema,
 }
 
 #[derive(Args)]
