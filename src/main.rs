@@ -1,12 +1,12 @@
 use std::{
   collections::HashMap,
   fs::{self, OpenOptions},
-  io::Write,
+  io::{self, Write},
   process::{Command, Stdio},
   str::FromStr,
 };
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use diesel_gen::{
   config::Config,
   parse::File,
@@ -293,7 +293,7 @@ fn main() -> anyhow::Result<()> {
   let args = cli::Cli::parse();
 
   match args.command {
-    cli::CliSubcommand::Generate => {
+    cli::CliSubcommands::Generate => {
       let diesel_gen_config_content = fs::read_to_string(args.args.config)?;
 
       let mut diesel_gen_config =
@@ -323,12 +323,21 @@ fn main() -> anyhow::Result<()> {
       generate_models(&diesel_gen_config, &parsed)?;
       generate_async_graphql(&diesel_gen_config, &parsed)?;
     }
-    cli::CliSubcommand::Config { subcommand } => match subcommand {
+    cli::CliSubcommands::Config { subcommand } => match subcommand {
       cli::ConfigSubcommands::Schema => {
         let schema = schemars::schema_for!(Config);
-        serde_json::to_writer_pretty(std::io::stdout(), &schema)?;
+        serde_json::to_writer_pretty(io::stdout(), &schema)?;
       }
     },
+    cli::CliSubcommands::Completion { shell } => {
+      let mut cmd = cli::Cli::command_for_update();
+      clap_complete::generate(
+        shell,
+        &mut cmd,
+        build::PROJECT_NAME,
+        &mut io::stdout(),
+      );
+    }
   }
 
   Ok(())
