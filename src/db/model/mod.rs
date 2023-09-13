@@ -16,10 +16,6 @@ use crate::db::schema::iam::{
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -40,7 +36,7 @@ pub struct PrismaMigration {
   pub applied_steps_count: i32,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = _prisma_migrations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPrismaMigration<'a> {
@@ -54,7 +50,7 @@ pub struct NewPrismaMigration<'a> {
   pub applied_steps_count: &'a i32,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = _prisma_migrations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PrismaMigrationUpdate<'a> {
@@ -68,13 +64,14 @@ pub struct PrismaMigrationUpdate<'a> {
 }
 
 impl PrismaMigration {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &str,
     changes: &PrismaMigrationUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -85,13 +82,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_checksum<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_checksum(
     id: &str,
     checksum: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -102,13 +100,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_finished_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_finished_at(
     id: &str,
     finished_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -119,13 +118,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_migration_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_migration_name(
     id: &str,
     migration_name: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -136,13 +136,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_logs<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_logs(
     id: &str,
     logs: Option<&str>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -153,13 +154,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_rolled_back_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_rolled_back_at(
     id: &str,
     rolled_back_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -170,13 +172,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_started_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_started_at(
     id: &str,
     started_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -187,13 +190,14 @@ impl PrismaMigration {
       .get_result::<PrismaMigration>(&mut conn)
       .await
   }
-  pub async fn update_applied_steps_count<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_applied_steps_count(
     id: &str,
     applied_steps_count: &i32,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -207,12 +211,13 @@ impl PrismaMigration {
 }
 
 impl PrismaMigration {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -225,20 +230,20 @@ impl PrismaMigration {
 }
 
 impl PrismaMigration {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &str,
+  pub async fn insert(
     data: &NewPrismaMigration<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(_prisma_migrations::table)
       .values(data)
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
+      .get_result::<PrismaMigration>(conn)
       .await
   }
 }
@@ -246,10 +251,6 @@ impl PrismaMigration {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -270,7 +271,7 @@ pub struct Credential {
   pub updated_at: time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewCredential<'a> {
@@ -284,7 +285,7 @@ pub struct NewCredential<'a> {
   pub updated_at: &'a time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct CredentialUpdate<'a> {
@@ -298,13 +299,14 @@ pub struct CredentialUpdate<'a> {
 }
 
 impl Credential {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &CredentialUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -315,13 +317,14 @@ impl Credential {
       .get_result::<Credential>(&mut conn)
       .await
   }
-  pub async fn update_identity_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_identity_id(
     id: &uuid::Uuid,
     identity_id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -335,13 +338,14 @@ impl Credential {
       .get_result::<Credential>(&mut conn)
       .await
   }
-  pub async fn update_enabled<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_enabled(
     id: &uuid::Uuid,
     enabled: &bool,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -355,13 +359,14 @@ impl Credential {
       .get_result::<Credential>(&mut conn)
       .await
   }
-  pub async fn update_type<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_type(
     id: &uuid::Uuid,
     type_: CredentialType,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -375,13 +380,14 @@ impl Credential {
       .get_result::<Credential>(&mut conn)
       .await
   }
-  pub async fn update_content<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_content(
     id: &uuid::Uuid,
     content: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -395,13 +401,14 @@ impl Credential {
       .get_result::<Credential>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -415,13 +422,14 @@ impl Credential {
       .get_result::<Credential>(&mut conn)
       .await
   }
-  pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_updated_at(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -435,12 +443,13 @@ impl Credential {
 }
 
 impl Credential {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -453,20 +462,20 @@ impl Credential {
 }
 
 impl Credential {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewCredential<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(credentials::table)
       .values(data)
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
+      .get_result::<Credential>(conn)
       .await
   }
 }
@@ -474,10 +483,6 @@ impl Credential {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -496,7 +501,7 @@ pub struct EmailAddressVerificationCode {
   pub invalidated_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewEmailAddressVerificationCode<'a> {
@@ -508,7 +513,7 @@ pub struct NewEmailAddressVerificationCode<'a> {
   pub invalidated_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailAddressVerificationCodeUpdate<'a> {
@@ -520,13 +525,14 @@ pub struct EmailAddressVerificationCodeUpdate<'a> {
 }
 
 impl EmailAddressVerificationCode {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &EmailAddressVerificationCodeUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -537,13 +543,14 @@ impl EmailAddressVerificationCode {
       .get_result::<EmailAddressVerificationCode>(&mut conn)
       .await
   }
-  pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_value(
     id: &uuid::Uuid,
     value: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -554,13 +561,14 @@ impl EmailAddressVerificationCode {
       .get_result::<EmailAddressVerificationCode>(&mut conn)
       .await
   }
-  pub async fn update_expires_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_expires_at(
     id: &uuid::Uuid,
     expires_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -571,13 +579,14 @@ impl EmailAddressVerificationCode {
       .get_result::<EmailAddressVerificationCode>(&mut conn)
       .await
   }
-  pub async fn update_email_address_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_email_address_id(
     id: &uuid::Uuid,
     email_address_id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -590,13 +599,14 @@ impl EmailAddressVerificationCode {
       .get_result::<EmailAddressVerificationCode>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -607,13 +617,14 @@ impl EmailAddressVerificationCode {
       .get_result::<EmailAddressVerificationCode>(&mut conn)
       .await
   }
-  pub async fn update_invalidated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_invalidated_at(
     id: &uuid::Uuid,
     invalidated_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -629,12 +640,13 @@ impl EmailAddressVerificationCode {
 }
 
 impl EmailAddressVerificationCode {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -647,20 +659,20 @@ impl EmailAddressVerificationCode {
 }
 
 impl EmailAddressVerificationCode {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewEmailAddressVerificationCode<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(email_address_verification_codes::table)
       .values(data)
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
+      .get_result::<EmailAddressVerificationCode>(conn)
       .await
   }
 }
@@ -668,10 +680,6 @@ impl EmailAddressVerificationCode {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -691,7 +699,7 @@ pub struct EmailAddress {
   pub updated_at: time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewEmailAddress<'a> {
@@ -704,7 +712,7 @@ pub struct NewEmailAddress<'a> {
   pub updated_at: &'a time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailAddressUpdate<'a> {
@@ -717,13 +725,14 @@ pub struct EmailAddressUpdate<'a> {
 }
 
 impl EmailAddress {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &EmailAddressUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -734,13 +743,14 @@ impl EmailAddress {
       .get_result::<EmailAddress>(&mut conn)
       .await
   }
-  pub async fn update_identity_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_identity_id(
     id: &uuid::Uuid,
     identity_id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -754,13 +764,14 @@ impl EmailAddress {
       .get_result::<EmailAddress>(&mut conn)
       .await
   }
-  pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_value(
     id: &uuid::Uuid,
     value: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -774,13 +785,14 @@ impl EmailAddress {
       .get_result::<EmailAddress>(&mut conn)
       .await
   }
-  pub async fn update_primary<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_primary(
     id: &uuid::Uuid,
     primary: &bool,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -794,13 +806,14 @@ impl EmailAddress {
       .get_result::<EmailAddress>(&mut conn)
       .await
   }
-  pub async fn update_verified_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_verified_at(
     id: &uuid::Uuid,
     verified_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -814,13 +827,14 @@ impl EmailAddress {
       .get_result::<EmailAddress>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -834,13 +848,14 @@ impl EmailAddress {
       .get_result::<EmailAddress>(&mut conn)
       .await
   }
-  pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_updated_at(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -854,12 +869,13 @@ impl EmailAddress {
 }
 
 impl EmailAddress {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -872,20 +888,20 @@ impl EmailAddress {
 }
 
 impl EmailAddress {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewEmailAddress<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(email_addresses::table)
       .values(data)
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
+      .get_result::<EmailAddress>(conn)
       .await
   }
 }
@@ -893,10 +909,6 @@ impl EmailAddress {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -918,7 +930,7 @@ pub struct Identity {
   pub other_gender: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = identities)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewIdentity<'a> {
@@ -933,7 +945,7 @@ pub struct NewIdentity<'a> {
   pub other_gender: Option<&'a str>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = identities)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct IdentityUpdate<'a> {
@@ -948,13 +960,14 @@ pub struct IdentityUpdate<'a> {
 }
 
 impl Identity {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &IdentityUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -965,13 +978,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_username<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_username(
     id: &uuid::Uuid,
     username: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -982,13 +996,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_display_picture_url<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_display_picture_url(
     id: &uuid::Uuid,
     display_picture_url: Option<&str>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -999,13 +1014,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_first_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_first_name(
     id: &uuid::Uuid,
     first_name: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1016,13 +1032,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_middle_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_middle_name(
     id: &uuid::Uuid,
     middle_name: Option<&str>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1033,13 +1050,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_last_name<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_last_name(
     id: &uuid::Uuid,
     last_name: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1050,13 +1068,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_name_suffix<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_name_suffix(
     id: &uuid::Uuid,
     name_suffix: Option<&str>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1067,13 +1086,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_gender<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_gender(
     id: &uuid::Uuid,
     gender: Option<Gender>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1084,13 +1104,14 @@ impl Identity {
       .get_result::<Identity>(&mut conn)
       .await
   }
-  pub async fn update_other_gender<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_other_gender(
     id: &uuid::Uuid,
     other_gender: Option<&str>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1104,12 +1125,13 @@ impl Identity {
 }
 
 impl Identity {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1122,20 +1144,20 @@ impl Identity {
 }
 
 impl Identity {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewIdentity<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(identities::table)
       .values(data)
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
+      .get_result::<Identity>(conn)
       .await
   }
 }
@@ -1143,10 +1165,6 @@ impl Identity {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -1163,7 +1181,7 @@ pub struct PasswordResetToken {
   pub created_at: time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPasswordResetToken<'a> {
@@ -1173,7 +1191,7 @@ pub struct NewPasswordResetToken<'a> {
   pub created_at: &'a time::OffsetDateTime,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PasswordResetTokenUpdate<'a> {
@@ -1183,13 +1201,14 @@ pub struct PasswordResetTokenUpdate<'a> {
 }
 
 impl PasswordResetToken {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &PasswordResetTokenUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1200,13 +1219,14 @@ impl PasswordResetToken {
       .get_result::<PasswordResetToken>(&mut conn)
       .await
   }
-  pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_value(
     id: &uuid::Uuid,
     value: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1217,13 +1237,14 @@ impl PasswordResetToken {
       .get_result::<PasswordResetToken>(&mut conn)
       .await
   }
-  pub async fn update_expires_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_expires_at(
     id: &uuid::Uuid,
     expires_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1234,13 +1255,14 @@ impl PasswordResetToken {
       .get_result::<PasswordResetToken>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1254,12 +1276,13 @@ impl PasswordResetToken {
 }
 
 impl PasswordResetToken {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1272,20 +1295,20 @@ impl PasswordResetToken {
 }
 
 impl PasswordResetToken {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewPasswordResetToken<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(password_reset_tokens::table)
       .values(data)
       .returning(PasswordResetToken::as_returning())
-      .get_result::<PasswordResetToken>(&mut conn)
+      .get_result::<PasswordResetToken>(conn)
       .await
   }
 }
@@ -1293,10 +1316,6 @@ impl PasswordResetToken {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -1319,7 +1338,7 @@ pub struct RefreshToken {
   pub invalidated_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRefreshToken<'a> {
@@ -1335,7 +1354,7 @@ pub struct NewRefreshToken<'a> {
   pub invalidated_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct RefreshTokenUpdate<'a> {
@@ -1351,13 +1370,14 @@ pub struct RefreshTokenUpdate<'a> {
 }
 
 impl RefreshToken {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &RefreshTokenUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1368,13 +1388,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_identity_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_identity_id(
     id: &uuid::Uuid,
     identity_id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1385,13 +1406,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_value<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_value(
     id: &uuid::Uuid,
     value: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1402,13 +1424,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_scope<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_scope(
     id: &uuid::Uuid,
     scope: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1419,13 +1442,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_audience<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_audience(
     id: &uuid::Uuid,
     audience: &str,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1436,13 +1460,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_subject<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_subject(
     id: &uuid::Uuid,
     subject: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1453,13 +1478,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_subject_type<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_subject_type(
     id: &uuid::Uuid,
     subject_type: SubjectType,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1470,13 +1496,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_expires_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_expires_at(
     id: &uuid::Uuid,
     expires_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1487,13 +1514,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1504,13 +1532,14 @@ impl RefreshToken {
       .get_result::<RefreshToken>(&mut conn)
       .await
   }
-  pub async fn update_invalidated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_invalidated_at(
     id: &uuid::Uuid,
     invalidated_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1524,12 +1553,13 @@ impl RefreshToken {
 }
 
 impl RefreshToken {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1542,20 +1572,20 @@ impl RefreshToken {
 }
 
 impl RefreshToken {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewRefreshToken<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(refresh_tokens::table)
       .values(data)
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
+      .get_result::<RefreshToken>(conn)
       .await
   }
 }
@@ -1563,10 +1593,6 @@ impl RefreshToken {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -1585,7 +1611,7 @@ pub struct Staff {
   pub deleted_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = staffs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewStaff<'a> {
@@ -1597,7 +1623,7 @@ pub struct NewStaff<'a> {
   pub deleted_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = staffs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct StaffUpdate<'a> {
@@ -1609,13 +1635,14 @@ pub struct StaffUpdate<'a> {
 }
 
 impl Staff {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &StaffUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1626,13 +1653,14 @@ impl Staff {
       .get_result::<Staff>(&mut conn)
       .await
   }
-  pub async fn update_role<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_role(
     id: &uuid::Uuid,
     role: StaffRole,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1646,13 +1674,14 @@ impl Staff {
       .get_result::<Staff>(&mut conn)
       .await
   }
-  pub async fn update_identity_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_identity_id(
     id: &uuid::Uuid,
     identity_id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1666,13 +1695,14 @@ impl Staff {
       .get_result::<Staff>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1686,13 +1716,14 @@ impl Staff {
       .get_result::<Staff>(&mut conn)
       .await
   }
-  pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_updated_at(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1703,13 +1734,14 @@ impl Staff {
       .get_result::<Staff>(&mut conn)
       .await
   }
-  pub async fn update_deleted_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_deleted_at(
     id: &uuid::Uuid,
     deleted_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1726,12 +1758,13 @@ impl Staff {
 }
 
 impl Staff {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1744,12 +1777,13 @@ impl Staff {
 }
 
 impl Staff {
-  pub async fn soft_delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn soft_delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1766,20 +1800,20 @@ impl Staff {
 }
 
 impl Staff {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewStaff<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(staffs::table)
       .values(data)
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
+      .get_result::<Staff>(conn)
       .await
   }
 }
@@ -1787,10 +1821,6 @@ impl Staff {
 #[derive(
   Clone,
   Debug,
-  Default,
-  Clone,
-  Debug,
-  Default,
   diesel::Queryable,
   diesel::Insertable,
   diesel::Selectable,
@@ -1808,7 +1838,7 @@ pub struct User {
   pub deleted_at: Option<time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::Insertable)]
+#[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewUser<'a> {
@@ -1819,7 +1849,7 @@ pub struct NewUser<'a> {
   pub deleted_at: Option<&'a time::OffsetDateTime>,
 }
 
-#[derive(Clone, Debug, Default, Clone, Debug, Default, diesel::AsChangeset)]
+#[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct UserUpdate<'a> {
@@ -1830,13 +1860,14 @@ pub struct UserUpdate<'a> {
 }
 
 impl User {
-  pub async fn update<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update(
     id: &uuid::Uuid,
     changes: &UserUpdate<'_>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1847,13 +1878,14 @@ impl User {
       .get_result::<User>(&mut conn)
       .await
   }
-  pub async fn update_identity_id<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_identity_id(
     id: &uuid::Uuid,
     identity_id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1867,13 +1899,14 @@ impl User {
       .get_result::<User>(&mut conn)
       .await
   }
-  pub async fn update_created_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_created_at(
     id: &uuid::Uuid,
     created_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1887,13 +1920,14 @@ impl User {
       .get_result::<User>(&mut conn)
       .await
   }
-  pub async fn update_updated_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_updated_at(
     id: &uuid::Uuid,
     updated_at: &time::OffsetDateTime,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1904,13 +1938,14 @@ impl User {
       .get_result::<User>(&mut conn)
       .await
   }
-  pub async fn update_deleted_at<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn update_deleted_at(
     id: &uuid::Uuid,
     deleted_at: Option<&time::OffsetDateTime>,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1927,12 +1962,13 @@ impl User {
 }
 
 impl User {
-  pub async fn delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1945,12 +1981,13 @@ impl User {
 }
 
 impl User {
-  pub async fn soft_delete<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
+  pub async fn soft_delete(
     id: &uuid::Uuid,
     mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::ExpressionMethods;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1967,20 +2004,20 @@ impl User {
 }
 
 impl User {
-  pub async fn insert<
-    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg>,
-  >(
-    id: &uuid::Uuid,
+  pub async fn insert(
     data: &NewUser<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error> {
+    conn: &mut Conn,
+  ) -> Result<Self, diesel::result::Error>
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
 
     diesel::insert_into(users::table)
       .values(data)
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
+      .get_result::<User>(conn)
       .await
   }
 }

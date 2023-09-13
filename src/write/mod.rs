@@ -240,14 +240,14 @@ fn write_ref_fn_params<W: Write>(
 fn operation_sig<W: Write>(
   use_async: bool,
   name: &str,
-  backend: &SqlBackend,
+  conn_t_name: &str,
   lifetimes: Option<Vec<&str>>,
   mut w: W,
 ) -> std::io::Result<()> {
   if use_async {
-    writeln!(w, "  pub async fn {}<", name)?;
+    writeln!(w, "  pub async fn {}<{}", name, conn_t_name)?;
   } else {
-    writeln!(w, "  pub fn {}<", name)?;
+    writeln!(w, "  pub fn {}<{}", name, conn_t_name)?;
   }
 
   if let Some(lifetimes) = lifetimes {
@@ -255,17 +255,29 @@ fn operation_sig<W: Write>(
       writeln!(w, "{}, ", lf)?;
     }
   }
+  writeln!(w, ">(")?;
 
+  Ok(())
+}
+
+fn operation_contraints<W: Write>(
+  use_async: bool,
+  conn_t_name: &str,
+  backend: &SqlBackend,
+  mut w: W,
+) -> std::io::Result<()> {
   if use_async {
     writeln!(
       w,
-      "Conn: diesel_async::AsyncConnection<Backend = {}>>(",
+      " where {}: diesel_async::AsyncConnection<Backend = {}> + Send",
+      conn_t_name,
       backend.path()
     )?;
   } else {
     writeln!(
       w,
-      "Conn: diesel::Connection<Backend = {}>>(",
+      " where {}: diesel::Connection<Backend = {}> + Send ",
+      conn_t_name,
       backend.path()
     )?;
   }
@@ -738,10 +750,12 @@ struct InsertArgs<'a> {
 
 fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(args.use_async, "insert", args.backend, None, &mut w)?;
+  operation_sig(args.use_async, "insert", "Conn", None, &mut w)?;
   write!(w, "data: &{}<'_>, ", args.inserter_name)?;
-  write!(w, "mut conn: Conn")?;
-  write!(w, "\n) -> Result<Self, diesel::result::Error> {{")?;
+  write!(w, "conn: &mut Conn")?;
+  write!(w, "\n) -> Result<Self, diesel::result::Error> ")?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  write!(w, "{{")?;
 
   default_operation_uses(
     &DefaultUsesArgs {
@@ -758,7 +772,7 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
       diesel::insert_into({table}::table)
         .values(data)
         .returning({model}::as_returning())
-        .get_result::<{model}>(&mut conn)
+        .get_result::<{model}>(conn)
         .await
     ",
     table = args.table.name,
@@ -788,11 +802,13 @@ struct UpdateArgs<'a> {
 fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
 
-  operation_sig(args.use_async, "update", args.backend, None, &mut w)?;
+  operation_sig(args.use_async, "update", "Conn", None, &mut w)?;
   write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
   write!(w, "changes: & {}<'_>, ", args.updater_name)?;
-  write!(w, "mut conn: Conn")?;
-  write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+  write!(w, "conn: &mut Conn")?;
+  write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  write!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
       use_async: args.use_async,
@@ -828,7 +844,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   writeln!(
     w,
-    ".returning({model}::as_returning()).get_result::<{model}>(&mut conn).await",
+    ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
@@ -844,7 +860,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
           "update_{}",
           field_name.strip_prefix("r#").unwrap_or(&field_name)
         ),
-        args.backend,
+        "Conn",
         None,
         &mut w,
       )?;
@@ -858,8 +874,10 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
           || { anyhow::anyhow!("Unknown type: {}", c.r#type.to_string()) }
         )?
       )?;
-      write!(w, "mut conn: Conn")?;
-      write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+      write!(w, "conn: &mut Conn")?;
+      write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+      operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+      write!(w, "{{")?;
       default_operation_uses(
         &DefaultUsesArgs {
           use_async: args.use_async,
@@ -902,10 +920,10 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       )?;
 
       writeln!(
-            w,
-            ".returning({model}::as_returning()).get_result::<{model}>(&mut conn).await",
-            model = args.model_name
-          )?;
+        w,
+        ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
+        model = args.model_name
+      )?;
       writeln!(w, "}}")?;
     }
   }
@@ -927,10 +945,12 @@ struct DeleteArgs<'a> {
 
 fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(args.use_async, "delete", args.backend, None, &mut w)?;
+  operation_sig(args.use_async, "delete", "Conn", None, &mut w)?;
   write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
-  write!(w, "mut conn: Conn")?;
-  write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+  write!(w, "conn: &mut Conn")?;
+  write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  write!(w, "{{")?;
 
   default_operation_uses(
     &DefaultUsesArgs {
@@ -954,7 +974,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   writeln!(
     w,
-    ".returning({model}::as_returning()).get_result::<{model}>(&mut conn).await",
+    ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
@@ -993,10 +1013,12 @@ fn soft_delete<W: Write>(
             ));
   }
 
-  operation_sig(args.use_async, "soft_delete", args.backend, None, &mut w)?;
+  operation_sig(args.use_async, "soft_delete", "Conn", None, &mut w)?;
   write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
-  write!(w, "mut conn: Conn")?;
-  write!(w, "\n  ) -> Result<Self, diesel::result::Error> {{")?;
+  write!(w, "conn: &mut Conn")?;
+  write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  write!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
       use_async: args.use_async,
@@ -1056,10 +1078,10 @@ fn soft_delete<W: Write>(
   writeln!(w, "))")?;
 
   writeln!(
-      w,
-      ".returning({model}::as_returning()).get_result::<{model}>(&mut conn).await",
-      model = args.model_name
-    )?;
+    w,
+    ".returning({model}::as_returning()).get_result::<{model}>(conn).await",
+    model = args.model_name
+  )?;
   writeln!(w, "}}")?;
 
   writeln!(w, "}}\n")?;
@@ -1081,15 +1103,11 @@ fn simple_paginate<W: Write>(
   mut w: W,
 ) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(
-    args.use_async,
-    "simple_paginate",
-    args.backend,
-    None,
-    &mut w,
-  )?;
-  write!(w, "offset: usize, limit: usize, mut conn: Conn")?;
-  writeln!(w, "\n  ) -> Result<Vec<Self>, diesel::result::Error> {{")?;
+  operation_sig(args.use_async, "simple_paginate", "Conn", None, &mut w)?;
+  write!(w, "offset: usize, limit: usize, conn: &mut Conn")?;
+  writeln!(w, "\n  ) -> Result<Vec<Self>, diesel::result::Error> ")?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  writeln!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
       use_async: args.use_async,
@@ -1160,15 +1178,11 @@ fn cursor_paginate<W: Write>(
   mut w: W,
 ) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(
-    args.use_async,
-    "cursor_paginate",
-    args.backend,
-    None,
-    &mut w,
-  )?;
-  write!(w, "offset: usize, limit: usize, mut conn: Conn")?;
-  writeln!(w, "\n  ) -> Result<Vec<Self>, diesel::result::Error> {{")?;
+  operation_sig(args.use_async, "cursor_paginate", "Conn", None, &mut w)?;
+  write!(w, "offset: usize, limit: usize, conn: &mut Conn")?;
+  writeln!(w, "\n  ) -> Result<Vec<Self>, diesel::result::Error> ")?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  writeln!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
       use_async: args.use_async,

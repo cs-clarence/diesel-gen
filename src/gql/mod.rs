@@ -3,11 +3,11 @@
 #![allow(unused)]
 #![allow(clippy::all)]
 
-use crate::db::model::iam::{Identity as ModelIdentity, User as ModelUser};
 use crate::db::model::CredentialType;
 use crate::db::model::Gender;
 use crate::db::model::StaffRole;
 use crate::db::model::SubjectType;
+use crate::db::model::{Identity as ModelIdentity, User as ModelUser};
 #[derive(async_graphql::SimpleObject)]
 #[graphql(complex)]
 pub struct User {
