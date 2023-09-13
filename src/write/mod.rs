@@ -288,6 +288,7 @@ fn operation_contraints<W: Write>(
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd)]
 struct DefaultUsesArgs {
   use_async: bool,
+  query_dsl: bool,
   selectable_helper: bool,
   expression_methods: bool,
   sql_types: bool,
@@ -299,6 +300,10 @@ fn default_operation_uses<W: Write>(
 ) -> std::io::Result<()> {
   if args.selectable_helper {
     writeln!(w, "use diesel::SelectableHelper;")?;
+  }
+
+  if args.query_dsl {
+    writeln!(w, "use diesel::QueryDsl;")?;
   }
 
   if args.expression_methods {
@@ -780,6 +785,7 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   default_operation_uses(
     &DefaultUsesArgs {
+      query_dsl: false,
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: false,
@@ -845,6 +851,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   default_operation_uses(
     &DefaultUsesArgs {
       use_async: args.use_async,
+      query_dsl: false,
       selectable_helper: true,
       expression_methods: true,
       sql_types: false,
@@ -928,6 +935,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       default_operation_uses(
         &DefaultUsesArgs {
           use_async: args.use_async,
+          query_dsl: false,
           selectable_helper: true,
           expression_methods: true,
           sql_types: false,
@@ -1015,6 +1023,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
   default_operation_uses(
     &DefaultUsesArgs {
+      query_dsl: false,
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: true,
@@ -1094,6 +1103,7 @@ fn soft_delete<W: Write>(
   write!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
+      query_dsl: false,
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: true,
@@ -1220,12 +1230,16 @@ fn simple_paginate<W: Write>(
   writeln!(w, "}}",)?;
 
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig("simple_paginate", "Conn", None, &mut w)?;
+  operation_sig("simple_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
 
   if let OrderingOptionsConfig::None = args.ordering_options {
-    write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
+    write!(w, "offset: u32, limit: u32, conn: &'a mut Conn")?;
   } else {
-    write!(w, "offset: usize, limit: usize, ordering: Option<&Vec<{}>>, conn: &'a mut Conn", &order_enum_name)?;
+    write!(
+      w,
+      "offset: u32, limit: u32, ordering: Option<&Vec<{}>>, conn: &'a mut Conn",
+      &order_enum_name
+    )?;
   }
 
   write!(
@@ -1238,6 +1252,7 @@ fn simple_paginate<W: Write>(
   writeln!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
+      query_dsl: true,
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: !args.include_soft_deleted
@@ -1329,7 +1344,11 @@ fn simple_paginate<W: Write>(
 
   if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
     writeln!(w, "if let Some(ordering) = ordering {{")?;
-    writeln!(w, "for ({}, {}) in ordering.enumerate() {{", idx, ord)?;
+    writeln!(
+      w,
+      "for ({}, {}) in ordering.iter().enumerate() {{",
+      idx, ord
+    )?;
     writeln!(w, "match {} {{", ord)?;
     match args.ordering_options {
       OrderingOptionsConfig::None => {}
@@ -1426,7 +1445,7 @@ fn simple_paginate<W: Write>(
   }
   writeln!(
     w,
-    ".offset(offset).limit(limit).select({model}::as_select()).load::<{model}>(conn)",
+    ".offset(offset.into()).limit(limit.into()).select({model}::as_select()).load::<{model}>(conn)",
     model = args.model_name
   )?;
 
@@ -1463,6 +1482,7 @@ fn cursor_paginate<W: Write>(
   writeln!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
+      query_dsl: false,
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: !args.include_soft_deleted
