@@ -739,7 +739,6 @@ struct InsertArgs<'a> {
 fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
   operation_sig(args.use_async, "insert", args.backend, None, &mut w)?;
-  write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
   write!(w, "data: &{}<'_>, ", args.inserter_name)?;
   write!(w, "mut conn: Conn")?;
   write!(w, "\n) -> Result<Self, diesel::result::Error> {{")?;
