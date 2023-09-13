@@ -1468,7 +1468,7 @@ fn cursor_paginate<W: Write>(
   mut w: W,
 ) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig("cursor_paginate", "Conn", None, &mut w)?;
+  operation_sig("cursor_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
   write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
 
   write!(
