@@ -299,19 +299,25 @@ fn main() -> anyhow::Result<()> {
       let mut diesel_gen_config =
         serde_yaml::from_str::<Config>(&diesel_gen_config_content)?;
 
-      if let Some(t) = diesel_gen_config.tables.get("*").cloned() {
-        for (k, v) in diesel_gen_config.tables.iter_mut() {
+      if let Some(default) = diesel_gen_config.tables.get("*").cloned() {
+        for (k, v) in diesel_gen_config.tables.clone() {
           if k != "*" {
-            v.merge(t.clone());
+            let mut new = default.clone();
+
+            new.merge(v);
+
+            diesel_gen_config.tables.insert(k, new);
           }
         }
       }
 
       if let Some(ag) = &mut diesel_gen_config.async_graphql {
-        if let Some(t) = ag.output_types.get("*").cloned() {
-          for (k, v) in ag.output_types.iter_mut() {
+        if let Some(default) = ag.output_types.get("*").cloned() {
+          for (k, v) in ag.output_types.clone() {
             if k != "*" {
-              v.merge(t.clone());
+              let mut new = default.clone();
+              new.merge(v);
+              ag.output_types.insert(k, new);
             }
           }
         }
