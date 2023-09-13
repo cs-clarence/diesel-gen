@@ -221,6 +221,7 @@ fn get_update_timestamp_columns<'a>(
 
 fn write_ref_fn_params<W: Write>(
   type_overrides: &HashMap<String, String>,
+  ref_type_overrides: &HashMap<String, String>,
   cols: &Vec<&Column>,
   mut w: W,
 ) -> std::io::Result<()> {
@@ -229,8 +230,12 @@ fn write_ref_fn_params<W: Write>(
       w,
       "{}: {}, ",
       c.name,
-      get_ref_type(type_overrides, &c.r#type, None)
-        .expect("Unknown type encountered")
+      if c.r#type.is_simple() {
+        get_type(type_overrides, &c.r#type).expect("Unknown type encountered")
+      } else {
+        get_ref_type(ref_type_overrides, &c.r#type, None)
+          .expect("Unknown type encountered")
+      }
     )?;
   }
 
@@ -496,15 +501,16 @@ pub fn model<W: Write>(
         writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
       }
 
-      writeln!(
-        w,
-        "  pub {}: {},",
-        field_name,
+      let ty = if c.r#type.is_simple() {
+        get_type(type_overrides, &c.r#type)
+      } else {
         get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
-          .ok_or_else(|| {
-            anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-          },)?
-      )?;
+      }
+      .ok_or_else(|| {
+        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+      })?;
+
+      writeln!(w, "  pub {}: {},", field_name, ty,)?;
     }
     writeln!(w, "}}\n")?;
   }
@@ -561,10 +567,16 @@ pub fn model<W: Write>(
       if field_name != c.name {
         writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
       }
-      let ty = get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
-        .ok_or_else(|| {
-          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-        })?;
+
+      let ty = if c.r#type.is_simple() {
+        get_type(type_overrides, &c.r#type)
+      } else {
+        get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
+      }
+      .ok_or_else(|| {
+        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+      })?;
+
       writeln!(
         w,
         "  pub {}: {},",
@@ -615,6 +627,7 @@ pub fn model<W: Write>(
 
       update(
         &UpdateArgs {
+          type_overrides,
           model_name: &final_model_name,
           updater_name: &final_updater_name,
           use_async,
@@ -636,6 +649,7 @@ pub fn model<W: Write>(
     if enable_delete {
       delete(
         &DeleteArgs {
+          type_overrides,
           model_name: &final_model_name,
           use_async,
           ref_type_overrides,
@@ -658,6 +672,7 @@ pub fn model<W: Write>(
       if let Some(c) = soft_delete_column {
         soft_delete(
           &SoftDeleteArgs {
+            type_overrides,
             model_name: &final_model_name,
             use_async,
             ref_type_overrides,
@@ -789,6 +804,7 @@ struct UpdateArgs<'a> {
   model_name: &'a str,
   updater_name: &'a str,
   use_async: bool,
+  type_overrides: &'a HashMap<String, String>,
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   non_primary_key_columns: &'a Vec<&'a Column>,
@@ -803,7 +819,12 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
 
   operation_sig(args.use_async, "update", "Conn", None, &mut w)?;
-  write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
+  write_ref_fn_params(
+    args.type_overrides,
+    args.ref_type_overrides,
+    args.primary_keys,
+    &mut w,
+  )?;
   write!(w, "changes: & {}<'_>, ", args.updater_name)?;
   write!(w, "conn: &mut Conn")?;
   write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
@@ -865,7 +886,12 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
         &mut w,
       )?;
 
-      write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
+      write_ref_fn_params(
+        args.type_overrides,
+        args.ref_type_overrides,
+        args.primary_keys,
+        &mut w,
+      )?;
       write!(
         w,
         "{}: {}, ",
@@ -936,6 +962,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
 struct DeleteArgs<'a> {
   model_name: &'a str,
   use_async: bool,
+  type_overrides: &'a HashMap<String, String>,
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   table: &'a Table,
@@ -946,7 +973,12 @@ struct DeleteArgs<'a> {
 fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
   operation_sig(args.use_async, "delete", "Conn", None, &mut w)?;
-  write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
+  write_ref_fn_params(
+    args.type_overrides,
+    args.ref_type_overrides,
+    args.primary_keys,
+    &mut w,
+  )?;
   write!(w, "conn: &mut Conn")?;
   write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
@@ -987,6 +1019,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
 struct SoftDeleteArgs<'a> {
   model_name: &'a str,
   use_async: bool,
+  type_overrides: &'a HashMap<String, String>,
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   table: &'a Table,
@@ -1014,7 +1047,12 @@ fn soft_delete<W: Write>(
   }
 
   operation_sig(args.use_async, "soft_delete", "Conn", None, &mut w)?;
-  write_ref_fn_params(args.ref_type_overrides, args.primary_keys, &mut w)?;
+  write_ref_fn_params(
+    args.type_overrides,
+    args.ref_type_overrides,
+    args.primary_keys,
+    &mut w,
+  )?;
   write!(w, "conn: &mut Conn")?;
   write!(w, "\n  ) -> Result<Self, diesel::result::Error>")?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;

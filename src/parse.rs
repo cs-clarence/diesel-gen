@@ -112,6 +112,13 @@ impl TypeName {
     )
   }
 
+  pub fn is_float_type(&self) -> bool {
+    matches!(
+      self,
+      TypeName::Float4 | TypeName::Float8 | TypeName::Float | TypeName::Double
+    )
+  }
+
   pub fn is_datetime_type(&self) -> bool {
     matches!(
       self,
@@ -743,6 +750,14 @@ impl Type {
     }
 
     names
+  }
+
+  pub fn is_simple(&self) -> bool {
+    self.is_boolean() || self.is_integer() || self.is_float()
+  }
+
+  pub fn is_float(&self) -> bool {
+    self.name().is_float_type()
   }
 
   pub fn is_nullable(&self) -> bool {
