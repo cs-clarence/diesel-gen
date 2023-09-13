@@ -292,35 +292,34 @@ fn generate_async_graphql(
 fn main() -> anyhow::Result<()> {
   let args = cli::Cli::parse();
 
-  let diesel_gen_config_content = fs::read_to_string(args.args.config)?;
-
-  let mut diesel_gen_config =
-    serde_yaml::from_str::<Config>(&diesel_gen_config_content)?;
-
-  if let Some(t) = diesel_gen_config.tables.get("*").cloned() {
-    for (k, v) in diesel_gen_config.tables.iter_mut() {
-      if k != "*" {
-        v.merge(t.clone());
-      }
-    }
-  }
-
-  if let Some(ag) = &mut diesel_gen_config.async_graphql {
-    if let Some(t) = ag.output_types.get("*").cloned() {
-      for (k, v) in ag.output_types.iter_mut() {
-        if k != "*" {
-          v.merge(t.clone());
-        }
-      }
-    }
-  }
-
-  let content = fs::read_to_string(&diesel_gen_config.schema)?;
-
-  let parsed = parse::file(&mut ParseContext::new(&content))?;
-
   match args.command {
     cli::CliSubcommand::Generate => {
+      let diesel_gen_config_content = fs::read_to_string(args.args.config)?;
+
+      let mut diesel_gen_config =
+        serde_yaml::from_str::<Config>(&diesel_gen_config_content)?;
+
+      if let Some(t) = diesel_gen_config.tables.get("*").cloned() {
+        for (k, v) in diesel_gen_config.tables.iter_mut() {
+          if k != "*" {
+            v.merge(t.clone());
+          }
+        }
+      }
+
+      if let Some(ag) = &mut diesel_gen_config.async_graphql {
+        if let Some(t) = ag.output_types.get("*").cloned() {
+          for (k, v) in ag.output_types.iter_mut() {
+            if k != "*" {
+              v.merge(t.clone());
+            }
+          }
+        }
+      }
+
+      let content = fs::read_to_string(&diesel_gen_config.schema)?;
+
+      let parsed = parse::file(&mut ParseContext::new(&content))?;
       generate_models(&diesel_gen_config, &parsed)?;
       generate_async_graphql(&diesel_gen_config, &parsed)?;
     }
