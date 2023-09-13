@@ -203,6 +203,25 @@ pub struct UpdateOperationConfig {
 pub struct SimplePaginateOperationConfig {
   pub enable: Option<bool>,
   pub include_soft_deleted: Option<bool>,
+  pub ordering_options: Option<OrderingOptionsConfig>,
+}
+
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
+pub enum Order {
+  Asc,
+  Desc,
+  Both,
+}
+
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum OrderingOptionsConfig {
+  None,
+  All,
+  AllAsc,
+  AllDesc,
+  Columns(HashMap<String, Order>),
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
@@ -501,6 +520,7 @@ pub struct GraphqlFieldConfig {
   pub omit: Option<bool>,
   pub rename: Option<String>,
   pub shareable: Option<bool>,
+  pub external: Option<bool>,
   pub attributes: Option<ListConfig<String>>,
 }
 

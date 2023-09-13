@@ -47,7 +47,7 @@ pub struct NewPrismaMigration<'a> {
   pub logs: Option<&'a str>,
   pub rolled_back_at: Option<&'a time::OffsetDateTime>,
   pub started_at: &'a time::OffsetDateTime,
-  pub applied_steps_count: &'a i32,
+  pub applied_steps_count: i32,
 }
 
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
@@ -60,15 +60,18 @@ pub struct PrismaMigrationUpdate<'a> {
   pub logs: Option<Option<&'a str>>,
   pub rolled_back_at: Option<Option<&'a time::OffsetDateTime>>,
   pub started_at: Option<&'a time::OffsetDateTime>,
-  pub applied_steps_count: Option<&'a i32>,
+  pub applied_steps_count: Option<i32>,
 }
 
 impl PrismaMigration {
-  pub async fn update(
-    id: &str,
-    changes: &PrismaMigrationUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a str,
+    changes: &'a PrismaMigrationUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -79,14 +82,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((changes,))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_checksum(
-    id: &str,
-    checksum: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_checksum<'a, Conn>(
+    id: &'a str,
+    checksum: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -97,14 +102,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::checksum.eq(checksum),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_finished_at(
-    id: &str,
-    finished_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_finished_at<'a, Conn>(
+    id: &'a str,
+    finished_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -115,14 +122,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::finished_at.eq(finished_at),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_migration_name(
-    id: &str,
-    migration_name: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_migration_name<'a, Conn>(
+    id: &'a str,
+    migration_name: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -133,14 +142,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::migration_name.eq(migration_name),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_logs(
-    id: &str,
-    logs: Option<&str>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_logs<'a, Conn>(
+    id: &'a str,
+    logs: Option<&'a str>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -151,14 +162,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::logs.eq(logs),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_rolled_back_at(
-    id: &str,
-    rolled_back_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_rolled_back_at<'a, Conn>(
+    id: &'a str,
+    rolled_back_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -169,14 +182,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::rolled_back_at.eq(rolled_back_at),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_started_at(
-    id: &str,
-    started_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_started_at<'a, Conn>(
+    id: &'a str,
+    started_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -187,14 +202,16 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::started_at.eq(started_at),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
-  pub async fn update_applied_steps_count(
-    id: &str,
-    applied_steps_count: &i32,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_applied_steps_count<'a, Conn>(
+    id: &'a str,
+    applied_steps_count: i32,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -205,16 +222,18 @@ impl PrismaMigration {
       .filter(_prisma_migrations::id.eq(id))
       .set((_prisma_migrations::applied_steps_count.eq(applied_steps_count),))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
 }
 
 impl PrismaMigration {
-  pub async fn delete(
-    id: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -224,16 +243,18 @@ impl PrismaMigration {
     diesel::delete(_prisma_migrations::table)
       .filter(_prisma_migrations::id.eq(id))
       .returning(PrismaMigration::as_returning())
-      .get_result::<PrismaMigration>(&mut conn)
-      .await
+      .get_result::<PrismaMigration>(conn)
   }
 }
 
 impl PrismaMigration {
-  pub async fn insert(
-    data: &NewPrismaMigration<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewPrismaMigration<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PrismaMigration, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -244,7 +265,205 @@ impl PrismaMigration {
       .values(data)
       .returning(PrismaMigration::as_returning())
       .get_result::<PrismaMigration>(conn)
-      .await
+  }
+}
+
+pub enum PrismaMigrationOrderBy {
+  IdAsc,
+  IdDesc,
+  ChecksumAsc,
+  ChecksumDesc,
+  FinishedAtAsc,
+  FinishedAtDesc,
+  MigrationNameAsc,
+  MigrationNameDesc,
+  LogsAsc,
+  LogsDesc,
+  RolledBackAtAsc,
+  RolledBackAtDesc,
+  StartedAtAsc,
+  StartedAtDesc,
+  AppliedStepsCountAsc,
+  AppliedStepsCountDesc,
+}
+impl PrismaMigration {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<PrismaMigrationOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<PrismaMigration>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = _prisma_migrations::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          PrismaMigrationOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::id.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::id.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::id.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::id.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::ChecksumAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::checksum.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::checksum.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::ChecksumDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::checksum.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::checksum.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::FinishedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::finished_at.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::finished_at.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::FinishedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::finished_at.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::finished_at.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::MigrationNameAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::migration_name.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::migration_name.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::MigrationNameDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::migration_name.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::migration_name.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::LogsAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::logs.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::logs.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::LogsDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::logs.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::logs.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::RolledBackAtAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::rolled_back_at.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::rolled_back_at.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::RolledBackAtDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::rolled_back_at.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::rolled_back_at.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::StartedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::started_at.asc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::started_at.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::StartedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::started_at.desc());
+            } else {
+              q = q.then_order_by(_prisma_migrations::started_at.desc());
+            }
+          }
+
+          PrismaMigrationOrderBy::AppliedStepsCountAsc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::applied_steps_count.asc());
+            } else {
+              q =
+                q.then_order_by(_prisma_migrations::applied_steps_count.asc());
+            }
+          }
+
+          PrismaMigrationOrderBy::AppliedStepsCountDesc => {
+            if idx == 0 {
+              q = q.order_by(_prisma_migrations::applied_steps_count.desc());
+            } else {
+              q =
+                q.then_order_by(_prisma_migrations::applied_steps_count.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(PrismaMigration::as_select())
+      .load::<PrismaMigration>(conn)
+  }
+}
+
+impl PrismaMigration {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<PrismaMigration>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    _prisma_migrations::table
+      .select(PrismaMigration::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<PrismaMigration>(conn)
   }
 }
 
@@ -277,7 +496,7 @@ pub struct Credential {
 pub struct NewCredential<'a> {
   pub id: &'a uuid::Uuid,
   pub identity_id: &'a uuid::Uuid,
-  pub enabled: &'a bool,
+  pub enabled: bool,
   #[diesel(column_name = "type_")]
   pub r#type: CredentialType,
   pub content: &'a str,
@@ -290,7 +509,7 @@ pub struct NewCredential<'a> {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct CredentialUpdate<'a> {
   pub identity_id: Option<&'a uuid::Uuid>,
-  pub enabled: Option<&'a bool>,
+  pub enabled: Option<bool>,
   #[diesel(column_name = "type_")]
   pub r#type: Option<CredentialType>,
   pub content: Option<&'a str>,
@@ -299,11 +518,13 @@ pub struct CredentialUpdate<'a> {
 }
 
 impl Credential {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &CredentialUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a CredentialUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -314,14 +535,15 @@ impl Credential {
       .filter(credentials::id.eq(id))
       .set((credentials::updated_at.eq(diesel::dsl::now), changes))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
-  pub async fn update_identity_id(
-    id: &uuid::Uuid,
-    identity_id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_identity_id<'a, Conn>(
+    id: &'a uuid::Uuid,
+    identity_id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -335,14 +557,15 @@ impl Credential {
         credentials::identity_id.eq(identity_id),
       ))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
-  pub async fn update_enabled(
-    id: &uuid::Uuid,
-    enabled: &bool,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_enabled<'a, Conn>(
+    id: &'a uuid::Uuid,
+    enabled: bool,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -356,14 +579,15 @@ impl Credential {
         credentials::enabled.eq(enabled),
       ))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
-  pub async fn update_type(
-    id: &uuid::Uuid,
+  pub fn update_type<'a, Conn>(
+    id: &'a uuid::Uuid,
     type_: CredentialType,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -377,14 +601,15 @@ impl Credential {
         credentials::type_.eq(type_),
       ))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
-  pub async fn update_content(
-    id: &uuid::Uuid,
-    content: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_content<'a, Conn>(
+    id: &'a uuid::Uuid,
+    content: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -398,14 +623,15 @@ impl Credential {
         credentials::content.eq(content),
       ))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -419,14 +645,15 @@ impl Credential {
         credentials::created_at.eq(created_at),
       ))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
-  pub async fn update_updated_at(
-    id: &uuid::Uuid,
-    updated_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_updated_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    updated_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -437,16 +664,17 @@ impl Credential {
       .filter(credentials::id.eq(id))
       .set((credentials::updated_at.eq(updated_at),))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
 }
 
 impl Credential {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -456,16 +684,17 @@ impl Credential {
     diesel::delete(credentials::table)
       .filter(credentials::id.eq(id))
       .returning(Credential::as_returning())
-      .get_result::<Credential>(&mut conn)
-      .await
+      .get_result::<Credential>(conn)
   }
 }
 
 impl Credential {
-  pub async fn insert(
-    data: &NewCredential<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewCredential<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -476,7 +705,185 @@ impl Credential {
       .values(data)
       .returning(Credential::as_returning())
       .get_result::<Credential>(conn)
-      .await
+  }
+}
+
+pub enum CredentialOrderBy {
+  IdAsc,
+  IdDesc,
+  IdentityIdAsc,
+  IdentityIdDesc,
+  EnabledAsc,
+  EnabledDesc,
+  TypeAsc,
+  TypeDesc,
+  ContentAsc,
+  ContentDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+  UpdatedAtAsc,
+  UpdatedAtDesc,
+}
+impl Credential {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<CredentialOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<Credential>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = credentials::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          CredentialOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::id.asc());
+            } else {
+              q = q.then_order_by(credentials::id.asc());
+            }
+          }
+
+          CredentialOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::id.desc());
+            } else {
+              q = q.then_order_by(credentials::id.desc());
+            }
+          }
+
+          CredentialOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::identity_id.asc());
+            } else {
+              q = q.then_order_by(credentials::identity_id.asc());
+            }
+          }
+
+          CredentialOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::identity_id.desc());
+            } else {
+              q = q.then_order_by(credentials::identity_id.desc());
+            }
+          }
+
+          CredentialOrderBy::EnabledAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::enabled.asc());
+            } else {
+              q = q.then_order_by(credentials::enabled.asc());
+            }
+          }
+
+          CredentialOrderBy::EnabledDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::enabled.desc());
+            } else {
+              q = q.then_order_by(credentials::enabled.desc());
+            }
+          }
+
+          CredentialOrderBy::TypeAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::type_.asc());
+            } else {
+              q = q.then_order_by(credentials::type_.asc());
+            }
+          }
+
+          CredentialOrderBy::TypeDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::type_.desc());
+            } else {
+              q = q.then_order_by(credentials::type_.desc());
+            }
+          }
+
+          CredentialOrderBy::ContentAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::content.asc());
+            } else {
+              q = q.then_order_by(credentials::content.asc());
+            }
+          }
+
+          CredentialOrderBy::ContentDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::content.desc());
+            } else {
+              q = q.then_order_by(credentials::content.desc());
+            }
+          }
+
+          CredentialOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::created_at.asc());
+            } else {
+              q = q.then_order_by(credentials::created_at.asc());
+            }
+          }
+
+          CredentialOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::created_at.desc());
+            } else {
+              q = q.then_order_by(credentials::created_at.desc());
+            }
+          }
+
+          CredentialOrderBy::UpdatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(credentials::updated_at.asc());
+            } else {
+              q = q.then_order_by(credentials::updated_at.asc());
+            }
+          }
+
+          CredentialOrderBy::UpdatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(credentials::updated_at.desc());
+            } else {
+              q = q.then_order_by(credentials::updated_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(Credential::as_select())
+      .load::<Credential>(conn)
+  }
+}
+
+impl Credential {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<Credential>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    credentials::table
+      .select(Credential::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<Credential>(conn)
   }
 }
 
@@ -525,11 +932,14 @@ pub struct EmailAddressVerificationCodeUpdate<'a> {
 }
 
 impl EmailAddressVerificationCode {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &EmailAddressVerificationCodeUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a EmailAddressVerificationCodeUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -540,14 +950,16 @@ impl EmailAddressVerificationCode {
       .filter(email_address_verification_codes::id.eq(id))
       .set((changes,))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
-  pub async fn update_value(
-    id: &uuid::Uuid,
-    value: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_value<'a, Conn>(
+    id: &'a uuid::Uuid,
+    value: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -558,14 +970,16 @@ impl EmailAddressVerificationCode {
       .filter(email_address_verification_codes::id.eq(id))
       .set((email_address_verification_codes::value.eq(value),))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
-  pub async fn update_expires_at(
-    id: &uuid::Uuid,
-    expires_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_expires_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    expires_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -576,14 +990,16 @@ impl EmailAddressVerificationCode {
       .filter(email_address_verification_codes::id.eq(id))
       .set((email_address_verification_codes::expires_at.eq(expires_at),))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
-  pub async fn update_email_address_id(
-    id: &uuid::Uuid,
-    email_address_id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_email_address_id<'a, Conn>(
+    id: &'a uuid::Uuid,
+    email_address_id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -596,14 +1012,16 @@ impl EmailAddressVerificationCode {
         email_address_verification_codes::email_address_id.eq(email_address_id),
       ))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -614,14 +1032,16 @@ impl EmailAddressVerificationCode {
       .filter(email_address_verification_codes::id.eq(id))
       .set((email_address_verification_codes::created_at.eq(created_at),))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
-  pub async fn update_invalidated_at(
-    id: &uuid::Uuid,
-    invalidated_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_invalidated_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    invalidated_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -634,16 +1054,18 @@ impl EmailAddressVerificationCode {
         email_address_verification_codes::invalidated_at.eq(invalidated_at),
       ))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
 }
 
 impl EmailAddressVerificationCode {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -653,16 +1075,18 @@ impl EmailAddressVerificationCode {
     diesel::delete(email_address_verification_codes::table)
       .filter(email_address_verification_codes::id.eq(id))
       .returning(EmailAddressVerificationCode::as_returning())
-      .get_result::<EmailAddressVerificationCode>(&mut conn)
-      .await
+      .get_result::<EmailAddressVerificationCode>(conn)
   }
 }
 
 impl EmailAddressVerificationCode {
-  pub async fn insert(
-    data: &NewEmailAddressVerificationCode<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewEmailAddressVerificationCode<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -673,7 +1097,197 @@ impl EmailAddressVerificationCode {
       .values(data)
       .returning(EmailAddressVerificationCode::as_returning())
       .get_result::<EmailAddressVerificationCode>(conn)
-      .await
+  }
+}
+
+pub enum EmailAddressVerificationCodeOrderBy {
+  IdAsc,
+  IdDesc,
+  ValueAsc,
+  ValueDesc,
+  ExpiresAtAsc,
+  ExpiresAtDesc,
+  EmailAddressIdAsc,
+  EmailAddressIdDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+  InvalidatedAtAsc,
+  InvalidatedAtDesc,
+}
+impl EmailAddressVerificationCode {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<EmailAddressVerificationCodeOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<EmailAddressVerificationCode>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = email_address_verification_codes::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          EmailAddressVerificationCodeOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(email_address_verification_codes::id.asc());
+            } else {
+              q = q.then_order_by(email_address_verification_codes::id.asc());
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(email_address_verification_codes::id.desc());
+            } else {
+              q = q.then_order_by(email_address_verification_codes::id.desc());
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::ValueAsc => {
+            if idx == 0 {
+              q = q.order_by(email_address_verification_codes::value.asc());
+            } else {
+              q =
+                q.then_order_by(email_address_verification_codes::value.asc());
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::ValueDesc => {
+            if idx == 0 {
+              q = q.order_by(email_address_verification_codes::value.desc());
+            } else {
+              q =
+                q.then_order_by(email_address_verification_codes::value.desc());
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::ExpiresAtAsc => {
+            if idx == 0 {
+              q =
+                q.order_by(email_address_verification_codes::expires_at.asc());
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::expires_at.asc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::ExpiresAtDesc => {
+            if idx == 0 {
+              q =
+                q.order_by(email_address_verification_codes::expires_at.desc());
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::expires_at.desc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::EmailAddressIdAsc => {
+            if idx == 0 {
+              q = q.order_by(
+                email_address_verification_codes::email_address_id.asc(),
+              );
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::email_address_id.asc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::EmailAddressIdDesc => {
+            if idx == 0 {
+              q = q.order_by(
+                email_address_verification_codes::email_address_id.desc(),
+              );
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::email_address_id.desc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q =
+                q.order_by(email_address_verification_codes::created_at.asc());
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::created_at.asc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q =
+                q.order_by(email_address_verification_codes::created_at.desc());
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::created_at.desc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::InvalidatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(
+                email_address_verification_codes::invalidated_at.asc(),
+              );
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::invalidated_at.asc(),
+              );
+            }
+          }
+
+          EmailAddressVerificationCodeOrderBy::InvalidatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(
+                email_address_verification_codes::invalidated_at.desc(),
+              );
+            } else {
+              q = q.then_order_by(
+                email_address_verification_codes::invalidated_at.desc(),
+              );
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(EmailAddressVerificationCode::as_select())
+      .load::<EmailAddressVerificationCode>(conn)
+  }
+}
+
+impl EmailAddressVerificationCode {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<EmailAddressVerificationCode>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    email_address_verification_codes::table
+      .select(EmailAddressVerificationCode::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<EmailAddressVerificationCode>(conn)
   }
 }
 
@@ -706,7 +1320,7 @@ pub struct NewEmailAddress<'a> {
   pub id: &'a uuid::Uuid,
   pub identity_id: &'a uuid::Uuid,
   pub value: &'a str,
-  pub primary: &'a bool,
+  pub primary: bool,
   pub verified_at: Option<&'a time::OffsetDateTime>,
   pub created_at: &'a time::OffsetDateTime,
   pub updated_at: &'a time::OffsetDateTime,
@@ -718,18 +1332,20 @@ pub struct NewEmailAddress<'a> {
 pub struct EmailAddressUpdate<'a> {
   pub identity_id: Option<&'a uuid::Uuid>,
   pub value: Option<&'a str>,
-  pub primary: Option<&'a bool>,
+  pub primary: Option<bool>,
   pub verified_at: Option<Option<&'a time::OffsetDateTime>>,
   pub created_at: Option<&'a time::OffsetDateTime>,
   pub updated_at: Option<&'a time::OffsetDateTime>,
 }
 
 impl EmailAddress {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &EmailAddressUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a EmailAddressUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -740,14 +1356,15 @@ impl EmailAddress {
       .filter(email_addresses::id.eq(id))
       .set((email_addresses::updated_at.eq(diesel::dsl::now), changes))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
-  pub async fn update_identity_id(
-    id: &uuid::Uuid,
-    identity_id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_identity_id<'a, Conn>(
+    id: &'a uuid::Uuid,
+    identity_id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -761,14 +1378,15 @@ impl EmailAddress {
         email_addresses::identity_id.eq(identity_id),
       ))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
-  pub async fn update_value(
-    id: &uuid::Uuid,
-    value: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_value<'a, Conn>(
+    id: &'a uuid::Uuid,
+    value: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -782,14 +1400,15 @@ impl EmailAddress {
         email_addresses::value.eq(value),
       ))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
-  pub async fn update_primary(
-    id: &uuid::Uuid,
-    primary: &bool,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_primary<'a, Conn>(
+    id: &'a uuid::Uuid,
+    primary: bool,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -803,14 +1422,15 @@ impl EmailAddress {
         email_addresses::primary.eq(primary),
       ))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
-  pub async fn update_verified_at(
-    id: &uuid::Uuid,
-    verified_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_verified_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    verified_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -824,14 +1444,15 @@ impl EmailAddress {
         email_addresses::verified_at.eq(verified_at),
       ))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -845,14 +1466,15 @@ impl EmailAddress {
         email_addresses::created_at.eq(created_at),
       ))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
-  pub async fn update_updated_at(
-    id: &uuid::Uuid,
-    updated_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_updated_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    updated_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -863,16 +1485,17 @@ impl EmailAddress {
       .filter(email_addresses::id.eq(id))
       .set((email_addresses::updated_at.eq(updated_at),))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
 }
 
 impl EmailAddress {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -882,16 +1505,17 @@ impl EmailAddress {
     diesel::delete(email_addresses::table)
       .filter(email_addresses::id.eq(id))
       .returning(EmailAddress::as_returning())
-      .get_result::<EmailAddress>(&mut conn)
-      .await
+      .get_result::<EmailAddress>(conn)
   }
 }
 
 impl EmailAddress {
-  pub async fn insert(
-    data: &NewEmailAddress<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewEmailAddress<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -902,7 +1526,185 @@ impl EmailAddress {
       .values(data)
       .returning(EmailAddress::as_returning())
       .get_result::<EmailAddress>(conn)
-      .await
+  }
+}
+
+pub enum EmailAddressOrderBy {
+  IdAsc,
+  IdDesc,
+  IdentityIdAsc,
+  IdentityIdDesc,
+  ValueAsc,
+  ValueDesc,
+  PrimaryAsc,
+  PrimaryDesc,
+  VerifiedAtAsc,
+  VerifiedAtDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+  UpdatedAtAsc,
+  UpdatedAtDesc,
+}
+impl EmailAddress {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<EmailAddressOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<EmailAddress>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = email_addresses::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          EmailAddressOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::id.asc());
+            } else {
+              q = q.then_order_by(email_addresses::id.asc());
+            }
+          }
+
+          EmailAddressOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::id.desc());
+            } else {
+              q = q.then_order_by(email_addresses::id.desc());
+            }
+          }
+
+          EmailAddressOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::identity_id.asc());
+            } else {
+              q = q.then_order_by(email_addresses::identity_id.asc());
+            }
+          }
+
+          EmailAddressOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::identity_id.desc());
+            } else {
+              q = q.then_order_by(email_addresses::identity_id.desc());
+            }
+          }
+
+          EmailAddressOrderBy::ValueAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::value.asc());
+            } else {
+              q = q.then_order_by(email_addresses::value.asc());
+            }
+          }
+
+          EmailAddressOrderBy::ValueDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::value.desc());
+            } else {
+              q = q.then_order_by(email_addresses::value.desc());
+            }
+          }
+
+          EmailAddressOrderBy::PrimaryAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::primary.asc());
+            } else {
+              q = q.then_order_by(email_addresses::primary.asc());
+            }
+          }
+
+          EmailAddressOrderBy::PrimaryDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::primary.desc());
+            } else {
+              q = q.then_order_by(email_addresses::primary.desc());
+            }
+          }
+
+          EmailAddressOrderBy::VerifiedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::verified_at.asc());
+            } else {
+              q = q.then_order_by(email_addresses::verified_at.asc());
+            }
+          }
+
+          EmailAddressOrderBy::VerifiedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::verified_at.desc());
+            } else {
+              q = q.then_order_by(email_addresses::verified_at.desc());
+            }
+          }
+
+          EmailAddressOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::created_at.asc());
+            } else {
+              q = q.then_order_by(email_addresses::created_at.asc());
+            }
+          }
+
+          EmailAddressOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::created_at.desc());
+            } else {
+              q = q.then_order_by(email_addresses::created_at.desc());
+            }
+          }
+
+          EmailAddressOrderBy::UpdatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::updated_at.asc());
+            } else {
+              q = q.then_order_by(email_addresses::updated_at.asc());
+            }
+          }
+
+          EmailAddressOrderBy::UpdatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(email_addresses::updated_at.desc());
+            } else {
+              q = q.then_order_by(email_addresses::updated_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(EmailAddress::as_select())
+      .load::<EmailAddress>(conn)
+  }
+}
+
+impl EmailAddress {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<EmailAddress>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    email_addresses::table
+      .select(EmailAddress::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<EmailAddress>(conn)
   }
 }
 
@@ -960,11 +1762,13 @@ pub struct IdentityUpdate<'a> {
 }
 
 impl Identity {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &IdentityUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a IdentityUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -975,14 +1779,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((changes,))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_username(
-    id: &uuid::Uuid,
-    username: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_username<'a, Conn>(
+    id: &'a uuid::Uuid,
+    username: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -993,14 +1798,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::username.eq(username),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_display_picture_url(
-    id: &uuid::Uuid,
-    display_picture_url: Option<&str>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_display_picture_url<'a, Conn>(
+    id: &'a uuid::Uuid,
+    display_picture_url: Option<&'a str>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1011,14 +1817,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::display_picture_url.eq(display_picture_url),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_first_name(
-    id: &uuid::Uuid,
-    first_name: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_first_name<'a, Conn>(
+    id: &'a uuid::Uuid,
+    first_name: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1029,14 +1836,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::first_name.eq(first_name),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_middle_name(
-    id: &uuid::Uuid,
-    middle_name: Option<&str>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_middle_name<'a, Conn>(
+    id: &'a uuid::Uuid,
+    middle_name: Option<&'a str>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1047,14 +1855,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::middle_name.eq(middle_name),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_last_name(
-    id: &uuid::Uuid,
-    last_name: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_last_name<'a, Conn>(
+    id: &'a uuid::Uuid,
+    last_name: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1065,14 +1874,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::last_name.eq(last_name),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_name_suffix(
-    id: &uuid::Uuid,
-    name_suffix: Option<&str>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_name_suffix<'a, Conn>(
+    id: &'a uuid::Uuid,
+    name_suffix: Option<&'a str>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1083,14 +1893,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::name_suffix.eq(name_suffix),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_gender(
-    id: &uuid::Uuid,
+  pub fn update_gender<'a, Conn>(
+    id: &'a uuid::Uuid,
     gender: Option<Gender>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1101,14 +1912,15 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::gender.eq(gender),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
-  pub async fn update_other_gender(
-    id: &uuid::Uuid,
-    other_gender: Option<&str>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_other_gender<'a, Conn>(
+    id: &'a uuid::Uuid,
+    other_gender: Option<&'a str>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1119,16 +1931,17 @@ impl Identity {
       .filter(identities::id.eq(id))
       .set((identities::other_gender.eq(other_gender),))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
 }
 
 impl Identity {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1138,16 +1951,17 @@ impl Identity {
     diesel::delete(identities::table)
       .filter(identities::id.eq(id))
       .returning(Identity::as_returning())
-      .get_result::<Identity>(&mut conn)
-      .await
+      .get_result::<Identity>(conn)
   }
 }
 
 impl Identity {
-  pub async fn insert(
-    data: &NewIdentity<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewIdentity<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1158,7 +1972,221 @@ impl Identity {
       .values(data)
       .returning(Identity::as_returning())
       .get_result::<Identity>(conn)
-      .await
+  }
+}
+
+pub enum IdentityOrderBy {
+  IdAsc,
+  IdDesc,
+  UsernameAsc,
+  UsernameDesc,
+  DisplayPictureUrlAsc,
+  DisplayPictureUrlDesc,
+  FirstNameAsc,
+  FirstNameDesc,
+  MiddleNameAsc,
+  MiddleNameDesc,
+  LastNameAsc,
+  LastNameDesc,
+  NameSuffixAsc,
+  NameSuffixDesc,
+  GenderAsc,
+  GenderDesc,
+  OtherGenderAsc,
+  OtherGenderDesc,
+}
+impl Identity {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<IdentityOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<Identity>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = identities::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          IdentityOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::id.asc());
+            } else {
+              q = q.then_order_by(identities::id.asc());
+            }
+          }
+
+          IdentityOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::id.desc());
+            } else {
+              q = q.then_order_by(identities::id.desc());
+            }
+          }
+
+          IdentityOrderBy::UsernameAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::username.asc());
+            } else {
+              q = q.then_order_by(identities::username.asc());
+            }
+          }
+
+          IdentityOrderBy::UsernameDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::username.desc());
+            } else {
+              q = q.then_order_by(identities::username.desc());
+            }
+          }
+
+          IdentityOrderBy::DisplayPictureUrlAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::display_picture_url.asc());
+            } else {
+              q = q.then_order_by(identities::display_picture_url.asc());
+            }
+          }
+
+          IdentityOrderBy::DisplayPictureUrlDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::display_picture_url.desc());
+            } else {
+              q = q.then_order_by(identities::display_picture_url.desc());
+            }
+          }
+
+          IdentityOrderBy::FirstNameAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::first_name.asc());
+            } else {
+              q = q.then_order_by(identities::first_name.asc());
+            }
+          }
+
+          IdentityOrderBy::FirstNameDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::first_name.desc());
+            } else {
+              q = q.then_order_by(identities::first_name.desc());
+            }
+          }
+
+          IdentityOrderBy::MiddleNameAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::middle_name.asc());
+            } else {
+              q = q.then_order_by(identities::middle_name.asc());
+            }
+          }
+
+          IdentityOrderBy::MiddleNameDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::middle_name.desc());
+            } else {
+              q = q.then_order_by(identities::middle_name.desc());
+            }
+          }
+
+          IdentityOrderBy::LastNameAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::last_name.asc());
+            } else {
+              q = q.then_order_by(identities::last_name.asc());
+            }
+          }
+
+          IdentityOrderBy::LastNameDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::last_name.desc());
+            } else {
+              q = q.then_order_by(identities::last_name.desc());
+            }
+          }
+
+          IdentityOrderBy::NameSuffixAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::name_suffix.asc());
+            } else {
+              q = q.then_order_by(identities::name_suffix.asc());
+            }
+          }
+
+          IdentityOrderBy::NameSuffixDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::name_suffix.desc());
+            } else {
+              q = q.then_order_by(identities::name_suffix.desc());
+            }
+          }
+
+          IdentityOrderBy::GenderAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::gender.asc());
+            } else {
+              q = q.then_order_by(identities::gender.asc());
+            }
+          }
+
+          IdentityOrderBy::GenderDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::gender.desc());
+            } else {
+              q = q.then_order_by(identities::gender.desc());
+            }
+          }
+
+          IdentityOrderBy::OtherGenderAsc => {
+            if idx == 0 {
+              q = q.order_by(identities::other_gender.asc());
+            } else {
+              q = q.then_order_by(identities::other_gender.asc());
+            }
+          }
+
+          IdentityOrderBy::OtherGenderDesc => {
+            if idx == 0 {
+              q = q.order_by(identities::other_gender.desc());
+            } else {
+              q = q.then_order_by(identities::other_gender.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(Identity::as_select())
+      .load::<Identity>(conn)
+  }
+}
+
+impl Identity {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<Identity>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    identities::table
+      .select(Identity::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<Identity>(conn)
   }
 }
 
@@ -1201,11 +2229,14 @@ pub struct PasswordResetTokenUpdate<'a> {
 }
 
 impl PasswordResetToken {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &PasswordResetTokenUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a PasswordResetTokenUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PasswordResetToken, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1216,14 +2247,16 @@ impl PasswordResetToken {
       .filter(password_reset_tokens::id.eq(id))
       .set((changes,))
       .returning(PasswordResetToken::as_returning())
-      .get_result::<PasswordResetToken>(&mut conn)
-      .await
+      .get_result::<PasswordResetToken>(conn)
   }
-  pub async fn update_value(
-    id: &uuid::Uuid,
-    value: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_value<'a, Conn>(
+    id: &'a uuid::Uuid,
+    value: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PasswordResetToken, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1234,14 +2267,16 @@ impl PasswordResetToken {
       .filter(password_reset_tokens::id.eq(id))
       .set((password_reset_tokens::value.eq(value),))
       .returning(PasswordResetToken::as_returning())
-      .get_result::<PasswordResetToken>(&mut conn)
-      .await
+      .get_result::<PasswordResetToken>(conn)
   }
-  pub async fn update_expires_at(
-    id: &uuid::Uuid,
-    expires_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_expires_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    expires_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PasswordResetToken, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1252,14 +2287,16 @@ impl PasswordResetToken {
       .filter(password_reset_tokens::id.eq(id))
       .set((password_reset_tokens::expires_at.eq(expires_at),))
       .returning(PasswordResetToken::as_returning())
-      .get_result::<PasswordResetToken>(&mut conn)
-      .await
+      .get_result::<PasswordResetToken>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PasswordResetToken, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1270,16 +2307,18 @@ impl PasswordResetToken {
       .filter(password_reset_tokens::id.eq(id))
       .set((password_reset_tokens::created_at.eq(created_at),))
       .returning(PasswordResetToken::as_returning())
-      .get_result::<PasswordResetToken>(&mut conn)
-      .await
+      .get_result::<PasswordResetToken>(conn)
   }
 }
 
 impl PasswordResetToken {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PasswordResetToken, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1289,16 +2328,18 @@ impl PasswordResetToken {
     diesel::delete(password_reset_tokens::table)
       .filter(password_reset_tokens::id.eq(id))
       .returning(PasswordResetToken::as_returning())
-      .get_result::<PasswordResetToken>(&mut conn)
-      .await
+      .get_result::<PasswordResetToken>(conn)
   }
 }
 
 impl PasswordResetToken {
-  pub async fn insert(
-    data: &NewPasswordResetToken<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewPasswordResetToken<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<PasswordResetToken, diesel::result::Error>,
+  > + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1309,7 +2350,131 @@ impl PasswordResetToken {
       .values(data)
       .returning(PasswordResetToken::as_returning())
       .get_result::<PasswordResetToken>(conn)
-      .await
+  }
+}
+
+pub enum PasswordResetTokenOrderBy {
+  IdAsc,
+  IdDesc,
+  ValueAsc,
+  ValueDesc,
+  ExpiresAtAsc,
+  ExpiresAtDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+}
+impl PasswordResetToken {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<PasswordResetTokenOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<PasswordResetToken>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = password_reset_tokens::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          PasswordResetTokenOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::id.asc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::id.asc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::id.desc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::id.desc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::ValueAsc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::value.asc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::value.asc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::ValueDesc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::value.desc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::value.desc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::ExpiresAtAsc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::expires_at.asc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::expires_at.asc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::ExpiresAtDesc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::expires_at.desc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::expires_at.desc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::created_at.asc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::created_at.asc());
+            }
+          }
+
+          PasswordResetTokenOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(password_reset_tokens::created_at.desc());
+            } else {
+              q = q.then_order_by(password_reset_tokens::created_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(PasswordResetToken::as_select())
+      .load::<PasswordResetToken>(conn)
+  }
+}
+
+impl PasswordResetToken {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<PasswordResetToken>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    password_reset_tokens::table
+      .select(PasswordResetToken::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<PasswordResetToken>(conn)
   }
 }
 
@@ -1370,11 +2535,13 @@ pub struct RefreshTokenUpdate<'a> {
 }
 
 impl RefreshToken {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &RefreshTokenUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a RefreshTokenUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1385,14 +2552,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((changes,))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_identity_id(
-    id: &uuid::Uuid,
-    identity_id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_identity_id<'a, Conn>(
+    id: &'a uuid::Uuid,
+    identity_id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1403,14 +2571,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::identity_id.eq(identity_id),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_value(
-    id: &uuid::Uuid,
-    value: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_value<'a, Conn>(
+    id: &'a uuid::Uuid,
+    value: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1421,14 +2590,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::value.eq(value),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_scope(
-    id: &uuid::Uuid,
-    scope: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_scope<'a, Conn>(
+    id: &'a uuid::Uuid,
+    scope: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1439,14 +2609,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::scope.eq(scope),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_audience(
-    id: &uuid::Uuid,
-    audience: &str,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_audience<'a, Conn>(
+    id: &'a uuid::Uuid,
+    audience: &'a str,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1457,14 +2628,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::audience.eq(audience),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_subject(
-    id: &uuid::Uuid,
-    subject: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_subject<'a, Conn>(
+    id: &'a uuid::Uuid,
+    subject: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1475,14 +2647,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::subject.eq(subject),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_subject_type(
-    id: &uuid::Uuid,
+  pub fn update_subject_type<'a, Conn>(
+    id: &'a uuid::Uuid,
     subject_type: SubjectType,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1493,14 +2666,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::subject_type.eq(subject_type),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_expires_at(
-    id: &uuid::Uuid,
-    expires_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_expires_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    expires_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1511,14 +2685,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::expires_at.eq(expires_at),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1529,14 +2704,15 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::created_at.eq(created_at),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
-  pub async fn update_invalidated_at(
-    id: &uuid::Uuid,
-    invalidated_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_invalidated_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    invalidated_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1547,16 +2723,17 @@ impl RefreshToken {
       .filter(refresh_tokens::id.eq(id))
       .set((refresh_tokens::invalidated_at.eq(invalidated_at),))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
 }
 
 impl RefreshToken {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1566,16 +2743,17 @@ impl RefreshToken {
     diesel::delete(refresh_tokens::table)
       .filter(refresh_tokens::id.eq(id))
       .returning(RefreshToken::as_returning())
-      .get_result::<RefreshToken>(&mut conn)
-      .await
+      .get_result::<RefreshToken>(conn)
   }
 }
 
 impl RefreshToken {
-  pub async fn insert(
-    data: &NewRefreshToken<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewRefreshToken<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1586,7 +2764,239 @@ impl RefreshToken {
       .values(data)
       .returning(RefreshToken::as_returning())
       .get_result::<RefreshToken>(conn)
-      .await
+  }
+}
+
+pub enum RefreshTokenOrderBy {
+  IdAsc,
+  IdDesc,
+  IdentityIdAsc,
+  IdentityIdDesc,
+  ValueAsc,
+  ValueDesc,
+  ScopeAsc,
+  ScopeDesc,
+  AudienceAsc,
+  AudienceDesc,
+  SubjectAsc,
+  SubjectDesc,
+  SubjectTypeAsc,
+  SubjectTypeDesc,
+  ExpiresAtAsc,
+  ExpiresAtDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+  InvalidatedAtAsc,
+  InvalidatedAtDesc,
+}
+impl RefreshToken {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<RefreshTokenOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<RefreshToken>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = refresh_tokens::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          RefreshTokenOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::id.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::id.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::id.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::id.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::identity_id.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::identity_id.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::identity_id.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::identity_id.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::ValueAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::value.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::value.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::ValueDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::value.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::value.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::ScopeAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::scope.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::scope.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::ScopeDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::scope.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::scope.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::AudienceAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::audience.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::audience.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::AudienceDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::audience.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::audience.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::SubjectAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::subject.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::subject.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::SubjectDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::subject.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::subject.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::SubjectTypeAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::subject_type.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::subject_type.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::SubjectTypeDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::subject_type.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::subject_type.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::ExpiresAtAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::expires_at.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::expires_at.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::ExpiresAtDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::expires_at.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::expires_at.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::created_at.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::created_at.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::created_at.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::created_at.desc());
+            }
+          }
+
+          RefreshTokenOrderBy::InvalidatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::invalidated_at.asc());
+            } else {
+              q = q.then_order_by(refresh_tokens::invalidated_at.asc());
+            }
+          }
+
+          RefreshTokenOrderBy::InvalidatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(refresh_tokens::invalidated_at.desc());
+            } else {
+              q = q.then_order_by(refresh_tokens::invalidated_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(RefreshToken::as_select())
+      .load::<RefreshToken>(conn)
+  }
+}
+
+impl RefreshToken {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<RefreshToken>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    refresh_tokens::table
+      .select(RefreshToken::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<RefreshToken>(conn)
   }
 }
 
@@ -1635,11 +3045,13 @@ pub struct StaffUpdate<'a> {
 }
 
 impl Staff {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &StaffUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a StaffUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1650,14 +3062,15 @@ impl Staff {
       .filter(staffs::id.eq(id))
       .set((staffs::updated_at.eq(diesel::dsl::now), changes))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
-  pub async fn update_role(
-    id: &uuid::Uuid,
+  pub fn update_role<'a, Conn>(
+    id: &'a uuid::Uuid,
     role: StaffRole,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1671,14 +3084,15 @@ impl Staff {
         staffs::role.eq(role),
       ))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
-  pub async fn update_identity_id(
-    id: &uuid::Uuid,
-    identity_id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_identity_id<'a, Conn>(
+    id: &'a uuid::Uuid,
+    identity_id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1692,14 +3106,15 @@ impl Staff {
         staffs::identity_id.eq(identity_id),
       ))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1713,14 +3128,15 @@ impl Staff {
         staffs::created_at.eq(created_at),
       ))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
-  pub async fn update_updated_at(
-    id: &uuid::Uuid,
-    updated_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_updated_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    updated_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1731,14 +3147,15 @@ impl Staff {
       .filter(staffs::id.eq(id))
       .set((staffs::updated_at.eq(updated_at),))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
-  pub async fn update_deleted_at(
-    id: &uuid::Uuid,
-    deleted_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_deleted_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    deleted_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1752,16 +3169,17 @@ impl Staff {
         staffs::deleted_at.eq(deleted_at),
       ))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
 }
 
 impl Staff {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1771,16 +3189,17 @@ impl Staff {
     diesel::delete(staffs::table)
       .filter(staffs::id.eq(id))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
 }
 
 impl Staff {
-  pub async fn soft_delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn soft_delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1794,16 +3213,17 @@ impl Staff {
         staffs::deleted_at.eq(diesel::dsl::now),
       ))
       .returning(Staff::as_returning())
-      .get_result::<Staff>(&mut conn)
-      .await
+      .get_result::<Staff>(conn)
   }
 }
 
 impl Staff {
-  pub async fn insert(
-    data: &NewStaff<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewStaff<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1814,7 +3234,169 @@ impl Staff {
       .values(data)
       .returning(Staff::as_returning())
       .get_result::<Staff>(conn)
-      .await
+  }
+}
+
+pub enum StaffOrderBy {
+  IdAsc,
+  IdDesc,
+  RoleAsc,
+  RoleDesc,
+  IdentityIdAsc,
+  IdentityIdDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+  UpdatedAtAsc,
+  UpdatedAtDesc,
+  DeletedAtAsc,
+  DeletedAtDesc,
+}
+impl Staff {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<StaffOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = staffs::table
+      .filter(staffs::deleted_at.is_not_null())
+      .into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          StaffOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::id.asc());
+            } else {
+              q = q.then_order_by(staffs::id.asc());
+            }
+          }
+
+          StaffOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::id.desc());
+            } else {
+              q = q.then_order_by(staffs::id.desc());
+            }
+          }
+
+          StaffOrderBy::RoleAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::role.asc());
+            } else {
+              q = q.then_order_by(staffs::role.asc());
+            }
+          }
+
+          StaffOrderBy::RoleDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::role.desc());
+            } else {
+              q = q.then_order_by(staffs::role.desc());
+            }
+          }
+
+          StaffOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::identity_id.asc());
+            } else {
+              q = q.then_order_by(staffs::identity_id.asc());
+            }
+          }
+
+          StaffOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::identity_id.desc());
+            } else {
+              q = q.then_order_by(staffs::identity_id.desc());
+            }
+          }
+
+          StaffOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::created_at.asc());
+            } else {
+              q = q.then_order_by(staffs::created_at.asc());
+            }
+          }
+
+          StaffOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::created_at.desc());
+            } else {
+              q = q.then_order_by(staffs::created_at.desc());
+            }
+          }
+
+          StaffOrderBy::UpdatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::updated_at.asc());
+            } else {
+              q = q.then_order_by(staffs::updated_at.asc());
+            }
+          }
+
+          StaffOrderBy::UpdatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::updated_at.desc());
+            } else {
+              q = q.then_order_by(staffs::updated_at.desc());
+            }
+          }
+
+          StaffOrderBy::DeletedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::deleted_at.asc());
+            } else {
+              q = q.then_order_by(staffs::deleted_at.asc());
+            }
+          }
+
+          StaffOrderBy::DeletedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::deleted_at.desc());
+            } else {
+              q = q.then_order_by(staffs::deleted_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(Staff::as_select())
+      .load::<Staff>(conn)
+  }
+}
+
+impl Staff {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    staffs::table
+      .filter(staffs::deleted_at.is_not_null())
+      .select(Staff::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<Staff>(conn)
   }
 }
 
@@ -1860,11 +3442,13 @@ pub struct UserUpdate<'a> {
 }
 
 impl User {
-  pub async fn update(
-    id: &uuid::Uuid,
-    changes: &UserUpdate<'_>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update<'a, Conn>(
+    id: &'a uuid::Uuid,
+    changes: &'a UserUpdate<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1875,14 +3459,15 @@ impl User {
       .filter(users::id.eq(id))
       .set((users::updated_at.eq(diesel::dsl::now), changes))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
-  pub async fn update_identity_id(
-    id: &uuid::Uuid,
-    identity_id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_identity_id<'a, Conn>(
+    id: &'a uuid::Uuid,
+    identity_id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1896,14 +3481,15 @@ impl User {
         users::identity_id.eq(identity_id),
       ))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
-  pub async fn update_created_at(
-    id: &uuid::Uuid,
-    created_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_created_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    created_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1917,14 +3503,15 @@ impl User {
         users::created_at.eq(created_at),
       ))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
-  pub async fn update_updated_at(
-    id: &uuid::Uuid,
-    updated_at: &time::OffsetDateTime,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_updated_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    updated_at: &'a time::OffsetDateTime,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1935,14 +3522,15 @@ impl User {
       .filter(users::id.eq(id))
       .set((users::updated_at.eq(updated_at),))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
-  pub async fn update_deleted_at(
-    id: &uuid::Uuid,
-    deleted_at: Option<&time::OffsetDateTime>,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn update_deleted_at<'a, Conn>(
+    id: &'a uuid::Uuid,
+    deleted_at: Option<&'a time::OffsetDateTime>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1956,16 +3544,17 @@ impl User {
         users::deleted_at.eq(deleted_at),
       ))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
 }
 
 impl User {
-  pub async fn delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1975,16 +3564,17 @@ impl User {
     diesel::delete(users::table)
       .filter(users::id.eq(id))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
 }
 
 impl User {
-  pub async fn soft_delete(
-    id: &uuid::Uuid,
-    mut conn: Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn soft_delete<'a, Conn>(
+    id: &'a uuid::Uuid,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -1998,16 +3588,17 @@ impl User {
         users::deleted_at.eq(diesel::dsl::now),
       ))
       .returning(User::as_returning())
-      .get_result::<User>(&mut conn)
-      .await
+      .get_result::<User>(conn)
   }
 }
 
 impl User {
-  pub async fn insert(
-    data: &NewUser<'_>,
-    conn: &mut Conn,
-  ) -> Result<Self, diesel::result::Error>
+  pub fn insert<'a, Conn>(
+    data: &'a NewUser<'a>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
@@ -2018,6 +3609,150 @@ impl User {
       .values(data)
       .returning(User::as_returning())
       .get_result::<User>(conn)
-      .await
+  }
+}
+
+pub enum UserOrderBy {
+  IdAsc,
+  IdDesc,
+  IdentityIdAsc,
+  IdentityIdDesc,
+  CreatedAtAsc,
+  CreatedAtDesc,
+  UpdatedAtAsc,
+  UpdatedAtDesc,
+  DeletedAtAsc,
+  DeletedAtDesc,
+}
+impl User {
+  pub fn simple_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&Vec<UserOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = users::table
+      .filter(users::deleted_at.is_not_null())
+      .into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.enumerate() {
+        match ord {
+          UserOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(users::id.asc());
+            } else {
+              q = q.then_order_by(users::id.asc());
+            }
+          }
+
+          UserOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(users::id.desc());
+            } else {
+              q = q.then_order_by(users::id.desc());
+            }
+          }
+
+          UserOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(users::identity_id.asc());
+            } else {
+              q = q.then_order_by(users::identity_id.asc());
+            }
+          }
+
+          UserOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(users::identity_id.desc());
+            } else {
+              q = q.then_order_by(users::identity_id.desc());
+            }
+          }
+
+          UserOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(users::created_at.asc());
+            } else {
+              q = q.then_order_by(users::created_at.asc());
+            }
+          }
+
+          UserOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(users::created_at.desc());
+            } else {
+              q = q.then_order_by(users::created_at.desc());
+            }
+          }
+
+          UserOrderBy::UpdatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(users::updated_at.asc());
+            } else {
+              q = q.then_order_by(users::updated_at.asc());
+            }
+          }
+
+          UserOrderBy::UpdatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(users::updated_at.desc());
+            } else {
+              q = q.then_order_by(users::updated_at.desc());
+            }
+          }
+
+          UserOrderBy::DeletedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(users::deleted_at.asc());
+            } else {
+              q = q.then_order_by(users::deleted_at.asc());
+            }
+          }
+
+          UserOrderBy::DeletedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(users::deleted_at.desc());
+            } else {
+              q = q.then_order_by(users::deleted_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q.offset(offset)
+      .limit(limit)
+      .select(User::as_select())
+      .load::<User>(conn)
+  }
+}
+
+impl User {
+  pub fn cursor_paginate<Conn>(
+    offset: usize,
+    limit: usize,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    users::table
+      .filter(users::deleted_at.is_not_null())
+      .select(User::as_select())
+      .offset(offset)
+      .limit(limit)
+      .load::<User>(conn)
   }
 }

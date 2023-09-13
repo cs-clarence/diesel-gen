@@ -370,16 +370,32 @@ pub fn output_type<W: Write>(
         anyhow::anyhow!("type for field {} not found", f.column.name)
       })?;
 
-    if let Some(f) = f.field_config {
-      if let Some(ref a) = f.attributes {
+    if let Some(c) = f.field_config {
+      if let Some(ref a) = c.attributes {
         for a in a {
           writeln!(w, "#[{}]", a)?;
         }
       }
 
-      if let Some(shareable) = f.shareable {
+      if let (Some(shareable), Some(external)) = (c.shareable, c.external) {
+        if shareable && external {
+          anyhow::bail!(
+            "field {} on {} cannot be both shareable and external",
+            f.field_name,
+            args.name
+          );
+        }
+      }
+
+      if let Some(shareable) = c.shareable {
         if shareable {
           writeln!(w, "#[graphql(shareable)]")?;
+        }
+      }
+
+      if let Some(external) = c.external {
+        if external {
+          writeln!(w, "#[graphql(external)]")?;
         }
       }
     }

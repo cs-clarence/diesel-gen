@@ -7,8 +7,10 @@ use std::{
   io::Write,
 };
 
+use inflector::Inflector;
+
 use crate::{
-  config::{SqlBackend, TableConfig},
+  config::{OrderingOptionsConfig, SqlBackend, TableConfig},
   parse::{self, Column, File, ParseContext, Table},
   util::{get_field_name, get_ref_type, get_type, model_name},
 };
@@ -710,6 +712,10 @@ pub fn model<W: Write>(
     if enable_simple_paginate {
       simple_paginate(
         &SimplePaginateArgs {
+          ordering_options: &simple_paginate_config
+            .ordering_options
+            .unwrap_or(OrderingOptionsConfig::All),
+          columns: &table.columns,
           model_name: &final_model_name,
           use_async,
           table,
@@ -1160,6 +1166,8 @@ struct SimplePaginateArgs<'a> {
   model_name: &'a str,
   use_async: bool,
   table: &'a Table,
+  columns: &'a Vec<Column>,
+  ordering_options: &'a OrderingOptionsConfig,
   backend: &'a SqlBackend,
   include_soft_deleted: bool,
   soft_delete_column: Option<&'a Column>,
@@ -1169,9 +1177,57 @@ fn simple_paginate<W: Write>(
   args: &SimplePaginateArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
+  let order_enum_name = format!("{}OrderBy", args.model_name);
+  writeln!(w, "pub enum {} {{", &order_enum_name)?;
+  match args.ordering_options {
+    OrderingOptionsConfig::None => {}
+    OrderingOptionsConfig::All => {
+      for c in args.columns {
+        writeln!(w, "{}Asc,", c.name.to_pascal_case())?;
+        writeln!(w, "{}Desc,", c.name.to_pascal_case())?;
+      }
+    }
+    OrderingOptionsConfig::AllAsc => {
+      for c in args.columns {
+        writeln!(w, "{}Asc,", c.name.to_pascal_case())?;
+      }
+    }
+    OrderingOptionsConfig::AllDesc => {
+      for c in args.columns {
+        writeln!(w, "{}Desc,", c.name.to_pascal_case())?;
+      }
+    }
+    OrderingOptionsConfig::Columns(order_configs) => {
+      for col in args.columns {
+        if let Some(order) = order_configs.get(&col.name) {
+          match order {
+            crate::config::Order::Asc => {
+              writeln!(w, "{}Asc,", col.name.to_pascal_case())?;
+            }
+            crate::config::Order::Desc => {
+              writeln!(w, "{}Desc,", col.name.to_pascal_case())?;
+            }
+            crate::config::Order::Both => {
+              writeln!(w, "{}Asc,", col.name.to_pascal_case())?;
+              writeln!(w, "{}Desc,", col.name.to_pascal_case())?;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  writeln!(w, "}}",)?;
+
   writeln!(w, "impl {} {{", args.model_name)?;
   operation_sig("simple_paginate", "Conn", None, &mut w)?;
-  write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
+
+  if let OrderingOptionsConfig::None = args.ordering_options {
+    write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
+  } else {
+    write!(w, "offset: usize, limit: usize, ordering: Option<&Vec<{}>>, conn: &'a mut Conn", &order_enum_name)?;
+  }
+
   write!(
     w,
     "\n  ) -> {}{}",
@@ -1185,13 +1241,25 @@ fn simple_paginate<W: Write>(
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: !args.include_soft_deleted
-        && args.soft_delete_column.is_some(),
+        || !matches!(args.ordering_options, OrderingOptionsConfig::None)
+          && args.soft_delete_column.is_some(),
       sql_types: false,
     },
     &mut w,
   )?;
 
-  writeln!(w, "{table}::table", table = args.table.name,)?;
+  let query_name = "q";
+
+  if let OrderingOptionsConfig::None = args.ordering_options {
+    writeln!(w, "{table}::table", table = args.table.name,)?;
+  } else {
+    writeln!(
+      w,
+      "let mut {} = {table}::table",
+      query_name,
+      table = args.table.name,
+    )?;
+  }
 
   if let Some(col) = args.soft_delete_column {
     if !args.include_soft_deleted {
@@ -1227,7 +1295,138 @@ fn simple_paginate<W: Write>(
     }
   }
 
-  writeln!(w, ".select({model}::as_select()).offset(offset).limit(limit).load::<{model}>(conn)",
+  if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
+    write!(w, ".into_boxed();")?;
+  }
+
+  fn order(
+    idx_name: &str,
+    query_name: &str,
+    table: &str,
+    column: &str,
+    desc: bool,
+  ) -> String {
+    format!(
+      "
+      {{ 
+        if {index} == 0 {{
+          {query} = {query}.order_by({table}::{column}.{ordering}());
+        }} else {{
+          {query} = {query}.then_order_by({table}::{column}.{ordering}());
+        }}
+      }}
+      ",
+      index = idx_name,
+      query = query_name,
+      table = table,
+      column = column,
+      ordering = if desc { "desc" } else { "asc" }
+    )
+  }
+
+  let idx = "idx";
+  let ord = "ord";
+
+  if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
+    writeln!(w, "if let Some(ordering) = ordering {{")?;
+    writeln!(w, "for ({}, {}) in ordering.enumerate() {{", idx, ord)?;
+    writeln!(w, "match {} {{", ord)?;
+    match args.ordering_options {
+      OrderingOptionsConfig::None => {}
+      OrderingOptionsConfig::All => {
+        for c in args.columns {
+          writeln!(
+            w,
+            "{}::{}Asc => {}",
+            &order_enum_name,
+            c.name.to_pascal_case(),
+            order(idx, query_name, &args.table.name, &c.name, false)
+          )?;
+          writeln!(
+            w,
+            "{}::{}Desc =>  {}",
+            &order_enum_name,
+            c.name.to_pascal_case(),
+            order(idx, query_name, &args.table.name, &c.name, true)
+          )?;
+        }
+      }
+      OrderingOptionsConfig::AllAsc => {
+        for c in args.columns {
+          writeln!(
+            w,
+            "{}::{}Asc => {}",
+            &order_enum_name,
+            c.name.to_pascal_case(),
+            order(idx, query_name, &args.table.name, &c.name, false)
+          )?;
+        }
+      }
+      OrderingOptionsConfig::AllDesc => {
+        for c in args.columns {
+          writeln!(
+            w,
+            "{}::{}Desc => {}",
+            &order_enum_name,
+            c.name.to_pascal_case(),
+            order(idx, query_name, &args.table.name, &c.name, true)
+          )?;
+        }
+      }
+      OrderingOptionsConfig::Columns(order_configs) => {
+        for col in args.columns {
+          if let Some(o) = order_configs.get(&col.name) {
+            match o {
+              crate::config::Order::Asc => {
+                writeln!(
+                  w,
+                  "{}::{}Asc => {}",
+                  &order_enum_name,
+                  col.name.to_pascal_case(),
+                  order(idx, query_name, &args.table.name, &col.name, false)
+                )?;
+              }
+              crate::config::Order::Desc => {
+                writeln!(
+                  w,
+                  "{}::{}Desc => {}",
+                  &order_enum_name,
+                  col.name.to_pascal_case(),
+                  order(idx, query_name, &args.table.name, &col.name, true)
+                )?;
+              }
+              crate::config::Order::Both => {
+                writeln!(
+                  w,
+                  "{}::{}Asc => {}",
+                  &order_enum_name,
+                  col.name.to_pascal_case(),
+                  order(idx, query_name, &args.table.name, &col.name, false)
+                )?;
+                writeln!(
+                  w,
+                  "{}::{}Desc => {}",
+                  &order_enum_name,
+                  col.name.to_pascal_case(),
+                  order(idx, query_name, &args.table.name, &col.name, true)
+                )?;
+              }
+            }
+          }
+        }
+      }
+    }
+    writeln!(w, "}}")?;
+    writeln!(w, "}}")?;
+    writeln!(w, "}}")?;
+  }
+
+  if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
+    write!(w, "{}", query_name)?;
+  }
+  writeln!(
+    w,
+    ".offset(offset).limit(limit).select({model}::as_select()).load::<{model}>(conn)",
     model = args.model_name
   )?;
 
