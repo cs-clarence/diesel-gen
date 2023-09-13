@@ -182,8 +182,6 @@ pub struct DeleteOperationConfig {
 #[serde(deny_unknown_fields)]
 pub struct InsertOperationConfig {
   pub enable: Option<bool>,
-  #[merge(strategy = merge_option)]
-  pub omit_columns: Option<ListConfig<String>>,
   pub returning: Option<bool>,
 }
 
@@ -301,6 +299,14 @@ impl<T> ListConfig<T> {
 
   pub fn is_empty(&self) -> bool {
     self.vec().is_empty()
+  }
+
+  pub fn get(&self, index: usize) -> Option<&T> {
+    self.vec().get(index)
+  }
+
+  pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+    self.vec_mut().get_mut(index)
   }
 }
 
@@ -512,6 +518,5 @@ pub struct OutputTypeConfig {
   pub fields: MapConfig<String, GraphqlFieldConfig>,
 
   #[serde(default)]
-  #[merge(skip)]
-  pub inherits: Vec<Inherit>,
+  pub inherits: ListConfig<Inherit>,
 }
