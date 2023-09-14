@@ -248,11 +248,11 @@ fn write_ref_fn_params<W: Write>(
 fn operation_sig<W: Write>(
   name: &str,
   conn_t_name: &str,
-  lifetimes: Option<Vec<&str>>,
+  generics: Option<Vec<&str>>,
   mut w: W,
 ) -> std::io::Result<()> {
   writeln!(w, "  pub fn {}<", name)?;
-  if let Some(lifetimes) = lifetimes {
+  if let Some(lifetimes) = generics {
     writeln!(w, "{}, ", lifetimes.join(", "))?;
   }
   writeln!(w, "{}>(", conn_t_name)?;
@@ -1230,15 +1230,26 @@ fn simple_paginate<W: Write>(
   writeln!(w, "}}",)?;
 
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig("simple_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
+  operation_sig(
+    "simple_paginate_extend",
+    "Conn",
+    Some(vec!["'a", "F"]),
+    &mut w,
+  )?;
 
+  const EXTEND_NAME: &str = "extend";
   if let OrderingOptionsConfig::None = args.ordering_options {
-    write!(w, "offset: u32, limit: u32, conn: &'a mut Conn")?;
+    write!(
+      w,
+      "offset: u32, limit: u32, {extend_name}: F, conn: &'a mut Conn",
+      extend_name = EXTEND_NAME
+    )?;
   } else {
     write!(
       w,
-      "offset: u32, limit: u32, ordering: Option<&Vec<{}>>, conn: &'a mut Conn",
-      &order_enum_name
+      "offset: u32, limit: u32, ordering: Option<&'a Vec<{enum_name}>>, {extend_name}: F, conn: &'a mut Conn",
+      extend_name = EXTEND_NAME,
+      enum_name = &order_enum_name,
     )?;
   }
 
@@ -1249,6 +1260,17 @@ fn simple_paginate<W: Write>(
     if args.use_async { " + 'a" } else { "" },
   )?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  writeln!(w, ",")?;
+  writeln!(
+    w,
+    "
+    F: for<'b> Fn(
+      {table}::BoxedQuery<'b, {backend}>,
+    ) -> {table}::BoxedQuery<'b, {backend}>,
+  ",
+    table = args.table.name,
+    backend = args.backend.path(),
+  )?;
   writeln!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
@@ -1263,7 +1285,7 @@ fn simple_paginate<W: Write>(
     &mut w,
   )?;
 
-  let query_name = "q";
+  const QUERY_NAME: &str = "q";
 
   if let OrderingOptionsConfig::None = args.ordering_options {
     writeln!(w, "{table}::table", table = args.table.name,)?;
@@ -1271,7 +1293,7 @@ fn simple_paginate<W: Write>(
     writeln!(
       w,
       "let mut {} = {table}::table",
-      query_name,
+      QUERY_NAME,
       table = args.table.name,
     )?;
   }
@@ -1359,14 +1381,14 @@ fn simple_paginate<W: Write>(
             "{}::{}Asc => {}",
             &order_enum_name,
             c.name.to_pascal_case(),
-            order(idx, query_name, &args.table.name, &c.name, false)
+            order(idx, QUERY_NAME, &args.table.name, &c.name, false)
           )?;
           writeln!(
             w,
             "{}::{}Desc =>  {}",
             &order_enum_name,
             c.name.to_pascal_case(),
-            order(idx, query_name, &args.table.name, &c.name, true)
+            order(idx, QUERY_NAME, &args.table.name, &c.name, true)
           )?;
         }
       }
@@ -1377,7 +1399,7 @@ fn simple_paginate<W: Write>(
             "{}::{}Asc => {}",
             &order_enum_name,
             c.name.to_pascal_case(),
-            order(idx, query_name, &args.table.name, &c.name, false)
+            order(idx, QUERY_NAME, &args.table.name, &c.name, false)
           )?;
         }
       }
@@ -1388,7 +1410,7 @@ fn simple_paginate<W: Write>(
             "{}::{}Desc => {}",
             &order_enum_name,
             c.name.to_pascal_case(),
-            order(idx, query_name, &args.table.name, &c.name, true)
+            order(idx, QUERY_NAME, &args.table.name, &c.name, true)
           )?;
         }
       }
@@ -1402,7 +1424,7 @@ fn simple_paginate<W: Write>(
                   "{}::{}Asc => {}",
                   &order_enum_name,
                   col.name.to_pascal_case(),
-                  order(idx, query_name, &args.table.name, &col.name, false)
+                  order(idx, QUERY_NAME, &args.table.name, &col.name, false)
                 )?;
               }
               crate::config::Order::Desc => {
@@ -1411,7 +1433,7 @@ fn simple_paginate<W: Write>(
                   "{}::{}Desc => {}",
                   &order_enum_name,
                   col.name.to_pascal_case(),
-                  order(idx, query_name, &args.table.name, &col.name, true)
+                  order(idx, QUERY_NAME, &args.table.name, &col.name, true)
                 )?;
               }
               crate::config::Order::Both => {
@@ -1420,14 +1442,14 @@ fn simple_paginate<W: Write>(
                   "{}::{}Asc => {}",
                   &order_enum_name,
                   col.name.to_pascal_case(),
-                  order(idx, query_name, &args.table.name, &col.name, false)
+                  order(idx, QUERY_NAME, &args.table.name, &col.name, false)
                 )?;
                 writeln!(
                   w,
                   "{}::{}Desc => {}",
                   &order_enum_name,
                   col.name.to_pascal_case(),
-                  order(idx, query_name, &args.table.name, &col.name, true)
+                  order(idx, QUERY_NAME, &args.table.name, &col.name, true)
                 )?;
               }
             }
@@ -1441,16 +1463,49 @@ fn simple_paginate<W: Write>(
   }
 
   if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
-    write!(w, "{}", query_name)?;
+    write!(
+      w,
+      "q = {extend_name}({query_name}.offset(offset.into()).limit(limit.into()));",
+      extend_name = EXTEND_NAME,
+      query_name = QUERY_NAME
+    )?;
   }
   writeln!(
     w,
-    ".offset(offset.into()).limit(limit.into()).select({model}::as_select()).load::<{model}>(conn)",
+    "{query_name}.select({model}::as_select()).load::<{model}>(conn)",
+    query_name = QUERY_NAME,
     model = args.model_name
   )?;
 
   writeln!(w, "}}")?;
-  writeln!(w, "}}\n")?;
+
+  operation_sig("simple_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
+
+  if let OrderingOptionsConfig::None = args.ordering_options {
+    write!(w, "offset: u32, limit: u32, conn: &'a mut Conn",)?;
+  } else {
+    write!(
+      w,
+      "offset: u32, limit: u32, ordering: Option<&'a Vec<{enum_name}>>, conn: &'a mut Conn",
+      enum_name = &order_enum_name,
+    )?;
+  }
+
+  write!(
+    w,
+    "\n  ) -> {}{}",
+    return_type(args.use_async, true, args.model_name),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  writeln!(w, "{{")?;
+  writeln!(
+    w,
+    "{model_name}::simple_paginate_extend(offset, limit, ordering, |q| q, conn)",
+    model_name = args.model_name
+  )?;
+  writeln!(w, "}}")?;
+  writeln!(w, "}}")?;
   Ok(())
 }
 

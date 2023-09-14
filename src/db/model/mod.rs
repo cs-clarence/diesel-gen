@@ -287,10 +287,11 @@ pub enum PrismaMigrationOrderBy {
   AppliedStepsCountDesc,
 }
 impl PrismaMigration {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<PrismaMigrationOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<PrismaMigrationOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<PrismaMigration>, diesel::result::Error>,
@@ -298,13 +299,17 @@ impl PrismaMigration {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      _prisma_migrations::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> _prisma_migrations::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = _prisma_migrations::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           PrismaMigrationOrderBy::IdAsc => {
             if idx == 0 {
@@ -438,15 +443,33 @@ impl PrismaMigration {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(PrismaMigration::as_select())
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(PrismaMigration::as_select())
       .load::<PrismaMigration>(conn)
   }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<PrismaMigrationOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<PrismaMigration>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    PrismaMigration::simple_paginate_extend(
+      offset,
+      limit,
+      ordering,
+      |q| q,
+      conn,
+    )
+  }
 }
-
 impl PrismaMigration {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -725,10 +748,11 @@ pub enum CredentialOrderBy {
   UpdatedAtDesc,
 }
 impl Credential {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<CredentialOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<CredentialOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<Credential>, diesel::result::Error>,
@@ -736,13 +760,17 @@ impl Credential {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      credentials::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> credentials::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = credentials::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           CredentialOrderBy::IdAsc => {
             if idx == 0 {
@@ -858,15 +886,26 @@ impl Credential {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(Credential::as_select())
-      .load::<Credential>(conn)
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(Credential::as_select()).load::<Credential>(conn)
+  }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<CredentialOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<Credential>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Credential::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
   }
 }
-
 impl Credential {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -1115,10 +1154,11 @@ pub enum EmailAddressVerificationCodeOrderBy {
   InvalidatedAtDesc,
 }
 impl EmailAddressVerificationCode {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<EmailAddressVerificationCodeOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<EmailAddressVerificationCodeOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<EmailAddressVerificationCode>, diesel::result::Error>,
@@ -1126,13 +1166,20 @@ impl EmailAddressVerificationCode {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      email_address_verification_codes::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> email_address_verification_codes::BoxedQuery<
+      'b,
+      diesel::pg::Pg,
+    >,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = email_address_verification_codes::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           EmailAddressVerificationCodeOrderBy::IdAsc => {
             if idx == 0 {
@@ -1262,15 +1309,33 @@ impl EmailAddressVerificationCode {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(EmailAddressVerificationCode::as_select())
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(EmailAddressVerificationCode::as_select())
       .load::<EmailAddressVerificationCode>(conn)
   }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<EmailAddressVerificationCodeOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<EmailAddressVerificationCode>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    EmailAddressVerificationCode::simple_paginate_extend(
+      offset,
+      limit,
+      ordering,
+      |q| q,
+      conn,
+    )
+  }
 }
-
 impl EmailAddressVerificationCode {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -1546,10 +1611,11 @@ pub enum EmailAddressOrderBy {
   UpdatedAtDesc,
 }
 impl EmailAddress {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<EmailAddressOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<EmailAddressOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<EmailAddress>, diesel::result::Error>,
@@ -1557,13 +1623,17 @@ impl EmailAddress {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      email_addresses::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> email_addresses::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = email_addresses::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           EmailAddressOrderBy::IdAsc => {
             if idx == 0 {
@@ -1679,15 +1749,27 @@ impl EmailAddress {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(EmailAddress::as_select())
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(EmailAddress::as_select())
       .load::<EmailAddress>(conn)
   }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<EmailAddressOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<EmailAddress>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    EmailAddress::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
+  }
 }
-
 impl EmailAddress {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -1996,10 +2078,11 @@ pub enum IdentityOrderBy {
   OtherGenderDesc,
 }
 impl Identity {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<IdentityOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<IdentityOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<Identity>, diesel::result::Error>,
@@ -2007,13 +2090,17 @@ impl Identity {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      identities::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> identities::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = identities::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           IdentityOrderBy::IdAsc => {
             if idx == 0 {
@@ -2161,15 +2248,26 @@ impl Identity {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(Identity::as_select())
-      .load::<Identity>(conn)
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(Identity::as_select()).load::<Identity>(conn)
+  }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<IdentityOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<Identity>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Identity::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
   }
 }
-
 impl Identity {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -2364,10 +2462,11 @@ pub enum PasswordResetTokenOrderBy {
   CreatedAtDesc,
 }
 impl PasswordResetToken {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<PasswordResetTokenOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<PasswordResetTokenOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<PasswordResetToken>, diesel::result::Error>,
@@ -2375,13 +2474,17 @@ impl PasswordResetToken {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      password_reset_tokens::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> password_reset_tokens::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = password_reset_tokens::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           PasswordResetTokenOrderBy::IdAsc => {
             if idx == 0 {
@@ -2449,15 +2552,33 @@ impl PasswordResetToken {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(PasswordResetToken::as_select())
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(PasswordResetToken::as_select())
       .load::<PasswordResetToken>(conn)
   }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<PasswordResetTokenOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<PasswordResetToken>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    PasswordResetToken::simple_paginate_extend(
+      offset,
+      limit,
+      ordering,
+      |q| q,
+      conn,
+    )
+  }
 }
-
 impl PasswordResetToken {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -2790,10 +2911,11 @@ pub enum RefreshTokenOrderBy {
   InvalidatedAtDesc,
 }
 impl RefreshToken {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<RefreshTokenOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<RefreshTokenOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<Vec<RefreshToken>, diesel::result::Error>,
@@ -2801,13 +2923,17 @@ impl RefreshToken {
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      refresh_tokens::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> refresh_tokens::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = refresh_tokens::table.into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           RefreshTokenOrderBy::IdAsc => {
             if idx == 0 {
@@ -2971,15 +3097,27 @@ impl RefreshToken {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(RefreshToken::as_select())
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(RefreshToken::as_select())
       .load::<RefreshToken>(conn)
   }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<RefreshTokenOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<
+    Output = Result<Vec<RefreshToken>, diesel::result::Error>,
+  > + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    RefreshToken::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
+  }
 }
-
 impl RefreshToken {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -3252,25 +3390,30 @@ pub enum StaffOrderBy {
   DeletedAtDesc,
 }
 impl Staff {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<StaffOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<StaffOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      staffs::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> staffs::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = staffs::table
       .filter(staffs::deleted_at.is_not_null())
       .into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           StaffOrderBy::IdAsc => {
             if idx == 0 {
@@ -3370,15 +3513,25 @@ impl Staff {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(Staff::as_select())
-      .load::<Staff>(conn)
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(Staff::as_select()).load::<Staff>(conn)
+  }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<StaffOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Staff::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
   }
 }
-
 impl Staff {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,
@@ -3625,25 +3778,30 @@ pub enum UserOrderBy {
   DeletedAtDesc,
 }
 impl User {
-  pub fn simple_paginate<Conn>(
-    offset: usize,
-    limit: usize,
-    ordering: Option<&Vec<UserOrderBy>>,
+  pub fn simple_paginate_extend<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<UserOrderBy>>,
+    extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = users::table
       .filter(users::deleted_at.is_not_null())
       .into_boxed();
     if let Some(ordering) = ordering {
-      for (idx, ord) in ordering.enumerate() {
+      for (idx, ord) in ordering.iter().enumerate() {
         match ord {
           UserOrderBy::IdAsc => {
             if idx == 0 {
@@ -3727,15 +3885,25 @@ impl User {
         }
       }
     }
-    q.offset(offset)
-      .limit(limit)
-      .select(User::as_select())
-      .load::<User>(conn)
+    q = extend(q.offset(offset.into()).limit(limit.into()));
+    q.select(User::as_select()).load::<User>(conn)
+  }
+  pub fn simple_paginate<'a, Conn>(
+    offset: u32,
+    limit: u32,
+    ordering: Option<&'a Vec<UserOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
   }
 }
-
 impl User {
-  pub fn cursor_paginate<Conn>(
+  pub fn cursor_paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     conn: &'a mut Conn,

@@ -229,6 +229,14 @@ pub enum OrderingOptionsConfig {
 pub struct CursorPaginateOperationConfig {
   pub enable: Option<bool>,
   pub include_soft_deleted: Option<bool>,
+  #[merge(strategy = merge_option)]
+  pub cursors: Option<MapConfig<String, CursorConfig>>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CursorConfig {
+  pub columns: Vec<String>,
 }
 
 #[derive(Deserialize, Clone, Debug, JsonSchema)]
