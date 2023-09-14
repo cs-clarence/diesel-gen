@@ -1636,7 +1636,7 @@ fn cursor_paginate<W: Write>(
     )?;
     write!(
       w,
-      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, conn: &'a mut Conn"
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, first: Option<usize>, last: Option<usize>, conn: &'a mut Conn"
     )?;
 
     write!(
@@ -1647,7 +1647,7 @@ fn cursor_paginate<W: Write>(
     )?;
     operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
     writeln!(w, "{{
-      {model_name}::{cursor_paginate_extend_fn_name}(after, before, limit, |q| q, conn)
+      {model_name}::{cursor_paginate_extend_fn_name}(after, before, first, last, |q| q, conn)
      }}",
      model_name = args.model_name,
     )?;
@@ -1662,7 +1662,7 @@ fn cursor_paginate<W: Write>(
     )?;
     write!(
       w,
-      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, first: Option<usize>, last: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
     )?;
 
     write!(
@@ -1688,6 +1688,8 @@ fn cursor_paginate<W: Write>(
     default_operation_uses(
       &DefaultUsesArgs {
         use_async: args.use_async,
+        query_dsl: true,
+        into_sql: true,
         selectable_helper: true,
         expression_methods: !args.include_soft_deleted
           && args.soft_delete_column.is_some(),
@@ -1844,7 +1846,7 @@ fn cursor_paginate<W: Write>(
           ({table_columns})
             .into_sql::<diesel::sql_types::Record<_>>()
             .lt(
-              (cursor_fields)
+              ({cursor_fields})
                 .into_sql::<diesel::sql_types::Record<({record_types})>>(),
             ),
         );
@@ -1855,7 +1857,7 @@ fn cursor_paginate<W: Write>(
     writeln!(
       w,
       "
-      if let Some(limit) = limit {{
+      if let Some(first) = first {{
         {QUERY_NAME} = {QUERY_NAME}.limit(first.try_into().unwrap());
       }}
       "
