@@ -203,6 +203,7 @@ pub struct UpdateOperationConfig {
 pub struct SimplePaginateOperationConfig {
   pub enable: Option<bool>,
   pub include_soft_deleted: Option<bool>,
+  pub order_by_enum_derives: Option<ListConfig<String>>,
   pub ordering_options: Option<OrderingOptionsConfig>,
 }
 
@@ -213,11 +214,12 @@ pub enum Order {
   Both,
 }
 
-#[derive(Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Deserialize, Clone, Debug, Default, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum OrderingOptionsConfig {
   None,
+  #[default]
   All,
   AllAsc,
   AllDesc,
@@ -229,14 +231,48 @@ pub enum OrderingOptionsConfig {
 pub struct CursorPaginateOperationConfig {
   pub enable: Option<bool>,
   pub include_soft_deleted: Option<bool>,
+  #[serde(default)]
+  pub cursors: MapConfig<String, CursorConfig>,
   #[merge(strategy = merge_option)]
-  pub cursors: Option<MapConfig<String, CursorConfig>>,
+  pub default_cursor_derives: Option<ListConfig<String>>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CursorConfig {
-  pub columns: Vec<String>,
+  pub derives: Option<ListConfig<String>>,
+  pub columns: Vec<CursorColumnConfig>,
+}
+
+#[derive(Deserialize, Default, Clone, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum CursorColumnOrder {
+  Asc,
+  Desc,
+  #[default]
+  None,
+}
+
+#[derive(Deserialize, Clone, Debug, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(untagged)]
+pub enum CursorColumnConfig {
+  Column(String),
+  WithOrdering {
+    name: String,
+    #[serde(default)]
+    order: CursorColumnOrder,
+  },
+}
+
+impl CursorColumnConfig {
+  pub fn name(&self) -> &str {
+    match self {
+      CursorColumnConfig::Column(name) => name,
+      CursorColumnConfig::WithOrdering { name, .. } => name,
+    }
+  }
 }
 
 #[derive(Deserialize, Clone, Debug, JsonSchema)]

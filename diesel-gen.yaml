@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=./diesel-gen.schema.json
 schema: ./src/db/schema/mod.rs
 
 models:
@@ -31,6 +32,15 @@ tables:
       enable: true
       simple_paginate:
         ordering_options: all
+  users:
+    operations:
+      cursor_paginate:
+        cursors:
+          UserCursor:
+            columns:
+              - name: created_at
+                order: desc
+              - id
 
 type_overrides:
   CredentialType: CredentialType

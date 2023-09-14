@@ -97,6 +97,7 @@ fn generate_models(config: &Config, parsed_file: &File) -> anyhow::Result<()> {
 
     write::models(
       &ModelsArgs {
+        table_imports_root: &table_imports_root,
         file: parsed_file,
         backend: &model.backend,
         ref_type_overrides: &ref_type_overrides,

@@ -112,6 +112,10 @@ impl TypeName {
     )
   }
 
+  pub fn is_unknown_type(&self) -> bool {
+    matches!(self, TypeName::Custom(_))
+  }
+
   pub fn is_float_type(&self) -> bool {
     matches!(
       self,
@@ -731,6 +735,59 @@ impl Type {
       Type::Owned { name, .. } => name,
       Type::Borrowed { r#type, .. } => r#type.name(),
       Type::Dyn { r#type, .. } => r#type.name(),
+    }
+  }
+
+  pub fn qualified_string(&self, unknown_type_mod: &str) -> String {
+    match self {
+      Type::Owned { name, params } => {
+        if params.is_empty() {
+          if name.is_unknown_type() {
+            format!("{}::{}", unknown_type_mod, name)
+          } else {
+            format!("diesel::sql_types::{}", name)
+          }
+        } else {
+          let name = if name.is_unknown_type() {
+            format!("{}::{}", unknown_type_mod, name)
+          } else {
+            format!("diesel::sql_types::{}", name)
+          };
+          format!(
+            "{}<{}>",
+            name,
+            params
+              .iter()
+              .map(|p| p.qualified_string(unknown_type_mod))
+              .collect::<Vec<_>>()
+              .join(", ")
+          )
+        }
+      }
+      Type::Borrowed {
+        shared,
+        lifetime,
+        r#type,
+      } => {
+        if let Some(lt) = lifetime {
+          if *shared {
+            format!(
+              "&'{} mut {}",
+              lt,
+              r#type.qualified_string(unknown_type_mod)
+            )
+          } else {
+            format!("&'{} {}", lt, r#type.qualified_string(unknown_type_mod))
+          }
+        } else if *shared {
+          format!("&mut {}", r#type.qualified_string(unknown_type_mod))
+        } else {
+          format!("&{}", r#type.qualified_string(unknown_type_mod))
+        }
+      }
+      Type::Dyn { r#type } => {
+        format!("dyn {}", r#type.qualified_string(unknown_type_mod))
+      }
     }
   }
 

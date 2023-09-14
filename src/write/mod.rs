@@ -5,12 +5,16 @@ pub mod async_graphql;
 use std::{
   collections::{HashMap, HashSet},
   io::Write,
+  ops::Deref,
 };
 
 use inflector::Inflector;
+use merge::Merge;
 
 use crate::{
-  config::{OrderingOptionsConfig, SqlBackend, TableConfig},
+  config::{
+    CursorConfig, ListConfig, OrderingOptionsConfig, SqlBackend, TableConfig,
+  },
   parse::{self, Column, File, ParseContext, Table},
   util::{get_field_name, get_ref_type, get_type, model_name},
 };
@@ -130,6 +134,7 @@ const DIESEL_UPDATER_DERIVE: &str = "#[derive(diesel::AsChangeset)]";
 
 pub struct ModelsArgs<'a> {
   pub file: &'a File,
+  pub table_imports_root: &'a str,
   pub backend: &'a SqlBackend,
   pub table_configs: &'a HashMap<String, TableConfig>,
   pub type_overrides: &'a HashMap<String, String>,
@@ -138,6 +143,7 @@ pub struct ModelsArgs<'a> {
 
 pub fn models<W: Write>(
   &ModelsArgs {
+    table_imports_root,
     file,
     backend,
     ref_type_overrides,
@@ -159,6 +165,7 @@ pub fn models<W: Write>(
 
     model(
       &ModelArgs {
+        table_import_root: table_imports_root,
         backend,
         ref_type_overrides,
         type_overrides,
@@ -245,7 +252,7 @@ fn write_ref_fn_params<W: Write>(
   Ok(())
 }
 
-fn operation_sig<W: Write>(
+fn function_signature<W: Write>(
   name: &str,
   conn_t_name: &str,
   generics: Option<Vec<&str>>,
@@ -292,6 +299,7 @@ struct DefaultUsesArgs {
   selectable_helper: bool,
   expression_methods: bool,
   sql_types: bool,
+  into_sql: bool,
 }
 
 fn default_operation_uses<W: Write>(
@@ -300,6 +308,10 @@ fn default_operation_uses<W: Write>(
 ) -> std::io::Result<()> {
   if args.selectable_helper {
     writeln!(w, "use diesel::SelectableHelper;")?;
+  }
+
+  if args.into_sql {
+    writeln!(w, "use diesel::IntoSql;")?;
   }
 
   if args.query_dsl {
@@ -325,6 +337,7 @@ fn default_operation_uses<W: Write>(
 
 pub struct ModelArgs<'a> {
   pub table: &'a Table,
+  pub table_import_root: &'a str,
   pub table_config: Option<&'a TableConfig>,
   pub backend: &'a SqlBackend,
   pub type_overrides: &'a HashMap<String, String>,
@@ -333,6 +346,7 @@ pub struct ModelArgs<'a> {
 
 pub fn model<W: Write>(
   &ModelArgs {
+    table_import_root: import_root,
     backend,
     ref_type_overrides,
     table,
@@ -713,10 +727,15 @@ pub fn model<W: Write>(
     }
 
     let simple_paginate_config = operations.simple_paginate.unwrap_or_default();
+    let derives = simple_paginate_config
+      .order_by_enum_derives
+      .as_ref()
+      .map(|e| e.vec());
     let enable_simple_paginate = simple_paginate_config.enable.unwrap_or(true);
     if enable_simple_paginate {
       simple_paginate(
         &SimplePaginateArgs {
+          order_by_enum_derives: derives,
           ordering_options: &simple_paginate_config
             .ordering_options
             .unwrap_or(OrderingOptionsConfig::All),
@@ -739,6 +758,13 @@ pub fn model<W: Write>(
     if enable_cursor_paginate {
       cursor_paginate(
         &CursorPaginateArgs {
+          default_cursor_derives: cursor_paginate_config
+            .default_cursor_derives
+            .as_ref(),
+          table_imports_root: import_root,
+          table_config,
+          type_overrides,
+          cursors: cursor_paginate_config.cursors.map(),
           model_name: &final_model_name,
           use_async,
           table,
@@ -769,7 +795,7 @@ struct InsertArgs<'a> {
 
 fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig("insert", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature("insert", "Conn", Some(vec!["'a"]), &mut w)?;
   write!(w, "data: &'a {}<'a>, ", args.inserter_name)?;
   write!(w, "conn: &'a mut Conn")?;
 
@@ -790,6 +816,7 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
       selectable_helper: true,
       expression_methods: false,
       sql_types: false,
+      into_sql: false,
     },
     &mut w,
   )?;
@@ -829,7 +856,7 @@ struct UpdateArgs<'a> {
 fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
 
-  operation_sig("update", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature("update", "Conn", Some(vec!["'a"]), &mut w)?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
@@ -855,6 +882,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       selectable_helper: true,
       expression_methods: true,
       sql_types: false,
+      into_sql: false,
     },
     &mut w,
   )?;
@@ -894,7 +922,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       let config = args.table_config.and_then(|t| t.columns.get(&c.name));
       let field_name = get_field_name(config, &c.name);
 
-      operation_sig(
+      function_signature(
         &format!(
           "update_{}",
           field_name.strip_prefix("r#").unwrap_or(&field_name)
@@ -939,6 +967,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
           selectable_helper: true,
           expression_methods: true,
           sql_types: false,
+          into_sql: false,
         },
         &mut w,
       )?;
@@ -1001,7 +1030,7 @@ struct DeleteArgs<'a> {
 
 fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig("delete", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature("delete", "Conn", Some(vec!["'a"]), &mut w)?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
@@ -1028,6 +1057,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
       selectable_helper: true,
       expression_methods: true,
       sql_types: false,
+      into_sql: false,
     },
     &mut w,
   )?;
@@ -1084,7 +1114,7 @@ fn soft_delete<W: Write>(
             ));
   }
 
-  operation_sig("soft_delete", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature("soft_delete", "Conn", Some(vec!["'a"]), &mut w)?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
@@ -1103,11 +1133,10 @@ fn soft_delete<W: Write>(
   write!(w, "{{")?;
   default_operation_uses(
     &DefaultUsesArgs {
-      query_dsl: false,
       use_async: args.use_async,
       selectable_helper: true,
       expression_methods: true,
-      sql_types: false,
+      ..Default::default()
     },
     &mut w,
   )?;
@@ -1180,6 +1209,7 @@ struct SimplePaginateArgs<'a> {
   ordering_options: &'a OrderingOptionsConfig,
   backend: &'a SqlBackend,
   include_soft_deleted: bool,
+  order_by_enum_derives: Option<&'a Vec<String>>,
   soft_delete_column: Option<&'a Column>,
 }
 
@@ -1188,6 +1218,9 @@ fn simple_paginate<W: Write>(
   mut w: W,
 ) -> anyhow::Result<()> {
   let order_enum_name = format!("{}OrderBy", args.model_name);
+  if let Some(derives) = args.order_by_enum_derives {
+    writeln!(w, "#[derive({})]", derives.join(", "))?;
+  }
   writeln!(w, "pub enum {} {{", &order_enum_name)?;
   match args.ordering_options {
     OrderingOptionsConfig::None => {}
@@ -1230,7 +1263,7 @@ fn simple_paginate<W: Write>(
   writeln!(w, "}}",)?;
 
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig(
+  function_signature(
     "simple_paginate_extend",
     "Conn",
     Some(vec!["'a", "F"]),
@@ -1241,13 +1274,13 @@ fn simple_paginate<W: Write>(
   if let OrderingOptionsConfig::None = args.ordering_options {
     write!(
       w,
-      "offset: u32, limit: u32, {extend_name}: F, conn: &'a mut Conn",
+      "offset: usize, limit: usize, {extend_name}: F, conn: &'a mut Conn",
       extend_name = EXTEND_NAME
     )?;
   } else {
     write!(
       w,
-      "offset: u32, limit: u32, ordering: Option<&'a Vec<{enum_name}>>, {extend_name}: F, conn: &'a mut Conn",
+      "offset: usize, limit: usize, ordering: Option<&'a Vec<{enum_name}>>, {extend_name}: F, conn: &'a mut Conn",
       extend_name = EXTEND_NAME,
       enum_name = &order_enum_name,
     )?;
@@ -1280,7 +1313,7 @@ fn simple_paginate<W: Write>(
       expression_methods: !args.include_soft_deleted
         || !matches!(args.ordering_options, OrderingOptionsConfig::None)
           && args.soft_delete_column.is_some(),
-      sql_types: false,
+      ..Default::default()
     },
     &mut w,
   )?;
@@ -1465,7 +1498,7 @@ fn simple_paginate<W: Write>(
   if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
     write!(
       w,
-      "q = {extend_name}({query_name}.offset(offset.into()).limit(limit.into()));",
+      "q = {extend_name}({query_name}.offset(offset.try_into().unwrap()).limit(limit.try_into().unwrap()));",
       extend_name = EXTEND_NAME,
       query_name = QUERY_NAME
     )?;
@@ -1479,14 +1512,14 @@ fn simple_paginate<W: Write>(
 
   writeln!(w, "}}")?;
 
-  operation_sig("simple_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature("simple_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
 
   if let OrderingOptionsConfig::None = args.ordering_options {
     write!(w, "offset: u32, limit: u32, conn: &'a mut Conn",)?;
   } else {
     write!(
       w,
-      "offset: u32, limit: u32, ordering: Option<&'a Vec<{enum_name}>>, conn: &'a mut Conn",
+      "offset: usize, limit: usize, ordering: Option<&'a Vec<{enum_name}>>, conn: &'a mut Conn",
       enum_name = &order_enum_name,
     )?;
   }
@@ -1510,11 +1543,16 @@ fn simple_paginate<W: Write>(
 }
 
 struct CursorPaginateArgs<'a> {
+  table_imports_root: &'a str,
   model_name: &'a str,
   use_async: bool,
   table: &'a Table,
+  table_config: Option<&'a TableConfig>,
+  cursors: &'a HashMap<String, CursorConfig>,
   backend: &'a SqlBackend,
   include_soft_deleted: bool,
+  default_cursor_derives: Option<&'a ListConfig<String>>,
+  type_overrides: &'a HashMap<String, String>,
   soft_delete_column: Option<&'a Column>,
 }
 
@@ -1522,72 +1560,315 @@ fn cursor_paginate<W: Write>(
   args: &CursorPaginateArgs<'_>,
   mut w: W,
 ) -> anyhow::Result<()> {
+  if args.cursors.is_empty() {
+    return Ok(());
+  }
+  for (name, config) in args.cursors {
+    if config.columns.is_empty() {
+      return Err(anyhow::anyhow!(
+        "Cursor '{}' has no columns specified",
+        name
+      ));
+    }
+  }
+
+  for (name, config) in args.cursors {
+    match (args.default_cursor_derives, config.derives.as_ref()) {
+      (None, None) => {}
+      (None, Some(derives)) => {
+        writeln!(w, "#[derive({})]", derives.vec().join(", "))?;
+      }
+      (Some(def_derives), None) => {
+        writeln!(w, "#[derive({})]", def_derives.vec().join(", "))?;
+      }
+      (Some(def_derives), Some(derives)) => {
+        let mut def_derives = def_derives.clone();
+        def_derives.merge(derives.clone());
+        writeln!(w, "#[derive({})]", def_derives.vec().join(", "))?;
+      }
+    }
+
+    writeln!(
+      w,
+      "
+      pub struct {cursor_name} {{
+      ",
+      cursor_name = name.to_pascal_case(),
+    )?;
+
+    for c in config.columns.iter() {
+      let col = args.table.get_column(c.name()).ok_or({
+        anyhow::anyhow!(
+          "Unknown column '{}' in table '{}'",
+          c.name(),
+          args.table.name
+        )
+      })?;
+
+      let ty = get_type(args.type_overrides, &col.r#type).ok_or_else(|| {
+        anyhow::anyhow!("Unknown type: {}", col.r#type.to_string())
+      })?;
+
+      let name = get_field_name(
+        args.table_config.and_then(|t| t.columns.get(&col.name)),
+        c.name(),
+      );
+
+      writeln!(w, "pub {}: {},", name, ty)?;
+    }
+
+    writeln!(w, "}}",)?;
+  }
+
   writeln!(w, "impl {} {{", args.model_name)?;
-  operation_sig("cursor_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
-  write!(w, "offset: usize, limit: usize, conn: &'a mut Conn")?;
+  for (name, config) in args.cursors {
+    let cursor_name = name.to_pascal_case();
+    let cursor_paginate_fn_name =
+      format!("cursor_paginate_by_{}", cursor_name.to_snake_case());
+    let cursor_paginate_extend_fn_name =
+      format!("{}_extend", &cursor_paginate_fn_name);
 
-  write!(
-    w,
-    "\n  ) -> {}{}",
-    return_type(args.use_async, true, args.model_name),
-    if args.use_async { " + 'a" } else { "" },
-  )?;
+    function_signature(
+      &cursor_paginate_fn_name,
+      "Conn",
+      Some(vec!["'a", "F"]),
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, conn: &'a mut Conn"
+    )?;
 
-  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
-  writeln!(w, "{{")?;
-  default_operation_uses(
-    &DefaultUsesArgs {
-      query_dsl: false,
-      use_async: args.use_async,
-      selectable_helper: true,
-      expression_methods: !args.include_soft_deleted
-        && args.soft_delete_column.is_some(),
-      sql_types: false,
-    },
-    &mut w,
-  )?;
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, "{{
+      {model_name}::{cursor_paginate_extend_fn_name}(after, before, limit, |q| q, conn)
+     }}",
+     model_name = args.model_name,
+    )?;
 
-  writeln!(w, "{table}::table", table = args.table.name,)?;
+    const EXTEND_NAME: &str = "extend";
+    const QUERY_NAME: &str = "q";
+    function_signature(
+      &cursor_paginate_extend_fn_name,
+      "Conn",
+      Some(vec!["'a", "F"]),
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
+    )?;
 
-  if let Some(col) = args.soft_delete_column {
-    if !args.include_soft_deleted {
-      if col.r#type.is_boolean() {
-        writeln!(
-          w,
-          ".filter({table}::{column}.eq(false))",
-          table = args.table.name,
-          column = col.name,
-        )?;
-      } else if col.r#type.is_integer() {
-        writeln!(
-          w,
-          ".filter({table}::{column}.eq(0))",
-          table = args.table.name,
-          column = col.name,
-        )?;
-      } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-        writeln!(
-          w,
-          ".filter({table}::{column}.is_not_null())",
-          table = args.table.name,
-          column = col.name,
-        )?;
-      } else {
-        return Err(anyhow::anyhow!(
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        selectable_helper: true,
+        expression_methods: !args.include_soft_deleted
+          && args.soft_delete_column.is_some(),
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(
+      w,
+      "let mut {QUERY_NAME} = {table}::table",
+      table = args.table.name,
+    )?;
+
+    for (idx, col) in config.columns.iter().enumerate() {
+      match col {
+        crate::config::CursorColumnConfig::Column(name) => {
+          writeln!(
+            w,
+            ".{order_fn}({table}::{column}.asc())",
+            order_fn = if idx != 0 {
+              "then_order_by"
+            } else {
+              "order_by"
+            },
+            table = args.table.name,
+            column = name,
+          )?;
+        }
+        crate::config::CursorColumnConfig::WithOrdering { name, order } => {
+          match order {
+            crate::config::CursorColumnOrder::Asc => {
+              writeln!(
+                w,
+                ".{order_fn}({table}::{column}.asc())",
+                order_fn = if idx != 0 {
+                  "then_order_by"
+                } else {
+                  "order_by"
+                },
+                table = args.table.name,
+                column = name,
+              )?;
+            }
+            crate::config::CursorColumnOrder::Desc => {
+              writeln!(
+                w,
+                ".{order_fn}({table}::{column}.desc())",
+                order_fn = if idx != 0 {
+                  "then_order_by"
+                } else {
+                  "order_by"
+                },
+                table = args.table.name,
+                column = name,
+              )?;
+            }
+            crate::config::CursorColumnOrder::None => {}
+          }
+        }
+      }
+    }
+
+    if let Some(col) = args.soft_delete_column {
+      if !args.include_soft_deleted {
+        if col.r#type.is_boolean() {
+          writeln!(
+            w,
+            ".filter({table}::{column}.eq(false))",
+            table = args.table.name,
+            column = col.name,
+          )?;
+        } else if col.r#type.is_integer() {
+          writeln!(
+            w,
+            ".filter({table}::{column}.eq(0))",
+            table = args.table.name,
+            column = col.name,
+          )?;
+        } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
+          writeln!(
+            w,
+            ".filter({table}::{column}.is_not_null())",
+            table = args.table.name,
+            column = col.name,
+          )?;
+        } else {
+          return Err(anyhow::anyhow!(
           "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
           col.r#type,
           col.name,
           args.table.name
         ));
+        }
       }
     }
+    writeln!(w, ".into_boxed();")?;
+
+    let mut vec = Vec::new();
+
+    for cursor_col in config.columns.iter() {
+      let col = args.table.get_column(cursor_col.name()).unwrap();
+
+      let name = get_field_name(
+        args.table_config.and_then(|t| t.columns.get(&col.name)),
+        cursor_col.name(),
+      );
+
+      vec.push((
+        format!("{}::{}", &args.table.name, cursor_col.name()),
+        format!("{}.{}", "cursor", name),
+        col.r#type.qualified_string(args.table_imports_root),
+      ));
+    }
+
+    let table_columns = vec
+      .iter()
+      .map(|(col, _, _)| col.deref())
+      .collect::<Vec<&str>>()
+      .join(", ");
+
+    let cursor_fields = vec
+      .iter()
+      .map(|(_, field, _)| field.deref())
+      .collect::<Vec<&str>>()
+      .join(", ");
+
+    let record_types = vec
+      .iter()
+      .map(|(_, _, ty)| ty.deref())
+      .collect::<Vec<&str>>()
+      .join(", ");
+
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = after {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          ({table_columns})
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .gt(
+              ({cursor_fields})
+                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+            ),
+        );
+      }}
+      ",
+    )?;
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = before {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          ({table_columns})
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .lt(
+              (cursor_fields)
+                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+            ),
+        );
+      }}
+      ",
+    )?;
+
+    writeln!(
+      w,
+      "
+      if let Some(limit) = limit {{
+        {QUERY_NAME} = {QUERY_NAME}.limit(first.try_into().unwrap());
+      }}
+      "
+    )?;
+
+    writeln!(
+      w,
+      "{QUERY_NAME}.select({model}::as_select()).load::<{model}>(conn)",
+      model = args.model_name
+    )?;
+
+    writeln!(w, "}}")?;
   }
-
-  writeln!(w, ".select({model}::as_select()).offset(offset).limit(limit).load::<{model}>(conn)",
-    model = args.model_name
-  )?;
-
-  writeln!(w, "}}")?;
   writeln!(w, "}}\n")?;
   Ok(())
 }

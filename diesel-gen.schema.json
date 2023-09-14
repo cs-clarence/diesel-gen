@@ -1,0 +1,1099 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "properties": {
+    "async_graphql": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/AyncGraphqlConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "models": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ModelsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ref_type_overrides": {
+      "default": {},
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "schema": {
+      "type": "string"
+    },
+    "table_imports_root": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tables": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/TableConfig"
+      }
+    },
+    "type_overrides": {
+      "default": {},
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "type_uses": {
+      "default": {},
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "AyncGraphqlConfig": {
+      "type": "object",
+      "properties": {
+        "model_imports_root": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mods": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "output": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output_types": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/OutputTypeConfig"
+          }
+        },
+        "pub_mods": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "pub_uses": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "uses": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ColumnConfig": {
+      "type": "object",
+      "properties": {
+        "inserter_attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "omit_in_inserter": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "omit_in_model": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "omit_in_updater": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rename": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updater_attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CursorColumnConfig": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "order": {
+              "$ref": "#/definitions/CursorColumnOrder"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CursorColumnOrder": {
+      "type": "string",
+      "enum": [
+        "asc",
+        "desc",
+        "none"
+      ]
+    },
+    "CursorConfig": {
+      "type": "object",
+      "required": [
+        "columns"
+      ],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CursorColumnConfig"
+          }
+        },
+        "derives": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "CursorPaginateOperationConfig": {
+      "type": "object",
+      "properties": {
+        "cursors": {
+          "$ref": "#/definitions/MapConfig_for_String_and_CursorConfig"
+        },
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "include_soft_deleted": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "result_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DeleteOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "returning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "GraphqlFieldConfig": {
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "external": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "omit": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "rename": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shareable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Inherit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/InheritConfig"
+        }
+      ]
+    },
+    "InheritConfig": {
+      "type": "object",
+      "required": [
+        "table"
+      ],
+      "properties": {
+        "fields": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MapConfig_for_String_and_GraphqlFieldConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "InsertOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "returning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ListConfig_for_Inherit": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Inherit"
+          }
+        },
+        {
+          "$ref": "#/definitions/ReplaceConfig_for_Array_of_Inherit"
+        },
+        {
+          "$ref": "#/definitions/MergeConfig_for_Array_of_Inherit"
+        }
+      ]
+    },
+    "ListConfig_for_String": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/definitions/ReplaceConfig_for_Array_of_String"
+        },
+        {
+          "$ref": "#/definitions/MergeConfig_for_Array_of_String"
+        }
+      ]
+    },
+    "MapConfig_for_String_and_ColumnConfig": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnConfig"
+          }
+        },
+        {
+          "$ref": "#/definitions/ReplaceConfig_for_Map_of_ColumnConfig"
+        },
+        {
+          "$ref": "#/definitions/MergeConfig_for_Map_of_ColumnConfig"
+        }
+      ]
+    },
+    "MapConfig_for_String_and_CursorConfig": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/CursorConfig"
+          }
+        },
+        {
+          "$ref": "#/definitions/ReplaceConfig_for_Map_of_CursorConfig"
+        },
+        {
+          "$ref": "#/definitions/MergeConfig_for_Map_of_CursorConfig"
+        }
+      ]
+    },
+    "MapConfig_for_String_and_GraphqlFieldConfig": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/GraphqlFieldConfig"
+          }
+        },
+        {
+          "$ref": "#/definitions/ReplaceConfig_for_Map_of_GraphqlFieldConfig"
+        },
+        {
+          "$ref": "#/definitions/MergeConfig_for_Map_of_GraphqlFieldConfig"
+        }
+      ]
+    },
+    "MergeConfig_for_Array_of_Inherit": {
+      "type": "object",
+      "required": [
+        "merge"
+      ],
+      "properties": {
+        "merge": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Inherit"
+          }
+        }
+      }
+    },
+    "MergeConfig_for_Array_of_String": {
+      "type": "object",
+      "required": [
+        "merge"
+      ],
+      "properties": {
+        "merge": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "MergeConfig_for_Map_of_ColumnConfig": {
+      "type": "object",
+      "required": [
+        "merge"
+      ],
+      "properties": {
+        "merge": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnConfig"
+          }
+        }
+      }
+    },
+    "MergeConfig_for_Map_of_CursorConfig": {
+      "type": "object",
+      "required": [
+        "merge"
+      ],
+      "properties": {
+        "merge": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/CursorConfig"
+          }
+        }
+      }
+    },
+    "MergeConfig_for_Map_of_GraphqlFieldConfig": {
+      "type": "object",
+      "required": [
+        "merge"
+      ],
+      "properties": {
+        "merge": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/GraphqlFieldConfig"
+          }
+        }
+      }
+    },
+    "ModelsConfig": {
+      "type": "object",
+      "required": [
+        "backend"
+      ],
+      "properties": {
+        "backend": {
+          "$ref": "#/definitions/SqlBackend"
+        },
+        "mods": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "output": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pub_mods": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "pub_uses": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "uses": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "OperationsConfig": {
+      "type": "object",
+      "properties": {
+        "async": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cursor_paginate": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CursorPaginateOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "delete": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeleteOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "insert": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/InsertOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "simple_paginate": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SimplePaginateOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "soft_delete": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SoftDeleteOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "update": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UpdateOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Order": {
+      "type": "string",
+      "enum": [
+        "Asc",
+        "Desc",
+        "Both"
+      ]
+    },
+    "OrderingOptionsConfig": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "all",
+            "all_asc",
+            "all_desc"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "columns"
+          ],
+          "properties": {
+            "columns": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Order"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "OutputTypeConfig": {
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "complex_object": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "$ref": "#/definitions/MapConfig_for_String_and_GraphqlFieldConfig"
+        },
+        "impl_from": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "inherits": {
+          "$ref": "#/definitions/ListConfig_for_Inherit"
+        },
+        "table": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReplaceConfig_for_Array_of_Inherit": {
+      "type": "object",
+      "required": [
+        "replace"
+      ],
+      "properties": {
+        "replace": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Inherit"
+          }
+        }
+      }
+    },
+    "ReplaceConfig_for_Array_of_String": {
+      "type": "object",
+      "required": [
+        "replace"
+      ],
+      "properties": {
+        "replace": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ReplaceConfig_for_Map_of_ColumnConfig": {
+      "type": "object",
+      "required": [
+        "replace"
+      ],
+      "properties": {
+        "replace": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ColumnConfig"
+          }
+        }
+      }
+    },
+    "ReplaceConfig_for_Map_of_CursorConfig": {
+      "type": "object",
+      "required": [
+        "replace"
+      ],
+      "properties": {
+        "replace": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/CursorConfig"
+          }
+        }
+      }
+    },
+    "ReplaceConfig_for_Map_of_GraphqlFieldConfig": {
+      "type": "object",
+      "required": [
+        "replace"
+      ],
+      "properties": {
+        "replace": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/GraphqlFieldConfig"
+          }
+        }
+      }
+    },
+    "SimplePaginateOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "include_soft_deleted": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "order_by_enum_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ordering_options": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OrderingOptionsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SoftDeleteOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "returning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "soft_delete_column": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SqlBackend": {
+      "type": "string",
+      "enum": [
+        "postgres",
+        "mysql",
+        "sqlite"
+      ]
+    },
+    "TableConfig": {
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "columns": {
+          "$ref": "#/definitions/MapConfig_for_String_and_ColumnConfig"
+        },
+        "inserter_attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inserter_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inserter_struct": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "inserter_struct_name_prefix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inserter_struct_name_suffix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inserter_struct_omit_columns": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_struct_name_prefix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_struct_name_suffix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operations": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OperationsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "skip": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "updater_attributes": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updater_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updater_fields_optional": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "updater_struct": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "updater_struct_name_prefix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updater_struct_name_suffix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "updater_struct_omit_columns": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "UpdateOperationConfig": {
+      "type": "object",
+      "properties": {
+        "column_wise_update": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "column_wise_update_returning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "omit_column_wise_update": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "returning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "update_timestamp_columns": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
