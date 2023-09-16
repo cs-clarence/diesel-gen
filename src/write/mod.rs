@@ -2186,7 +2186,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     &mut w
   )?; 
   
-  writeln!(w, "extend({table}::table.count().into_boxed()", table = args.table.name)?;
+  writeln!(w, "extend({table}::table.count()", table = args.table.name)?;
   if !args.include_soft_deleted {
     if let Some(col) = args.soft_delete_column {
       if col.r#type.is_boolean() {
@@ -2206,7 +2206,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     }
   }
 
-  writeln!(w, ").query_result(conn)", )?;
+  writeln!(w, ".into_boxed()).query_result(conn)", )?;
 
   writeln!(w, "}}")?;
   
