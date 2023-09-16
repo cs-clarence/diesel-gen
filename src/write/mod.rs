@@ -123,10 +123,10 @@ pub fn type_uses<W: Write>(
 }
 
 const DIESEL_DEFAULT_DERIVE: &str =
-    "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable)]";
+    "#[derive(diesel::Queryable, diesel::QueryableByName, diesel::Insertable, diesel::Selectable, diesel::Identifiable)]";
 
 const DIESEL_DEFAULT_WITH_CHANGESET_DERIVE: &str =
-    "#[derive(diesel::Queryable, diesel::Insertable, diesel::Selectable, diesel::Identifiable, diesel::AsChangeset)]";
+    "#[derive(diesel::Queryable, diesel::QueryableByName, diesel::Insertable, diesel::Selectable, diesel::Identifiable, diesel::AsChangeset)]";
 
 const DIESEL_INSERTER_DERIVE: &str = "#[derive(diesel::Insertable)]";
 
@@ -252,17 +252,21 @@ fn write_ref_fn_params<W: Write>(
   Ok(())
 }
 
+struct FunctionSignatureArgs<'a> {
+  use_async: bool,
+  name: &'a str,
+  generics: Option<Vec<&'a str>>,
+}
+
 fn function_signature<W: Write>(
-  name: &str,
-  conn_t_name: &str,
-  generics: Option<Vec<&str>>,
+  args: &FunctionSignatureArgs<'_>,
   mut w: W,
 ) -> std::io::Result<()> {
-  writeln!(w, "  pub fn {}<", name)?;
-  if let Some(lifetimes) = generics {
-    writeln!(w, "{}, ", lifetimes.join(", "))?;
+  writeln!(w, "  pub fn {}", args.name)?;
+  if let Some(generics) = &args.generics {
+    writeln!(w, "<{}>", generics.join(", "))?;
   }
-  writeln!(w, "{}>(", conn_t_name)?;
+  writeln!(w, "(",)?;
 
   Ok(())
 }
@@ -795,7 +799,14 @@ struct InsertArgs<'a> {
 
 fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  function_signature("insert", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "insert",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
   write!(w, "data: &'a {}<'a>, ", args.inserter_name)?;
   write!(w, "conn: &'a mut Conn")?;
 
@@ -856,7 +867,14 @@ struct UpdateArgs<'a> {
 fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
 
-  function_signature("update", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "update",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
@@ -923,12 +941,14 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       let field_name = get_field_name(config, &c.name);
 
       function_signature(
-        &format!(
-          "update_{}",
-          field_name.strip_prefix("r#").unwrap_or(&field_name)
-        ),
-        "Conn",
-        Some(vec!["'a"]),
+        &FunctionSignatureArgs {
+          use_async: args.use_async,
+          name: &format!(
+            "update_{}",
+            field_name.strip_prefix("r#").unwrap_or(&field_name)
+          ),
+          generics: Some(vec!["'a", "Conn"]),
+        },
         &mut w,
       )?;
 
@@ -1030,7 +1050,14 @@ struct DeleteArgs<'a> {
 
 fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "impl {} {{", args.model_name)?;
-  function_signature("delete", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "delete",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
@@ -1114,7 +1141,14 @@ fn soft_delete<W: Write>(
             ));
   }
 
-  function_signature("soft_delete", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "soft_delete",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
   write_ref_fn_params(
     args.type_overrides,
     args.ref_type_overrides,
@@ -1264,9 +1298,11 @@ fn simple_paginate<W: Write>(
 
   writeln!(w, "impl {} {{", args.model_name)?;
   function_signature(
-    "simple_paginate_extend",
-    "Conn",
-    Some(vec!["'a", "F"]),
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "paginate_extend",
+      generics: Some(vec!["'a", "F", "Conn"]),
+    },
     &mut w,
   )?;
 
@@ -1274,15 +1310,12 @@ fn simple_paginate<W: Write>(
   if let OrderingOptionsConfig::None = args.ordering_options {
     write!(
       w,
-      "offset: usize, limit: usize, {extend_name}: F, conn: &'a mut Conn",
-      extend_name = EXTEND_NAME
+      "limit: usize, offset: usize, {EXTEND_NAME}: F, conn: &'a mut Conn",
     )?;
   } else {
     write!(
       w,
-      "offset: usize, limit: usize, ordering: Option<&'a Vec<{enum_name}>>, {extend_name}: F, conn: &'a mut Conn",
-      extend_name = EXTEND_NAME,
-      enum_name = &order_enum_name,
+      "limit: usize, offset: usize, ordering: Option<&'a Vec<{order_enum_name}>>, {EXTEND_NAME}: F, conn: &'a mut Conn",
     )?;
   }
 
@@ -1512,7 +1545,14 @@ fn simple_paginate<W: Write>(
 
   writeln!(w, "}}")?;
 
-  function_signature("simple_paginate", "Conn", Some(vec!["'a"]), &mut w)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "paginate",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
 
   if let OrderingOptionsConfig::None = args.ordering_options {
     write!(w, "offset: u32, limit: u32, conn: &'a mut Conn",)?;
@@ -1624,19 +1664,21 @@ fn cursor_paginate<W: Write>(
   for (name, config) in args.cursors {
     let cursor_name = name.to_pascal_case();
     let cursor_paginate_fn_name =
-      format!("cursor_paginate_by_{}", cursor_name.to_snake_case());
+      format!("paginate_by_{}", cursor_name.to_snake_case());
     let cursor_paginate_extend_fn_name =
       format!("{}_extend", &cursor_paginate_fn_name);
 
     function_signature(
-      &cursor_paginate_fn_name,
-      "Conn",
-      Some(vec!["'a", "F"]),
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &cursor_paginate_fn_name,
+        generics: Some(vec!["'a", "Conn"]),
+      },
       &mut w,
     )?;
     write!(
       w,
-      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, first: Option<usize>, last: Option<usize>, conn: &'a mut Conn"
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, conn: &'a mut Conn"
     )?;
 
     write!(
@@ -1647,7 +1689,7 @@ fn cursor_paginate<W: Write>(
     )?;
     operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
     writeln!(w, "{{
-      {model_name}::{cursor_paginate_extend_fn_name}(after, before, first, last, |q| q, conn)
+      {model_name}::{cursor_paginate_extend_fn_name}(after, before, limit, offset, |q| q, conn)
      }}",
      model_name = args.model_name,
     )?;
@@ -1655,14 +1697,16 @@ fn cursor_paginate<W: Write>(
     const EXTEND_NAME: &str = "extend";
     const QUERY_NAME: &str = "q";
     function_signature(
-      &cursor_paginate_extend_fn_name,
-      "Conn",
-      Some(vec!["'a", "F"]),
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &cursor_paginate_extend_fn_name,
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
       &mut w,
     )?;
     write!(
       w,
-      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, first: Option<usize>, last: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
     )?;
 
     write!(
@@ -1697,6 +1741,8 @@ fn cursor_paginate<W: Write>(
       },
       &mut w,
     )?;
+
+    writeln!(w, "let create_query = || {{")?;
 
     writeln!(
       w,
@@ -1854,12 +1900,24 @@ fn cursor_paginate<W: Write>(
       ",
     )?;
 
+    writeln!(w, "{EXTEND_NAME}({QUERY_NAME})")?;
+    writeln!(w, "}};")?;
+
     writeln!(
       w,
       "
-      if let Some(first) = first {{
-        {QUERY_NAME} = {QUERY_NAME}.limit(first.try_into().unwrap());
+      let mut {QUERY_NAME} = create_query();
+
+      //let mut has_last = false;
+
+      if let Some(offset) = offset {{
+        {QUERY_NAME} = {QUERY_NAME}.offset(offset.try_into().unwrap());
       }}
+
+      if let Some(limit) = limit {{
+        {QUERY_NAME} = {QUERY_NAME}.limit(limit.try_into().unwrap());
+      }}
+
       "
     )?;
 
@@ -1870,30 +1928,221 @@ fn cursor_paginate<W: Write>(
     )?;
 
     writeln!(w, "}}")?;
+    // HAS NEXT
+    let has_next = format!("has_next_{}", cursor_name.to_snake_case());
+    let has_next_extend = format!("{}_extend", &has_next);
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_next,
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {model}::{has_next_extend}(cursor, |q| q, conn)
+      }}
+      ",
+      model = &args.model_name,
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_next_extend,
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+               ({table_columns})
+                 .into_sql::<diesel::sql_types::Record<_>>()
+                 .gt(
+                   ({cursor_fields})
+                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+                 ),
+             )
+             .into_boxed(),
+         );
+         
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+      table = &args.table.name,
+    )?;
+    // HAS NEXT
+
+    // HAS PREVIOUS
+    let has_previous = format!("has_previous_{}", cursor_name.to_snake_case());
+    let has_previous_extend = format!("{}_extend", &has_previous);
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_previous,
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {model}::{has_previous_extend}(cursor, |q| q, conn)
+      }}
+      ",
+      model = &args.model_name,
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_previous_extend,
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+               ({table_columns})
+                 .into_sql::<diesel::sql_types::Record<_>>()
+                 .lt(
+                   ({cursor_fields})
+                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+                 ),
+             )
+             .into_boxed(),
+         );
+         
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+      table = &args.table.name,
+    )?;
+    // HAS PREVIOUS
   }
   writeln!(w, "}}\n")?;
   Ok(())
 }
 
-fn return_type(use_async: bool, multiple: bool, model_name: &str) -> String {
+fn return_type(use_async: bool, multiple: bool, result: &str) -> String {
   if use_async {
     if multiple {
       format!(
       "impl std::future::Future<Output = Result<Vec<{model}>, diesel::result::Error>> + Send",
-      model = model_name
+      model = result
     )
     } else {
       format!(
       "impl std::future::Future<Output = Result<{model}, diesel::result::Error>> + Send",
-      model = model_name
+      model = result
     )
     }
   } else if multiple {
     format!(
       "Result<Vec<{model}>, diesel::result::Error>",
-      model = model_name
+      model = result
     )
   } else {
-    format!("Result<{model}, diesel::result::Error>", model = model_name)
+    format!("Result<{model}, diesel::result::Error>", model = result)
   }
 }

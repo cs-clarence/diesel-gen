@@ -17,6 +17,7 @@ use crate::db::schema::iam::{
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -287,9 +288,9 @@ pub enum PrismaMigrationOrderBy {
   AppliedStepsCountDesc,
 }
 impl PrismaMigration {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<PrismaMigrationOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -450,7 +451,7 @@ impl PrismaMigration {
     q.select(PrismaMigration::as_select())
       .load::<PrismaMigration>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<PrismaMigrationOrderBy>>,
@@ -475,6 +476,7 @@ impl PrismaMigration {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -729,9 +731,9 @@ pub enum CredentialOrderBy {
   UpdatedAtDesc,
 }
 impl Credential {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<CredentialOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -873,7 +875,7 @@ impl Credential {
     );
     q.select(Credential::as_select()).load::<Credential>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<CredentialOrderBy>>,
@@ -892,6 +894,7 @@ impl Credential {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -1116,9 +1119,9 @@ pub enum EmailAddressVerificationCodeOrderBy {
   InvalidatedAtDesc,
 }
 impl EmailAddressVerificationCode {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<EmailAddressVerificationCodeOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -1278,7 +1281,7 @@ impl EmailAddressVerificationCode {
     q.select(EmailAddressVerificationCode::as_select())
       .load::<EmailAddressVerificationCode>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<EmailAddressVerificationCodeOrderBy>>,
@@ -1303,6 +1306,7 @@ impl EmailAddressVerificationCode {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -1554,9 +1558,9 @@ pub enum EmailAddressOrderBy {
   UpdatedAtDesc,
 }
 impl EmailAddress {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<EmailAddressOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -1699,7 +1703,7 @@ impl EmailAddress {
     q.select(EmailAddress::as_select())
       .load::<EmailAddress>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<EmailAddressOrderBy>>,
@@ -1718,6 +1722,7 @@ impl EmailAddress {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -2002,9 +2007,9 @@ pub enum IdentityOrderBy {
   OtherGenderDesc,
 }
 impl Identity {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<IdentityOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -2178,7 +2183,7 @@ impl Identity {
     );
     q.select(Identity::as_select()).load::<Identity>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<IdentityOrderBy>>,
@@ -2197,6 +2202,7 @@ impl Identity {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -2367,9 +2373,9 @@ pub enum PasswordResetTokenOrderBy {
   CreatedAtDesc,
 }
 impl PasswordResetToken {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<PasswordResetTokenOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -2464,7 +2470,7 @@ impl PasswordResetToken {
     q.select(PasswordResetToken::as_select())
       .load::<PasswordResetToken>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<PasswordResetTokenOrderBy>>,
@@ -2489,6 +2495,7 @@ impl PasswordResetToken {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -2797,9 +2804,9 @@ pub enum RefreshTokenOrderBy {
   InvalidatedAtDesc,
 }
 impl RefreshToken {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<RefreshTokenOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -2990,7 +2997,7 @@ impl RefreshToken {
     q.select(RefreshToken::as_select())
       .load::<RefreshToken>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<RefreshTokenOrderBy>>,
@@ -3009,6 +3016,7 @@ impl RefreshToken {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -3257,9 +3265,9 @@ pub enum StaffOrderBy {
   DeletedAtDesc,
 }
 impl Staff {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<StaffOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -3386,7 +3394,7 @@ impl Staff {
     );
     q.select(Staff::as_select()).load::<Staff>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<StaffOrderBy>>,
@@ -3404,6 +3412,7 @@ impl Staff {
   Clone,
   Debug,
   diesel::Queryable,
+  diesel::QueryableByName,
   diesel::Insertable,
   diesel::Selectable,
   diesel::Identifiable,
@@ -3625,9 +3634,9 @@ pub enum UserOrderBy {
   DeletedAtDesc,
 }
 impl User {
-  pub fn simple_paginate_extend<'a, F, Conn>(
-    offset: usize,
+  pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
+    offset: usize,
     ordering: Option<&'a Vec<UserOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
@@ -3738,7 +3747,7 @@ impl User {
     );
     q.select(User::as_select()).load::<User>(conn)
   }
-  pub fn simple_paginate<'a, Conn>(
+  pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
     ordering: Option<&'a Vec<UserOrderBy>>,
@@ -3758,10 +3767,11 @@ pub struct UserCursor {
   pub id: uuid::Uuid,
 }
 impl User {
-  pub fn cursor_paginate_by_user_cursor<'a, F, Conn>(
+  pub fn paginate_by_user_cursor<'a, Conn>(
     after: Option<&'a UserCursor>,
     before: Option<&'a UserCursor>,
     limit: Option<usize>,
+    offset: Option<usize>,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
        + Send
@@ -3769,18 +3779,20 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::cursor_paginate_by_user_cursor_extend(
+    User::paginate_by_user_cursor_extend(
       after,
       before,
       limit,
+      offset,
       |q| q,
       conn,
     )
   }
-  pub fn cursor_paginate_by_user_cursor_extend<'a, F, Conn>(
+  pub fn paginate_by_user_cursor_extend<'a, F, Conn>(
     after: Option<&'a UserCursor>,
     before: Option<&'a UserCursor>,
     limit: Option<usize>,
+    offset: Option<usize>,
     extend: F,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
@@ -3793,43 +3805,157 @@ impl User {
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
+    use diesel::IntoSql;
+    use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
-    let mut q = users::table
-      .order_by(users::created_at.desc())
-      .then_order_by(users::id.asc())
-      .filter(users::deleted_at.is_not_null())
-      .into_boxed();
+    let create_query = || {
+      let mut q = users::table
+        .order_by(users::created_at.desc())
+        .then_order_by(users::id.asc())
+        .filter(users::deleted_at.is_not_null())
+        .into_boxed();
 
-    if let Some(cursor) = after {
-      q = q.filter(
-        (users::created_at, users::id)
-          .into_sql::<diesel::sql_types::Record<_>>()
-          .gt(
-            (cursor.created_at, cursor.id)
-              .into_sql::<diesel::sql_types::Record<(
-                diesel::sql_types::Timestamptz,
-                diesel::sql_types::Uuid,
-              )>>(),
-          ),
-      );
-    }
+      if let Some(cursor) = after {
+        q = q.filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .gt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        );
+      }
 
-    if let Some(cursor) = before {
-      q = q.filter(
-        (users::created_at, users::id)
-          .into_sql::<diesel::sql_types::Record<_>>()
-          .lt((cursor_fields).into_sql::<diesel::sql_types::Record<(
-            diesel::sql_types::Timestamptz,
-            diesel::sql_types::Uuid,
-          )>>()),
-      );
+      if let Some(cursor) = before {
+        q = q.filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .lt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        );
+      }
+
+      extend(q)
+    };
+
+    let mut q = create_query();
+
+    //let mut has_last = false;
+
+    if let Some(offset) = offset {
+      q = q.offset(offset.try_into().unwrap());
     }
 
     if let Some(limit) = limit {
-      q = q.limit(first.try_into().unwrap());
+      q = q.limit(limit.try_into().unwrap());
     }
 
     q.select(User::as_select()).load::<User>(conn)
+  }
+  pub fn has_next_user_cursor<'a, Conn>(
+    cursor: &'a UserCursor,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<bool>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::has_next_user_cursor_extend(cursor, |q| q, conn)
+  }
+
+  pub fn has_next_user_cursor_extend<'a, F, Conn>(
+    cursor: &'a UserCursor,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<bool>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::IntoSql;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+
+    let q = extend(
+      users::table
+        .filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .gt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        )
+        .into_boxed(),
+    );
+
+    diesel::select(diesel::dsl::exists(q)).get_result(conn)
+  }
+
+  pub fn has_previous_user_cursor<'a, Conn>(
+    cursor: &'a UserCursor,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<bool>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::has_previous_user_cursor_extend(cursor, |q| q, conn)
+  }
+
+  pub fn has_previous_user_cursor_extend<'a, F, Conn>(
+    cursor: &'a UserCursor,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<bool>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::IntoSql;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+
+    let q = extend(
+      users::table
+        .filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .lt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        )
+        .into_boxed(),
+    );
+
+    diesel::select(diesel::dsl::exists(q)).get_result(conn)
   }
 }
