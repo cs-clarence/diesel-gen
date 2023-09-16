@@ -781,6 +781,25 @@ pub fn model<W: Write>(
         &mut w,
       )?;
     }
+    
+    let count_config = operations.count.unwrap_or_default();
+    let enable_count = count_config.enable.unwrap_or(true);
+    
+    if enable_count {
+      count(
+        &CountArgs {
+          model_name: &final_model_name,
+          use_async,
+          table,
+          backend,
+          include_soft_deleted: count_config
+            .include_soft_deleted
+            .unwrap_or(false),
+          soft_delete_column,
+        },
+        &mut w,
+      )?;
+    }
   }
   Ok(())
 }
@@ -2124,17 +2143,115 @@ fn cursor_paginate<W: Write>(
   Ok(())
 }
 
+pub struct CountArgs<'a> {
+  use_async: bool,
+  model_name: &'a str,
+  table: &'a Table,
+  backend: &'a SqlBackend,
+  include_soft_deleted: bool,
+  soft_delete_column: Option<&'a Column>,
+}
+
+fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
+  writeln!(w, "impl {} {{", args.model_name)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "count_extend",
+      generics: Some(vec!["'a", "F", "Conn"]),
+    },
+    &mut w,
+  )?;
+  writeln!(w, "extend: F, conn: &'a mut Conn",)?;
+  writeln!(
+    w,
+    ")  -> {}{}",
+    return_type(args.use_async, false, "usize"),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  writeln!(w, ",")?;
+  writeln!(w, 
+    "
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::Integer>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::Integer>,
+    ", 
+    table = args.table.name, backend = args.backend.path()
+  )?;
+  writeln!(w, "{{")?;
+  default_operation_uses(
+    &DefaultUsesArgs { 
+      use_async: args.use_async, query_dsl: true, 
+      ..Default::default()
+    }, 
+    &mut w
+  )?; 
+  
+  writeln!(w, "extend({table}::table.count().into_boxed()", table = args.table.name)?;
+  if !args.include_soft_deleted {
+    if let Some(col) = args.soft_delete_column {
+      if col.r#type.is_boolean() {
+        writeln!(w, ".filter({table}::{column}.eq(false))", table = args.table.name, column = col.name)?;
+      } else if col.r#type.is_integer() {
+        writeln!(w, ".filter({table}::{column}.eq(0))", table = args.table.name, column = col.name)?;
+      } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
+        writeln!(w, ".filter({table}::{column}.is_not_null())", table = args.table.name, column = col.name)?;
+      } else {
+        return Err(anyhow::anyhow!(
+          "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
+          col.r#type,
+          col.name,
+          args.table.name
+        ));
+      }
+    }
+  }
+
+  writeln!(w, ").query_result(conn)", )?;
+
+  writeln!(w, "}}")?;
+  
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "count",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
+  
+  writeln!(w, "conn: &'a mut Conn",)?;
+
+  writeln!(
+    w,
+    ")  -> {}{}",
+    return_type(args.use_async, false, "usize"),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+
+  writeln!(w, "{{")?;
+  writeln!(
+    w,
+    "{model}::count_extend(|q| q, conn)",
+    model = args.model_name
+  )?;
+  writeln!(w, "}}")?;
+
+
+  writeln!(w, "}}")?;
+  Ok(())
+}
+
 fn return_type(use_async: bool, multiple: bool, result: &str) -> String {
   if use_async {
     if multiple {
       format!(
-      "impl std::future::Future<Output = Result<Vec<{model}>, diesel::result::Error>> + Send",
-      model = result
+      "impl std::future::Future<Output = Result<Vec<{result}>, diesel::result::Error>> + Send",
     )
     } else {
       format!(
-      "impl std::future::Future<Output = Result<{model}, diesel::result::Error>> + Send",
-      model = result
+      "impl std::future::Future<Output = Result<{result}, diesel::result::Error>> + Send",
     )
     }
   } else if multiple {

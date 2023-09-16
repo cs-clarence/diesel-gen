@@ -161,6 +161,15 @@ pub struct OperationsConfig {
   pub simple_paginate: Option<SimplePaginateOperationConfig>,
   #[merge(strategy = merge_option)]
   pub cursor_paginate: Option<CursorPaginateOperationConfig>,
+  #[merge(strategy = merge_option)]
+  pub count: Option<CountOperationConfig>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CountOperationConfig {
+  pub enable: Option<bool>,
+  pub include_soft_deleted: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
