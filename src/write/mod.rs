@@ -1654,6 +1654,8 @@ fn cursor_paginate<W: Write>(
       ",
       cursor_name = name.to_pascal_case(),
     )?;
+    
+    let mut field_names = HashMap::new();
 
     for c in config.columns.iter() {
       let col = args.table.get_column(c.name()).ok_or({
@@ -1672,11 +1674,35 @@ fn cursor_paginate<W: Write>(
         args.table_config.and_then(|t| t.columns.get(&col.name)),
         c.name(),
       );
+      
+      field_names.insert(c.name(), name.clone());
+      
 
       writeln!(w, "pub {}: {},", name, ty)?;
     }
 
     writeln!(w, "}}",)?;
+
+    writeln!(
+      w,
+      "
+      impl From<{model_name}> for {cursor_name} {{
+      ",
+      cursor_name = name.to_pascal_case(),
+      model_name = args.model_name,
+    )?;
+    writeln!(
+      w,
+      "fn from(value: {model_name}) -> Self {{",
+      model_name = args.model_name,
+    )?;
+    writeln!(w, "Self {{")?;
+    for f in field_names.values() {
+      writeln!(w, "{field_name}: value.{field_name},", field_name = f)?;
+    }
+    writeln!(w, "}}")?;
+    writeln!(w, "}}")?;
+    writeln!(w, "}}")?;
   }
 
   writeln!(w, "impl {} {{", args.model_name)?;

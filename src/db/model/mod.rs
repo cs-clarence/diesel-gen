@@ -476,7 +476,7 @@ impl PrismaMigration {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -485,21 +485,22 @@ impl PrismaMigration {
       _prisma_migrations::BoxedQuery<
         'b,
         diesel::pg::Pg,
-        diesel::sql_types::Integer,
+        diesel::sql_types::BigInt,
       >,
     ) -> _prisma_migrations::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
-    extend(_prisma_migrations::table.count().into_boxed()).query_result(conn)
+    extend(_prisma_migrations::table.count().into_boxed()).first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -930,26 +931,27 @@ impl Credential {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      credentials::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::Integer>,
+      credentials::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
     ) -> credentials::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
-    extend(credentials::table.count().into_boxed()).query_result(conn)
+    extend(credentials::table.count().into_boxed()).first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -1374,7 +1376,7 @@ impl EmailAddressVerificationCode {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -1383,22 +1385,23 @@ impl EmailAddressVerificationCode {
       email_address_verification_codes::BoxedQuery<
         'b,
         diesel::pg::Pg,
-        diesel::sql_types::Integer,
+        diesel::sql_types::BigInt,
       >,
     ) -> email_address_verification_codes::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
     extend(email_address_verification_codes::table.count().into_boxed())
-      .query_result(conn)
+      .first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -1827,30 +1830,27 @@ impl EmailAddress {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      email_addresses::BoxedQuery<
-        'b,
-        diesel::pg::Pg,
-        diesel::sql_types::Integer,
-      >,
+      email_addresses::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
     ) -> email_addresses::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
-    extend(email_addresses::table.count().into_boxed()).query_result(conn)
+    extend(email_addresses::table.count().into_boxed()).first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -2343,26 +2343,27 @@ impl Identity {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      identities::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::Integer>,
+      identities::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
     ) -> identities::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
-    extend(identities::table.count().into_boxed()).query_result(conn)
+    extend(identities::table.count().into_boxed()).first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -2668,7 +2669,7 @@ impl PasswordResetToken {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -2677,21 +2678,22 @@ impl PasswordResetToken {
       password_reset_tokens::BoxedQuery<
         'b,
         diesel::pg::Pg,
-        diesel::sql_types::Integer,
+        diesel::sql_types::BigInt,
       >,
     ) -> password_reset_tokens::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
-    extend(password_reset_tokens::table.count().into_boxed()).query_result(conn)
+    extend(password_reset_tokens::table.count().into_boxed()).first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -3225,26 +3227,27 @@ impl RefreshToken {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      refresh_tokens::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::Integer>,
+      refresh_tokens::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
     ) -> refresh_tokens::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
-    extend(refresh_tokens::table.count().into_boxed()).query_result(conn)
+    extend(refresh_tokens::table.count().into_boxed()).first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -3653,32 +3656,33 @@ impl Staff {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      staffs::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::Integer>,
+      staffs::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
     ) -> staffs::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
     extend(
       staffs::table
         .count()
-        .into_boxed()
-        .filter(staffs::deleted_at.is_not_null()),
+        .filter(staffs::deleted_at.is_not_null())
+        .into_boxed(),
     )
-    .query_result(conn)
+    .first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4045,6 +4049,15 @@ pub struct UserCursor {
   pub created_at: time::OffsetDateTime,
   pub id: uuid::Uuid,
 }
+
+impl From<User> for UserCursor {
+  fn from(value: User) -> Self {
+    Self {
+      created_at: value.created_at,
+      id: value.id,
+    }
+  }
+}
 impl User {
   pub fn paginate_by_user_cursor<'a, Conn>(
     after: Option<&'a UserCursor>,
@@ -4243,32 +4256,33 @@ impl User {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      users::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::Integer>,
+      users::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
     ) -> users::BoxedQuery<
       'b,
       diesel::pg::Pg,
-      diesel::sql_types::Integer,
+      diesel::sql_types::BigInt,
     >,
   {
+    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel_async::RunQueryDsl;
     extend(
       users::table
         .count()
-        .into_boxed()
-        .filter(users::deleted_at.is_not_null()),
+        .filter(users::deleted_at.is_not_null())
+        .into_boxed(),
     )
-    .query_result(conn)
+    .first(conn)
   }
   pub fn count<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<usize, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
        + Send
        + 'a
   where
