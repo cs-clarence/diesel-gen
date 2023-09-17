@@ -469,6 +469,7 @@ pub fn model<W: Write>(
 
   let inserter_structs =
     table_config.and_then(|t| t.inserter_struct).unwrap_or(true);
+  let mut inserter_has_ref = false;
 
   if inserter_structs {
     let d = table_config.and_then(|t| t.inserter_derives.clone());
@@ -497,7 +498,7 @@ pub fn model<W: Write>(
     }
 
     let lifetime = "'a";
-    writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
+    let mut inserter_field_temps = Vec::new();
     for c in &table.columns {
       let config = table_config.and_then(|t| t.columns.get(&c.name));
 
@@ -508,7 +509,7 @@ pub fn model<W: Write>(
 
         if let Some(a) = &c.inserter_attributes {
           for a in a {
-            writeln!(w, "  #[{}]", a)?;
+            writeln!(inserter_field_temps, "  #[{}]", a)?;
           }
         }
       }
@@ -516,7 +517,7 @@ pub fn model<W: Write>(
       let field_name = get_field_name(config, &c.name);
 
       if field_name != c.name {
-        writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
+        writeln!(inserter_field_temps, "  #[diesel(column_name = \"{}\")]", c.name)?;
       }
 
       let ty = if c.r#type.is_simple() {
@@ -528,8 +529,15 @@ pub fn model<W: Write>(
         anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
       })?;
 
-      writeln!(w, "  pub {}: {},", field_name, ty,)?;
+      writeln!(inserter_field_temps, "  pub {}: {},", field_name, ty,)?;
     }
+    inserter_has_ref = inserter_field_temps.contains(&b'&');
+    if inserter_has_ref {
+      writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
+    } else {
+      writeln!(w, "pub struct {}>{{", final_inserter_name, )?;
+    }
+    w.write_all(&inserter_field_temps)?;
     writeln!(w, "}}\n")?;
   }
 
@@ -537,6 +545,7 @@ pub fn model<W: Write>(
 
   let updater_structs =
     table_config.and_then(|t| t.updater_struct).unwrap_or(true);
+  let mut updater_has_ref = false;
 
   if updater_structs && !table.only_primary_key_columns() {
     let d = table_config.and_then(|t| t.updater_derives.clone());
@@ -564,7 +573,8 @@ pub fn model<W: Write>(
     }
 
     let lifetime = "'a";
-    writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
+    
+    let mut updater_fields_tmp = Vec::new();
     for c in &non_primary_key_columns {
       let config = table_config.and_then(|t| t.columns.get(&c.name));
 
@@ -575,7 +585,7 @@ pub fn model<W: Write>(
 
         if let Some(a) = &c.updater_attributes {
           for a in a {
-            writeln!(w, "  #[{}]", a)?;
+            writeln!(updater_fields_tmp, "  #[{}]", a)?;
           }
         }
       }
@@ -583,7 +593,7 @@ pub fn model<W: Write>(
       let field_name = get_field_name(config, &c.name);
 
       if field_name != c.name {
-        writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
+        writeln!(updater_fields_tmp, "  #[diesel(column_name = \"{}\")]", c.name)?;
       }
 
       let ty = if c.r#type.is_simple() {
@@ -596,7 +606,7 @@ pub fn model<W: Write>(
       })?;
 
       writeln!(
-        w,
+        updater_fields_tmp,
         "  pub {}: {},",
         field_name,
         if optional_updater_fields {
@@ -606,29 +616,41 @@ pub fn model<W: Write>(
         }
       )?;
     }
+    
+     updater_has_ref = updater_fields_tmp.contains(&b'&');
+    
+    if updater_has_ref {
+      writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
+    } else {
+      writeln!(w, "pub struct {}{{", final_updater_name )?;
+    }
+    
+    w.write_all(&updater_fields_tmp)?;
+
     writeln!(w, "}}\n")?;
 
-    let operations = table_config
-      .and_then(|t| t.operations.as_ref())
-      .cloned()
-      .unwrap_or_default();
+  }
+  let operations = table_config
+    .and_then(|t| t.operations.as_ref())
+    .cloned()
+    .unwrap_or_default();
 
-    let enable_operations = operations.enable.unwrap_or(false);
+  let enable_operations = operations.enable.unwrap_or(false);
 
-    if !enable_operations {
-      return Ok(());
-    }
+  if !enable_operations {
+    return Ok(());
+  }
 
-    let use_async = operations.r#async.unwrap_or(true);
+  let use_async = operations.r#async.unwrap_or(true);
 
-    let primary_keys = table.primary_key_columns();
+  let primary_keys = table.primary_key_columns();
 
-    let update_config = operations.update.unwrap_or_default();
-    let enable_update = update_config.enable.unwrap_or(true);
-    let column_wise_update = update_config.column_wise_update.unwrap_or(true);
-    let ut = update_config.update_timestamp_columns;
-    let timestamp_columns =
-      get_update_timestamp_columns(table, ut.map(|l| l.vec().clone()).as_ref());
+  let update_config = operations.update.unwrap_or_default();
+  let enable_update = update_config.enable.unwrap_or(true);
+  let column_wise_update = update_config.column_wise_update.unwrap_or(true);
+  let ut = update_config.update_timestamp_columns;
+  let timestamp_columns =
+    get_update_timestamp_columns(table, ut.map(|l| l.vec().clone()).as_ref());
     if !timestamp_columns.iter().all(|i| {
       i.r#type.is_datetime() || i.r#type.is_nullable_and(|t| t.is_datetime())
     }) {
@@ -647,6 +669,7 @@ pub fn model<W: Write>(
         &UpdateArgs {
           type_overrides,
           model_name: &final_model_name,
+          updater_has_ref,
           updater_name: &final_updater_name,
           use_async,
           ref_type_overrides,
@@ -717,6 +740,7 @@ pub fn model<W: Write>(
       insert(
         &InsertArgs {
           model_name: &final_model_name,
+          inserter_has_ref,
           inserter_name: &final_inserter_name,
           use_async,
           table,
@@ -800,13 +824,13 @@ pub fn model<W: Write>(
         &mut w,
       )?;
     }
-  }
   Ok(())
 }
 
 struct InsertArgs<'a> {
   pub model_name: &'a str,
   pub inserter_name: &'a str,
+  pub inserter_has_ref: bool,
   pub use_async: bool,
   pub table: &'a Table,
   pub table_config: Option<&'a TableConfig>,
@@ -826,7 +850,12 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
     },
     &mut w,
   )?;
-  write!(w, "data: &'a {}<'a>, ", args.inserter_name)?;
+
+  if args.inserter_has_ref {
+    write!(w, "data: &'a {}<'a>, ", args.inserter_name)?;
+  } else {
+    write!(w, "data: &'a {}, ", args.inserter_name)?;
+  }
   write!(w, "conn: &'a mut Conn")?;
 
   write!(
@@ -870,6 +899,7 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
 
 struct UpdateArgs<'a> {
   model_name: &'a str,
+  updater_has_ref: bool,
   updater_name: &'a str,
   use_async: bool,
   type_overrides: &'a HashMap<String, String>,
@@ -901,7 +931,12 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
     Some("'a"),
     &mut w,
   )?;
-  write!(w, "changes: &'a {}<'a>, ", args.updater_name)?;
+
+  if args.updater_has_ref {
+    write!(w, "changes: &'a {}<'a>, ", args.updater_name)?;
+  } else {
+    write!(w, "changes: {}, ", args.updater_name)?;
+  }
   write!(w, "conn: &'a mut Conn")?;
   write!(
     w,

@@ -4,7 +4,7 @@ use inflector::Inflector;
 
 use crate::{
   config::ColumnConfig,
-  parse::{type_name, Type, TypeName},
+  parse::{self, type_name, ParseContext, Type, TypeName},
 };
 
 pub fn remove_spaces_from_keys(
@@ -244,7 +244,15 @@ pub fn get_ref_type(
   };
 
   if let Some(ty) = type_overrides.get(&ts) {
-    return Some(ty.clone());
+    let mut ty =
+      parse::r#type(&mut ParseContext::new(ty)).expect("Could not parse type");
+
+    if let Type::Borrowed { lifetime, .. } = &mut ty {
+      *lifetime =
+        Some(lifetime.clone().unwrap_or_else(|| "static".to_string()));
+    }
+
+    return Some(ty.to_string());
   }
 
   if ty.name().is_string_type() {
