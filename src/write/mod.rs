@@ -2166,14 +2166,14 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   writeln!(
     w,
     ")  -> {}{}",
-    return_type(args.use_async, false, "usize"),
+    return_type(args.use_async, false, "i64"),
     if args.use_async { " + 'a" } else { "" },
   )?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   writeln!(w, ",")?;
   writeln!(w, 
     "
-      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::Integer>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::Integer>,
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
     ", 
     table = args.table.name, backend = args.backend.path()
   )?;
@@ -2181,6 +2181,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   default_operation_uses(
     &DefaultUsesArgs { 
       use_async: args.use_async, query_dsl: true, 
+      expression_methods: true,
       ..Default::default()
     }, 
     &mut w
@@ -2206,7 +2207,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     }
   }
 
-  writeln!(w, ".into_boxed()).query_result(conn)", )?;
+  writeln!(w, ".into_boxed()).first(conn)", )?;
 
   writeln!(w, "}}")?;
   
@@ -2224,7 +2225,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   writeln!(
     w,
     ")  -> {}{}",
-    return_type(args.use_async, false, "usize"),
+    return_type(args.use_async, false, "i64"),
     if args.use_async { " + 'a" } else { "" },
   )?;
 
