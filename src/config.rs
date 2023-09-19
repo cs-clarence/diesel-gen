@@ -48,8 +48,11 @@ pub struct ColumnConfig {
 #[serde(deny_unknown_fields)]
 pub struct TableConfig {
   pub skip: Option<bool>,
+
+  pub model: Option<bool>,
+
   #[merge(strategy = merge_option)]
-  pub attributes: Option<ListConfig<String>>,
+  pub model_attributes: Option<ListConfig<String>>,
 
   #[merge(strategy = merge_option)]
   pub updater_attributes: Option<ListConfig<String>>,
@@ -69,27 +72,27 @@ pub struct TableConfig {
   #[serde(default)]
   pub columns: MapConfig<String, ColumnConfig>,
 
-  pub model_struct_name_prefix: Option<String>,
+  pub model_name_prefix: Option<String>,
 
-  pub model_struct_name_suffix: Option<String>,
+  pub model_name_suffix: Option<String>,
 
-  pub inserter_struct: Option<bool>,
+  pub inserter: Option<bool>,
 
   #[merge(strategy = merge_option)]
-  pub inserter_struct_omit_columns: Option<ListConfig<String>>,
+  pub inserter_omit_columns: Option<ListConfig<String>>,
 
-  pub inserter_struct_name_prefix: Option<String>,
+  pub inserter_name_prefix: Option<String>,
 
-  pub inserter_struct_name_suffix: Option<String>,
+  pub inserter_name_suffix: Option<String>,
 
   pub updater_struct: Option<bool>,
 
   #[merge(strategy = merge_option)]
-  pub updater_struct_omit_columns: Option<ListConfig<String>>,
+  pub updater_omit_columns: Option<ListConfig<String>>,
 
-  pub updater_struct_name_prefix: Option<String>,
+  pub updater_name_prefix: Option<String>,
 
-  pub updater_struct_name_suffix: Option<String>,
+  pub updater_name_suffix: Option<String>,
 
   pub updater_fields_optional: Option<bool>,
 

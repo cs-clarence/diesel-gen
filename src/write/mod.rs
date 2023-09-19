@@ -388,27 +388,27 @@ pub fn model<W: Write>(
   writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
   let inserter_prefix = table_config
-    .and_then(|t| t.inserter_struct_name_prefix.as_deref())
+    .and_then(|t| t.inserter_name_prefix.as_deref())
     .unwrap_or("New");
 
   let inserter_suffix = table_config
-    .and_then(|t| t.inserter_struct_name_suffix.as_deref())
+    .and_then(|t| t.inserter_name_suffix.as_deref())
     .unwrap_or("");
 
   let updater_prefix = table_config
-    .and_then(|t| t.updater_struct_name_prefix.as_deref())
+    .and_then(|t| t.updater_name_prefix.as_deref())
     .unwrap_or("");
 
   let updater_suffix = table_config
-    .and_then(|t| t.updater_struct_name_suffix.as_deref())
+    .and_then(|t| t.updater_name_suffix.as_deref())
     .unwrap_or("Update");
 
   let model_prefix = table_config
-    .and_then(|t| t.model_struct_name_prefix.as_deref())
+    .and_then(|t| t.model_name_prefix.as_deref())
     .unwrap_or("");
 
   let model_suffix = table_config
-    .and_then(|t| t.model_struct_name_suffix.as_deref())
+    .and_then(|t| t.model_name_suffix.as_deref())
     .unwrap_or("");
 
   let struct_name = model_name(&table.name);
@@ -420,7 +420,7 @@ pub fn model<W: Write>(
   let final_updater_name =
     format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
 
-  let a = table_config.and_then(|t| t.attributes.clone());
+  let a = table_config.and_then(|t| t.model_attributes.clone());
 
   if let Some(mut a) = a {
     a.dedup();
@@ -431,44 +431,49 @@ pub fn model<W: Write>(
       }
     }
   }
+  
+  let gen_model = table_config.and_then(|t| t.model).unwrap_or(true);
+  
 
-  writeln!(w, "pub struct {} {{", final_model_name)?;
+  if gen_model {
+    writeln!(w, "pub struct {} {{", final_model_name)?;
 
-  for c in &table.columns {
-    let config = table_config.and_then(|t| t.columns.get(&c.name));
+    for c in &table.columns {
+      let config = table_config.and_then(|t| t.columns.get(&c.name));
 
-    if let Some(c) = config {
-      if c.omit_in_model.unwrap_or(false) {
-        continue;
-      }
+      if let Some(c) = config {
+        if c.omit_in_model.unwrap_or(false) {
+          continue;
+        }
 
-      if let Some(a) = &c.model_attributes {
-        for a in a {
-          writeln!(w, "  #[{}]", a)?;
+        if let Some(a) = &c.model_attributes {
+          for a in a {
+            writeln!(w, "  #[{}]", a)?;
+          }
         }
       }
+
+      let field_name = get_field_name(config, &c.name);
+
+      if field_name != c.name {
+        writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
+      }
+
+      writeln!(
+        w,
+        "  pub {}: {},",
+        field_name,
+        get_type(type_overrides, &c.r#type).ok_or_else(|| {
+          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+        })?
+      )?;
     }
 
-    let field_name = get_field_name(config, &c.name);
-
-    if field_name != c.name {
-      writeln!(w, "  #[diesel(column_name = \"{}\")]", c.name)?;
-    }
-
-    writeln!(
-      w,
-      "  pub {}: {},",
-      field_name,
-      get_type(type_overrides, &c.r#type).ok_or_else(|| {
-        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-      })?
-    )?;
+    writeln!(w, "}}\n")?;
   }
 
-  writeln!(w, "}}\n")?;
-
   let inserter_structs =
-    table_config.and_then(|t| t.inserter_struct).unwrap_or(true);
+    table_config.and_then(|t| t.inserter).unwrap_or(true);
   let mut inserter_has_ref = false;
 
   if inserter_structs {

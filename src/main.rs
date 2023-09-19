@@ -213,9 +213,9 @@ fn generate_async_graphql(
         (
           v.name.clone(),
           util::final_name(
-            t.model_struct_name_prefix.as_deref(),
+            t.model_name_prefix.as_deref(),
             &util::model_name(&v.name),
-            t.model_struct_name_suffix.as_deref(),
+            t.model_name_suffix.as_deref(),
           ),
         )
       })
