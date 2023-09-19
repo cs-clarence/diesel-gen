@@ -363,29 +363,6 @@ pub fn model<W: Write>(
     .and_then(|t| t.updater_fields_optional)
     .unwrap_or(true);
 
-  let d = table_config.and_then(|t| t.model_derives.clone());
-
-  if let Some(mut d) = d {
-    d.dedup();
-    if !d.is_empty() {
-      writeln!(w, "#[derive({})]", d.vec().join(", "))?;
-    }
-  }
-
-  if table.only_primary_key_columns() {
-    writeln!(w, "{}", DIESEL_DEFAULT_DERIVE)?;
-  } else {
-    writeln!(w, "{}", DIESEL_DEFAULT_WITH_CHANGESET_DERIVE)?;
-  }
-
-  writeln!(w, "#[diesel(table_name = {})]", table.name)?;
-  writeln!(
-    w,
-    "#[diesel(primary_key({}))]",
-    table.primary_key.join(", ")
-  )?;
-
-  writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
 
   let inserter_prefix = table_config
     .and_then(|t| t.inserter_name_prefix.as_deref())
@@ -420,22 +397,47 @@ pub fn model<W: Write>(
   let final_updater_name =
     format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
 
-  let a = table_config.and_then(|t| t.model_attributes.clone());
-
-  if let Some(mut a) = a {
-    a.dedup();
-
-    if !a.is_empty() {
-      for a in a {
-        writeln!(w, "#[{}]", a)?;
-      }
-    }
-  }
   
   let gen_model = table_config.and_then(|t| t.model).unwrap_or(true);
   
 
   if gen_model {
+    let d = table_config.and_then(|t| t.model_derives.clone());
+
+    if let Some(mut d) = d {
+      d.dedup();
+      if !d.is_empty() {
+        writeln!(w, "#[derive({})]", d.vec().join(", "))?;
+      }
+    }
+
+    if table.only_primary_key_columns() {
+      writeln!(w, "{}", DIESEL_DEFAULT_DERIVE)?;
+    } else {
+      writeln!(w, "{}", DIESEL_DEFAULT_WITH_CHANGESET_DERIVE)?;
+    }
+
+    writeln!(w, "#[diesel(table_name = {})]", table.name)?;
+    writeln!(
+      w,
+      "#[diesel(primary_key({}))]",
+      table.primary_key.join(", ")
+    )?;
+
+    writeln!(w, "#[diesel(check_for_backend({}))]", backend.path())?;
+
+    let a = table_config.and_then(|t| t.model_attributes.clone());
+
+    if let Some(mut a) = a {
+      a.dedup();
+
+      if !a.is_empty() {
+        for a in a {
+          writeln!(w, "#[{}]", a)?;
+        }
+      }
+    }
+
     writeln!(w, "pub struct {} {{", final_model_name)?;
 
     for c in &table.columns {

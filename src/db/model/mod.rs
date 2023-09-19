@@ -536,11 +536,11 @@ pub struct Credential {
 #[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[diesel(column_name = "type_")]
 pub struct NewCredential<'a> {
   pub id: &'a uuid::Uuid,
   pub identity_id: &'a uuid::Uuid,
   pub enabled: bool,
+  #[diesel(column_name = "type_")]
   pub r#type: CredentialType,
   pub content: &'a str,
   pub created_at: &'a time::OffsetDateTime,
@@ -550,10 +550,10 @@ pub struct NewCredential<'a> {
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-#[diesel(column_name = "type_")]
 pub struct CredentialUpdate<'a> {
   pub identity_id: Option<&'a uuid::Uuid>,
   pub enabled: Option<bool>,
+  #[diesel(column_name = "type_")]
   pub r#type: Option<CredentialType>,
   pub content: Option<&'a str>,
   pub created_at: Option<&'a time::OffsetDateTime>,
@@ -4053,8 +4053,8 @@ pub struct UserCursor {
 impl From<User> for UserCursor {
   fn from(value: User) -> Self {
     Self {
-      id: value.id,
       created_at: value.created_at,
+      id: value.id,
     }
   }
 }
