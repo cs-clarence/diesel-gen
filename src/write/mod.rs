@@ -542,7 +542,7 @@ pub fn model<W: Write>(
     if inserter_has_ref {
       writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
     } else {
-      writeln!(w, "pub struct {}>{{", final_inserter_name, )?;
+      writeln!(w, "pub struct {}{{", final_inserter_name, )?;
     }
     w.write_all(&inserter_field_temps)?;
     writeln!(w, "}}\n")?;
