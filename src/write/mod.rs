@@ -1444,7 +1444,7 @@ fn simple_paginate<W: Write>(
       } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
         writeln!(
           w,
-          ".filter({table}::{column}.is_not_null())",
+          ".filter({table}::{column}.is_null())",
           table = args.table.name,
           column = col.name,
         )?;
@@ -1905,7 +1905,7 @@ fn cursor_paginate<W: Write>(
         } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
           writeln!(
             w,
-            ".filter({table}::{column}.is_not_null())",
+            ".filter({table}::{column}.is_null())",
             table = args.table.name,
             column = col.name,
           )?;
@@ -2263,7 +2263,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
       } else if col.r#type.is_integer() {
         writeln!(w, ".filter({table}::{column}.eq(0))", table = args.table.name, column = col.name)?;
       } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-        writeln!(w, ".filter({table}::{column}.is_not_null())", table = args.table.name, column = col.name)?;
+        writeln!(w, ".filter({table}::{column}.is_null())", table = args.table.name, column = col.name)?;
       } else {
         return Err(anyhow::anyhow!(
           "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",

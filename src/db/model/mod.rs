@@ -3529,7 +3529,7 @@ impl Staff {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = staffs::table
-      .filter(staffs::deleted_at.is_not_null())
+      .filter(staffs::deleted_at.is_null())
       .into_boxed();
     if let Some(ordering) = ordering {
       for (idx, ord) in ordering.iter().enumerate() {
@@ -3675,7 +3675,7 @@ impl Staff {
     extend(
       staffs::table
         .count()
-        .filter(staffs::deleted_at.is_not_null())
+        .filter(staffs::deleted_at.is_null())
         .into_boxed(),
     )
     .first(conn)
@@ -3937,7 +3937,7 @@ impl User {
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let mut q = users::table
-      .filter(users::deleted_at.is_not_null())
+      .filter(users::deleted_at.is_null())
       .into_boxed();
     if let Some(ordering) = ordering {
       for (idx, ord) in ordering.iter().enumerate() {
@@ -4105,7 +4105,7 @@ impl User {
       let mut q = users::table
         .order_by(users::created_at.desc())
         .then_order_by(users::id.asc())
-        .filter(users::deleted_at.is_not_null())
+        .filter(users::deleted_at.is_null())
         .into_boxed();
 
       if let Some(cursor) = after {
@@ -4275,7 +4275,7 @@ impl User {
     extend(
       users::table
         .count()
-        .filter(users::deleted_at.is_not_null())
+        .filter(users::deleted_at.is_null())
         .into_boxed(),
     )
     .first(conn)
