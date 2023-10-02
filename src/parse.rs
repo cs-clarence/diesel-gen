@@ -738,7 +738,7 @@ impl Type {
     }
   }
 
-  pub fn qualified_string(&self, unknown_type_mod: &str) -> String {
+  pub fn to_qualified_string(&self, unknown_type_mod: &str) -> String {
     match self {
       Type::Owned { name, params } => {
         if params.is_empty() {
@@ -758,7 +758,7 @@ impl Type {
             name,
             params
               .iter()
-              .map(|p| p.qualified_string(unknown_type_mod))
+              .map(|p| p.to_qualified_string(unknown_type_mod))
               .collect::<Vec<_>>()
               .join(", ")
           )
@@ -774,19 +774,19 @@ impl Type {
             format!(
               "&'{} mut {}",
               lt,
-              r#type.qualified_string(unknown_type_mod)
+              r#type.to_qualified_string(unknown_type_mod)
             )
           } else {
-            format!("&'{} {}", lt, r#type.qualified_string(unknown_type_mod))
+            format!("&'{} {}", lt, r#type.to_qualified_string(unknown_type_mod))
           }
         } else if *shared {
-          format!("&mut {}", r#type.qualified_string(unknown_type_mod))
+          format!("&mut {}", r#type.to_qualified_string(unknown_type_mod))
         } else {
-          format!("&{}", r#type.qualified_string(unknown_type_mod))
+          format!("&{}", r#type.to_qualified_string(unknown_type_mod))
         }
       }
       Type::Dyn { r#type } => {
-        format!("dyn {}", r#type.qualified_string(unknown_type_mod))
+        format!("dyn {}", r#type.to_qualified_string(unknown_type_mod))
       }
     }
   }
@@ -880,14 +880,14 @@ impl Display for Type {
       } => {
         if let Some(lifetime) = lifetime {
           if *shared {
-            write!(f, "&'{}", lifetime)?;
+            write!(f, "&'{} mut", lifetime)?;
           } else {
-            write!(f, "&'{} mut ", lifetime)?;
+            write!(f, "&'{} ", lifetime)?;
           }
         } else if *shared {
-          write!(f, "&")?;
+          write!(f, "&mut")?;
         } else {
-          write!(f, "&mut ")?;
+          write!(f, "&")?;
         }
 
         write!(f, "{}", r#type)?;

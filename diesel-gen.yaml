@@ -26,6 +26,9 @@ tables:
       - Clone
       - Debug
     columns:
+      id:
+        type_override: TestType
+        ref_type_override: '&TestType'
       type_:
         rename: r#type
     operations:

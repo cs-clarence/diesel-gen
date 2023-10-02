@@ -13,7 +13,8 @@ use merge::Merge;
 
 use crate::{
   config::{
-    CursorConfig, ListConfig, OrderingOptionsConfig, SqlBackend, TableConfig,
+    ColumnConfig, CursorConfig, ListConfig, OrderingOptionsConfig, SqlBackend,
+    TableConfig,
   },
   parse::{self, Column, File, ParseContext, Table},
   util::{get_field_name, get_ref_type, get_type, model_name},
@@ -63,6 +64,7 @@ pub fn table_uses<W: Write>(
 
 pub fn table_type_uses<W: Write>(
   table: &Table,
+  config: Option<&TableConfig>,
   types_uses: &HashMap<String, String>,
   type_overrides: &HashMap<String, String>,
   mut w: W,
@@ -70,7 +72,9 @@ pub fn table_type_uses<W: Write>(
   let mut uses_set = HashSet::new();
 
   for c in &table.columns {
-    if let Some(str) = get_type(type_overrides, &c.r#type) {
+    let ty = config.and_then(|t| t.columns.get(&c.name));
+
+    if let Some(str) = get_type(type_overrides, &c.r#type, ty) {
       let tp = parse::r#type(&mut ParseContext::new(&str))?;
 
       for i in tp.type_names() {
@@ -90,6 +94,7 @@ pub fn table_type_uses<W: Write>(
 
 pub struct TypeUsesArgs<'a> {
   pub tables: &'a Vec<Table>,
+  pub configs: &'a HashMap<String, TableConfig>,
   pub types_uses: &'a HashMap<String, String>,
   pub type_overrides: &'a HashMap<String, String>,
 }
@@ -101,8 +106,12 @@ pub fn type_uses<W: Write>(
   let mut uses_set = HashSet::new();
 
   for table in args.tables {
+    let config = args.configs.get(&table.name);
+
     for c in &table.columns {
-      if let Some(str) = get_type(args.type_overrides, &c.r#type) {
+      let config = config.and_then(|t| t.columns.get(&c.name));
+
+      if let Some(str) = get_type(args.type_overrides, &c.r#type, config) {
         let tp = parse::r#type(&mut ParseContext::new(&str))?;
 
         for i in tp.type_names() {
@@ -232,18 +241,24 @@ fn write_ref_fn_params<W: Write>(
   type_overrides: &HashMap<String, String>,
   ref_type_overrides: &HashMap<String, String>,
   cols: &Vec<&Column>,
+  configs: Option<&HashMap<String, ColumnConfig>>,
   lifetime: Option<&str>,
   mut w: W,
 ) -> std::io::Result<()> {
-  for c in cols {
+  for col in cols {
     write!(
       w,
       "{}: {}, ",
-      c.name,
-      if c.r#type.is_simple() {
-        get_type(type_overrides, &c.r#type).expect("Unknown type encountered")
+      col.name,
+      if col.r#type.is_simple() {
+        let ty = configs.and_then(|c| c.get(&col.name));
+
+        get_type(type_overrides, &col.r#type, ty)
+          .expect("Unknown type encountered")
       } else {
-        get_ref_type(ref_type_overrides, &c.r#type, lifetime)
+        let ty = configs.and_then(|c| c.get(&col.name));
+
+        get_ref_type(ref_type_overrides, &col.r#type, ty, lifetime)
           .expect("Unknown type encountered")
       }
     )?;
@@ -363,7 +378,6 @@ pub fn model<W: Write>(
     .and_then(|t| t.updater_fields_optional)
     .unwrap_or(true);
 
-
   let inserter_prefix = table_config
     .and_then(|t| t.inserter_name_prefix.as_deref())
     .unwrap_or("New");
@@ -397,9 +411,7 @@ pub fn model<W: Write>(
   let final_updater_name =
     format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
 
-  
   let gen_model = table_config.and_then(|t| t.model).unwrap_or(true);
-  
 
   if gen_model {
     let d = table_config.and_then(|t| t.model_derives.clone());
@@ -465,7 +477,7 @@ pub fn model<W: Write>(
         w,
         "  pub {}: {},",
         field_name,
-        get_type(type_overrides, &c.r#type).ok_or_else(|| {
+        get_type(type_overrides, &c.r#type, config).ok_or_else(|| {
           anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
         })?
       )?;
@@ -474,8 +486,7 @@ pub fn model<W: Write>(
     writeln!(w, "}}\n")?;
   }
 
-  let inserter_structs =
-    table_config.and_then(|t| t.inserter).unwrap_or(true);
+  let inserter_structs = table_config.and_then(|t| t.inserter).unwrap_or(true);
   let mut inserter_has_ref = false;
 
   if inserter_structs {
@@ -524,14 +535,20 @@ pub fn model<W: Write>(
       let field_name = get_field_name(config, &c.name);
 
       if field_name != c.name {
-        writeln!(inserter_field_temps, "  #[diesel(column_name = \"{}\")]", c.name)?;
+        writeln!(
+          inserter_field_temps,
+          "  #[diesel(column_name = \"{}\")]",
+          c.name
+        )?;
       }
 
-      let ty = if c.r#type.is_simple() {
-        get_type(type_overrides, &c.r#type)
-      } else {
-        get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
-      }
+      let ty = get_optimal_type(
+        c,
+        config,
+        Some(lifetime),
+        type_overrides,
+        ref_type_overrides,
+      )
       .ok_or_else(|| {
         anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
       })?;
@@ -542,7 +559,7 @@ pub fn model<W: Write>(
     if inserter_has_ref {
       writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
     } else {
-      writeln!(w, "pub struct {}{{", final_inserter_name, )?;
+      writeln!(w, "pub struct {}{{", final_inserter_name,)?;
     }
     w.write_all(&inserter_field_temps)?;
     writeln!(w, "}}\n")?;
@@ -580,7 +597,7 @@ pub fn model<W: Write>(
     }
 
     let lifetime = "'a";
-    
+
     let mut updater_fields_tmp = Vec::new();
     for c in &non_primary_key_columns {
       let config = table_config.and_then(|t| t.columns.get(&c.name));
@@ -600,14 +617,20 @@ pub fn model<W: Write>(
       let field_name = get_field_name(config, &c.name);
 
       if field_name != c.name {
-        writeln!(updater_fields_tmp, "  #[diesel(column_name = \"{}\")]", c.name)?;
+        writeln!(
+          updater_fields_tmp,
+          "  #[diesel(column_name = \"{}\")]",
+          c.name
+        )?;
       }
 
-      let ty = if c.r#type.is_simple() {
-        get_type(type_overrides, &c.r#type)
-      } else {
-        get_ref_type(ref_type_overrides, &c.r#type, Some(lifetime))
-      }
+      let ty = get_optimal_type(
+        c,
+        config,
+        Some(lifetime),
+        type_overrides,
+        ref_type_overrides,
+      )
       .ok_or_else(|| {
         anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
       })?;
@@ -623,19 +646,18 @@ pub fn model<W: Write>(
         }
       )?;
     }
-    
-     updater_has_ref = updater_fields_tmp.contains(&b'&');
-    
+
+    updater_has_ref = updater_fields_tmp.contains(&b'&');
+
     if updater_has_ref {
       writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
     } else {
-      writeln!(w, "pub struct {}{{", final_updater_name )?;
+      writeln!(w, "pub struct {}{{", final_updater_name)?;
     }
-    
+
     w.write_all(&updater_fields_tmp)?;
 
     writeln!(w, "}}\n")?;
-
   }
   let operations = table_config
     .and_then(|t| t.operations.as_ref())
@@ -658,179 +680,181 @@ pub fn model<W: Write>(
   let ut = update_config.update_timestamp_columns;
   let timestamp_columns =
     get_update_timestamp_columns(table, ut.map(|l| l.vec().clone()).as_ref());
-    if !timestamp_columns.iter().all(|i| {
-      i.r#type.is_datetime() || i.r#type.is_nullable_and(|t| t.is_datetime())
-    }) {
+  if !timestamp_columns.iter().all(|i| {
+    i.r#type.is_datetime() || i.r#type.is_nullable_and(|t| t.is_datetime())
+  }) {
+    return Err(anyhow::anyhow!(
+      "Only datetime columns are supported for update_timestamp_columns"
+    ));
+  }
+  if enable_update && !table.only_primary_key_columns() {
+    if !updater_structs {
       return Err(anyhow::anyhow!(
-        "Only datetime columns are supported for update_timestamp_columns"
+        "updater_structs must be enabled to generate update functions"
       ));
     }
-    if enable_update && !table.only_primary_key_columns() {
-      if !updater_structs {
-        return Err(anyhow::anyhow!(
-          "updater_structs must be enabled to generate update functions"
-        ));
-      }
 
-      update(
-        &UpdateArgs {
+    update(
+      &UpdateArgs {
+        type_overrides,
+        model_name: &final_model_name,
+        updater_has_ref,
+        updater_name: &final_updater_name,
+        use_async,
+        ref_type_overrides,
+        primary_keys: &primary_keys,
+        non_primary_key_columns: &non_primary_key_columns,
+        timestamp_columns: &timestamp_columns,
+        table,
+        table_config,
+        backend,
+        column_wise_update,
+      },
+      &mut w,
+    )?;
+  }
+
+  let delete_config = operations.delete.unwrap_or_default();
+  let enable_delete = delete_config.enable.unwrap_or(true);
+  if enable_delete {
+    delete(
+      &DeleteArgs {
+        type_overrides,
+        model_name: &final_model_name,
+        use_async,
+        ref_type_overrides,
+        primary_keys: &primary_keys,
+        table,
+        config: table_config,
+        timestamp_columns: &timestamp_columns,
+        backend,
+      },
+      &mut w,
+    )?;
+  }
+
+  let soft_delete_config = operations.soft_delete.unwrap_or_default();
+  let soft_delete_column = soft_delete_config.soft_delete_column;
+  let enable_soft_delete = soft_delete_config.enable.unwrap_or(true);
+  let soft_delete_column =
+    get_soft_delete_column(table, soft_delete_column.as_deref());
+
+  if enable_soft_delete {
+    if let Some(c) = soft_delete_column {
+      soft_delete(
+        &SoftDeleteArgs {
           type_overrides,
           model_name: &final_model_name,
-          updater_has_ref,
-          updater_name: &final_updater_name,
           use_async,
           ref_type_overrides,
           primary_keys: &primary_keys,
-          non_primary_key_columns: &non_primary_key_columns,
+          table,
+          config: table_config,
           timestamp_columns: &timestamp_columns,
-          table,
-          table_config,
           backend,
-          column_wise_update,
+          soft_delete_column: c,
         },
         &mut w,
       )?;
     }
+  }
 
-    let delete_config = operations.delete.unwrap_or_default();
-    let enable_delete = delete_config.enable.unwrap_or(true);
-    if enable_delete {
-      delete(
-        &DeleteArgs {
-          type_overrides,
-          model_name: &final_model_name,
-          use_async,
-          ref_type_overrides,
-          primary_keys: &primary_keys,
-          table,
-          timestamp_columns: &timestamp_columns,
-          backend,
-        },
-        &mut w,
-      )?;
+  let insert_config = operations.insert.unwrap_or_default();
+  let enable_insert = insert_config.enable.unwrap_or(true);
+  if enable_insert {
+    if !inserter_structs {
+      return Err(anyhow::anyhow!(
+        "inserter_structs must be enabled to generate insert functions"
+      ));
     }
 
-    let soft_delete_config = operations.soft_delete.unwrap_or_default();
-    let soft_delete_column = soft_delete_config.soft_delete_column;
-    let enable_soft_delete = soft_delete_config.enable.unwrap_or(true);
-    let soft_delete_column =
-      get_soft_delete_column(table, soft_delete_column.as_deref());
+    insert(
+      &InsertArgs {
+        model_name: &final_model_name,
+        inserter_has_ref,
+        inserter_name: &final_inserter_name,
+        use_async,
+        table,
+        table_config,
+        backend,
+        primary_keys: &primary_keys,
+        type_overrides,
+        ref_type_overrides,
+      },
+      &mut w,
+    )?;
+  }
 
-    if enable_soft_delete {
-      if let Some(c) = soft_delete_column {
-        soft_delete(
-          &SoftDeleteArgs {
-            type_overrides,
-            model_name: &final_model_name,
-            use_async,
-            ref_type_overrides,
-            primary_keys: &primary_keys,
-            table,
-            timestamp_columns: &timestamp_columns,
-            backend,
-            soft_delete_column: c,
-          },
-          &mut w,
-        )?;
-      }
-    }
+  let simple_paginate_config = operations.simple_paginate.unwrap_or_default();
+  let derives = simple_paginate_config
+    .order_by_enum_derives
+    .as_ref()
+    .map(|e| e.vec());
+  let enable_simple_paginate = simple_paginate_config.enable.unwrap_or(true);
+  if enable_simple_paginate {
+    simple_paginate(
+      &SimplePaginateArgs {
+        order_by_enum_derives: derives,
+        ordering_options: &simple_paginate_config
+          .ordering_options
+          .unwrap_or(OrderingOptionsConfig::All),
+        columns: &table.columns,
+        model_name: &final_model_name,
+        use_async,
+        table,
+        backend,
+        include_soft_deleted: simple_paginate_config
+          .include_soft_deleted
+          .unwrap_or(false),
+        soft_delete_column,
+      },
+      &mut w,
+    )?;
+  }
 
-    let insert_config = operations.insert.unwrap_or_default();
-    let enable_insert = insert_config.enable.unwrap_or(true);
-    if enable_insert {
-      if !inserter_structs {
-        return Err(anyhow::anyhow!(
-          "inserter_structs must be enabled to generate insert functions"
-        ));
-      }
+  let cursor_paginate_config = operations.cursor_paginate.unwrap_or_default();
+  let enable_cursor_paginate = cursor_paginate_config.enable.unwrap_or(true);
+  if enable_cursor_paginate {
+    cursor_paginate(
+      &CursorPaginateArgs {
+        default_cursor_derives: cursor_paginate_config
+          .default_cursor_derives
+          .as_ref(),
+        table_imports_root: import_root,
+        table_config,
+        type_overrides,
+        cursors: cursor_paginate_config.cursors.map(),
+        model_name: &final_model_name,
+        use_async,
+        table,
+        backend,
+        include_soft_deleted: cursor_paginate_config
+          .include_soft_deleted
+          .unwrap_or(false),
+        soft_delete_column,
+      },
+      &mut w,
+    )?;
+  }
 
-      insert(
-        &InsertArgs {
-          model_name: &final_model_name,
-          inserter_has_ref,
-          inserter_name: &final_inserter_name,
-          use_async,
-          table,
-          table_config,
-          backend,
-          primary_keys: &primary_keys,
-          type_overrides,
-          ref_type_overrides,
-        },
-        &mut w,
-      )?;
-    }
+  let count_config = operations.count.unwrap_or_default();
+  let enable_count = count_config.enable.unwrap_or(true);
 
-    let simple_paginate_config = operations.simple_paginate.unwrap_or_default();
-    let derives = simple_paginate_config
-      .order_by_enum_derives
-      .as_ref()
-      .map(|e| e.vec());
-    let enable_simple_paginate = simple_paginate_config.enable.unwrap_or(true);
-    if enable_simple_paginate {
-      simple_paginate(
-        &SimplePaginateArgs {
-          order_by_enum_derives: derives,
-          ordering_options: &simple_paginate_config
-            .ordering_options
-            .unwrap_or(OrderingOptionsConfig::All),
-          columns: &table.columns,
-          model_name: &final_model_name,
-          use_async,
-          table,
-          backend,
-          include_soft_deleted: simple_paginate_config
-            .include_soft_deleted
-            .unwrap_or(false),
-          soft_delete_column,
-        },
-        &mut w,
-      )?;
-    }
-
-    let cursor_paginate_config = operations.cursor_paginate.unwrap_or_default();
-    let enable_cursor_paginate = cursor_paginate_config.enable.unwrap_or(true);
-    if enable_cursor_paginate {
-      cursor_paginate(
-        &CursorPaginateArgs {
-          default_cursor_derives: cursor_paginate_config
-            .default_cursor_derives
-            .as_ref(),
-          table_imports_root: import_root,
-          table_config,
-          type_overrides,
-          cursors: cursor_paginate_config.cursors.map(),
-          model_name: &final_model_name,
-          use_async,
-          table,
-          backend,
-          include_soft_deleted: cursor_paginate_config
-            .include_soft_deleted
-            .unwrap_or(false),
-          soft_delete_column,
-        },
-        &mut w,
-      )?;
-    }
-    
-    let count_config = operations.count.unwrap_or_default();
-    let enable_count = count_config.enable.unwrap_or(true);
-    
-    if enable_count {
-      count(
-        &CountArgs {
-          model_name: &final_model_name,
-          use_async,
-          table,
-          backend,
-          include_soft_deleted: count_config
-            .include_soft_deleted
-            .unwrap_or(false),
-          soft_delete_column,
-        },
-        &mut w,
-      )?;
-    }
+  if enable_count {
+    count(
+      &CountArgs {
+        model_name: &final_model_name,
+        use_async,
+        table,
+        backend,
+        include_soft_deleted: count_config
+          .include_soft_deleted
+          .unwrap_or(false),
+        soft_delete_column,
+      },
+      &mut w,
+    )?;
+  }
   Ok(())
 }
 
@@ -845,6 +869,20 @@ struct InsertArgs<'a> {
   pub primary_keys: &'a Vec<&'a Column>,
   pub type_overrides: &'a HashMap<String, String>,
   pub ref_type_overrides: &'a HashMap<String, String>,
+}
+
+fn get_optimal_type(
+  column: &Column,
+  config: Option<&ColumnConfig>,
+  lifetime: Option<&str>,
+  type_overrides: &HashMap<String, String>,
+  ref_type_overrides: &HashMap<String, String>,
+) -> Option<String> {
+  if column.r#type.is_simple() {
+    get_type(type_overrides, &column.r#type, config)
+  } else {
+    get_ref_type(ref_type_overrides, &column.r#type, config, lifetime)
+  }
 }
 
 fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
@@ -935,6 +973,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
     args.type_overrides,
     args.ref_type_overrides,
     args.primary_keys,
+    args.table_config.map(|t| t.columns.map()),
     Some("'a"),
     &mut w,
   )?;
@@ -1017,15 +1056,18 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
         args.type_overrides,
         args.ref_type_overrides,
         args.primary_keys,
+        args.table_config.map(|t| t.columns.map()),
         Some("'a"),
         &mut w,
       )?;
 
-      let ty = if c.r#type.is_simple() {
-        get_type(args.type_overrides, &c.r#type)
-      } else {
-        get_ref_type(args.ref_type_overrides, &c.r#type, Some("'a"))
-      }
+      let ty = get_optimal_type(
+        c,
+        config,
+        Some("'a"),
+        args.type_overrides,
+        args.ref_type_overrides,
+      )
       .ok_or_else(|| {
         anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
       })?;
@@ -1105,6 +1147,7 @@ struct DeleteArgs<'a> {
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   table: &'a Table,
+  config: Option<&'a TableConfig>,
   timestamp_columns: &'a Vec<&'a Column>,
   backend: &'a SqlBackend,
 }
@@ -1123,6 +1166,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
     args.type_overrides,
     args.ref_type_overrides,
     args.primary_keys,
+    args.config.map(|t| t.columns.map()),
     Some("'a"),
     &mut w,
   )?;
@@ -1179,6 +1223,7 @@ struct SoftDeleteArgs<'a> {
   ref_type_overrides: &'a HashMap<String, String>,
   primary_keys: &'a Vec<&'a Column>,
   table: &'a Table,
+  config: Option<&'a TableConfig>,
   timestamp_columns: &'a Vec<&'a Column>,
   backend: &'a SqlBackend,
   soft_delete_column: &'a Column,
@@ -1214,6 +1259,7 @@ fn soft_delete<W: Write>(
     args.type_overrides,
     args.ref_type_overrides,
     args.primary_keys,
+    args.config.map(|t| t.columns.map()),
     Some("'a"),
     &mut w,
   )?;
@@ -1696,7 +1742,7 @@ fn cursor_paginate<W: Write>(
       ",
       cursor_name = name.to_pascal_case(),
     )?;
-    
+
     let mut field_names = HashMap::new();
 
     for c in config.columns.iter() {
@@ -1707,18 +1753,18 @@ fn cursor_paginate<W: Write>(
           args.table.name
         )
       })?;
+      let config = args.table_config.and_then(|t| t.columns.get(&col.name));
 
-      let ty = get_type(args.type_overrides, &col.r#type).ok_or_else(|| {
-        anyhow::anyhow!("Unknown type: {}", col.r#type.to_string())
-      })?;
+      let ty = get_type(args.type_overrides, &col.r#type, config).ok_or_else(
+        || anyhow::anyhow!("Unknown type: {}", col.r#type.to_string()),
+      )?;
 
       let name = get_field_name(
         args.table_config.and_then(|t| t.columns.get(&col.name)),
         c.name(),
       );
-      
+
       field_names.insert(c.name(), name.clone());
-      
 
       writeln!(w, "pub {}: {},", name, ty)?;
     }
@@ -1934,7 +1980,7 @@ fn cursor_paginate<W: Write>(
       vec.push((
         format!("{}::{}", &args.table.name, cursor_col.name()),
         format!("{}.{}", "cursor", name),
-        col.r#type.qualified_string(args.table_imports_root),
+        col.r#type.to_qualified_string(args.table_imports_root),
       ));
     }
 
@@ -2239,31 +2285,48 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   )?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   writeln!(w, ",")?;
-  writeln!(w, 
+  writeln!(w,
     "
       F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
     ", 
     table = args.table.name, backend = args.backend.path()
   )?;
+
   writeln!(w, "{{")?;
   default_operation_uses(
-    &DefaultUsesArgs { 
-      use_async: args.use_async, query_dsl: true, 
+    &DefaultUsesArgs {
+      use_async: args.use_async,
+      query_dsl: true,
       expression_methods: true,
       ..Default::default()
-    }, 
-    &mut w
-  )?; 
-  
+    },
+    &mut w,
+  )?;
+
   writeln!(w, "extend({table}::table.count()", table = args.table.name)?;
   if !args.include_soft_deleted {
     if let Some(col) = args.soft_delete_column {
       if col.r#type.is_boolean() {
-        writeln!(w, ".filter({table}::{column}.eq(false))", table = args.table.name, column = col.name)?;
+        writeln!(
+          w,
+          ".filter({table}::{column}.eq(false))",
+          table = args.table.name,
+          column = col.name
+        )?;
       } else if col.r#type.is_integer() {
-        writeln!(w, ".filter({table}::{column}.eq(0))", table = args.table.name, column = col.name)?;
+        writeln!(
+          w,
+          ".filter({table}::{column}.eq(0))",
+          table = args.table.name,
+          column = col.name
+        )?;
       } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-        writeln!(w, ".filter({table}::{column}.is_null())", table = args.table.name, column = col.name)?;
+        writeln!(
+          w,
+          ".filter({table}::{column}.is_null())",
+          table = args.table.name,
+          column = col.name
+        )?;
       } else {
         return Err(anyhow::anyhow!(
           "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
@@ -2275,10 +2338,10 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     }
   }
 
-  writeln!(w, ".into_boxed()).first(conn)", )?;
+  writeln!(w, ".into_boxed()).first(conn)",)?;
 
   writeln!(w, "}}")?;
-  
+
   function_signature(
     &FunctionSignatureArgs {
       use_async: args.use_async,
@@ -2287,7 +2350,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     },
     &mut w,
   )?;
-  
+
   writeln!(w, "conn: &'a mut Conn",)?;
 
   writeln!(
@@ -2306,7 +2369,6 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
-
 
   writeln!(w, "}}")?;
   Ok(())

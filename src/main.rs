@@ -89,6 +89,7 @@ fn generate_models(config: &Config, parsed_file: &File) -> anyhow::Result<()> {
     write::type_uses(
       &TypeUsesArgs {
         tables: &parsed_file.tables,
+        configs: &config.tables,
         type_overrides: &type_overrides,
         types_uses: &config.type_uses,
       },
@@ -190,6 +191,7 @@ fn generate_async_graphql(
     write::type_uses(
       &TypeUsesArgs {
         tables: &parsed.tables,
+        configs: &config.tables,
         type_overrides: &type_overrides,
         types_uses: &config.type_uses,
       },

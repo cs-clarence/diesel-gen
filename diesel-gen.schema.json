@@ -166,7 +166,19 @@
             "null"
           ]
         },
+        "ref_type_override": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "rename": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type_override": {
           "type": [
             "string",
             "null"
@@ -180,6 +192,24 @@
             {
               "type": "null"
             }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CountOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "include_soft_deleted": {
+          "type": [
+            "boolean",
+            "null"
           ]
         }
       },
@@ -228,13 +258,14 @@
           }
         },
         "derives": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -244,6 +275,16 @@
       "properties": {
         "cursors": {
           "$ref": "#/definitions/MapConfig_for_String_and_CursorConfig"
+        },
+        "default_cursor_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "enable": {
           "type": [
@@ -255,16 +296,6 @@
           "type": [
             "boolean",
             "null"
-          ]
-        },
-        "result_derives": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ListConfig_for_String"
-            },
-            {
-              "type": "null"
-            }
           ]
         }
       },
@@ -591,6 +622,16 @@
             "null"
           ]
         },
+        "count": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CountOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "cursor_paginate": {
           "anyOf": [
             {
@@ -889,18 +930,14 @@
     "TableConfig": {
       "type": "object",
       "properties": {
-        "attributes": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ListConfig_for_String"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "columns": {
           "$ref": "#/definitions/MapConfig_for_String_and_ColumnConfig"
+        },
+        "inserter": {
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "inserter_attributes": {
           "anyOf": [
@@ -922,25 +959,35 @@
             }
           ]
         },
-        "inserter_struct": {
+        "inserter_name_prefix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inserter_name_suffix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inserter_omit_columns": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model": {
           "type": [
             "boolean",
             "null"
           ]
         },
-        "inserter_struct_name_prefix": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "inserter_struct_name_suffix": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "inserter_struct_omit_columns": {
+        "model_attributes": {
           "anyOf": [
             {
               "$ref": "#/definitions/ListConfig_for_String"
@@ -960,13 +1007,13 @@
             }
           ]
         },
-        "model_struct_name_prefix": {
+        "model_name_prefix": {
           "type": [
             "string",
             "null"
           ]
         },
-        "model_struct_name_suffix": {
+        "model_name_suffix": {
           "type": [
             "string",
             "null"
@@ -1014,25 +1061,19 @@
             "null"
           ]
         },
-        "updater_struct": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "updater_struct_name_prefix": {
+        "updater_name_prefix": {
           "type": [
             "string",
             "null"
           ]
         },
-        "updater_struct_name_suffix": {
+        "updater_name_suffix": {
           "type": [
             "string",
             "null"
           ]
         },
-        "updater_struct_omit_columns": {
+        "updater_omit_columns": {
           "anyOf": [
             {
               "$ref": "#/definitions/ListConfig_for_String"
@@ -1040,6 +1081,12 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "updater_struct": {
+          "type": [
+            "boolean",
+            "null"
           ]
         }
       },

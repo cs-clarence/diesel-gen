@@ -45,6 +45,11 @@ pub struct ColumnConfig {
   #[merge(strategy = overwrite)]
   pub omit_in_inserter: Option<bool>,
 
+  #[merge(strategy = overwrite)]
+  pub type_override: Option<String>,
+  #[merge(strategy = overwrite)]
+  pub ref_type_override: Option<String>,
+
   pub rename: Option<String>,
   #[merge(strategy = merge_option)]
   pub model_attributes: Option<ListConfig<String>>,

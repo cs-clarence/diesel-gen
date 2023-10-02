@@ -7,6 +7,7 @@ use crate::db::model::CredentialType;
 use crate::db::model::Gender;
 use crate::db::model::StaffRole;
 use crate::db::model::SubjectType;
+use crate::db::model::TestType;
 use crate::db::model::{Identity as ModelIdentity, User as ModelUser};
 #[derive(async_graphql::SimpleObject)]
 #[graphql(complex)]
@@ -16,7 +17,7 @@ pub struct User {
   pub display_picture_url: Option<String>,
   pub first_name: String,
   pub gender: Option<Gender>,
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub identity_id: uuid::Uuid,
   pub last_name: String,
   pub middle_name: Option<String>,

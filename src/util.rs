@@ -192,8 +192,20 @@ fn init_type_map() {
 pub fn get_type(
   type_overrides: &HashMap<String, String>,
   ty: &Type,
+  column_config: Option<&ColumnConfig>,
 ) -> Option<String> {
   init_type_map();
+
+  if let Some(col) = column_config {
+    if let Some(r#override) = &col.type_override {
+      return Some(
+        parse::r#type(&mut ParseContext::new(r#override))
+          .expect("Could not parse type")
+          .to_string(),
+      );
+    }
+  }
+
   let ts = ty.to_string().replace(' ', "");
 
   if let Some(ty) = type_overrides.get(&ts) {
@@ -210,7 +222,7 @@ pub fn get_type(
     let params = ty
       .params()
       .iter()
-      .map(|i| get_type(type_overrides, i))
+      .map(|i| get_type(type_overrides, i, None))
       .collect::<Vec<_>>();
 
     if params.iter().any(|i| i.is_none()) {
@@ -228,12 +240,28 @@ pub fn get_type(
 pub fn get_ref_type(
   type_overrides: &HashMap<String, String>,
   ty: &Type,
+  column_config: Option<&ColumnConfig>,
   lifetime: Option<&str>,
 ) -> Option<String> {
   init_type_map();
-  let ts = ty.to_string().replace(' ', "");
 
-  let lifetime = if let Some(lifetime) = lifetime {
+  if let Some(conf) = column_config {
+    if let Some(ft) = &conf.ref_type_override {
+      let mut ty = parse::r#type(&mut ParseContext::new(ft))
+        .expect("Could not parse type");
+      if let Type::Borrowed { lifetime: lt, .. } = &mut ty {
+        *lt = Some(
+          lifetime
+            .map(|l| l.strip_prefix('\'').unwrap().to_string())
+            .unwrap_or_else(|| "static".to_string()),
+        );
+      }
+
+      return Some(ty.to_string());
+    }
+  }
+
+  let lt = if let Some(lifetime) = lifetime {
     if lifetime.is_empty() {
       "".to_string()
     } else {
@@ -242,6 +270,8 @@ pub fn get_ref_type(
   } else {
     "".to_string()
   };
+
+  let ts = ty.to_string().replace(' ', "");
 
   if let Some(ty) = type_overrides.get(&ts) {
     let mut ty =
@@ -256,14 +286,14 @@ pub fn get_ref_type(
   }
 
   if ty.name().is_string_type() {
-    return Some(format!("&{}str", lifetime));
+    return Some(format!("&{}str", lt));
   }
 
   if *ty.name() == TypeName::Nullable {
     let params = ty
       .params()
       .iter()
-      .map(|i| get_ref_type(type_overrides, i, Some(&lifetime)))
+      .map(|i| get_ref_type(type_overrides, i, None, Some(&lt)))
       .collect::<Vec<_>>();
 
     if params.iter().any(|i| i.is_none()) {
@@ -278,14 +308,14 @@ pub fn get_ref_type(
   let tp_map = RUST_TYPE_MAP.get().expect("RUST_TYPE_MAP not initialized");
 
   if let Some(ty) = tp_map.get(ts.as_str()) {
-    return Some(format!("&{}{}", lifetime, ty));
+    return Some(format!("&{}{}", lt, ty));
   }
 
   if let Some(t) = tp_map.get(&ty.name().to_string().as_str()) {
     let params = ty
       .params()
       .iter()
-      .map(|i| get_type(type_overrides, i))
+      .map(|i| get_type(type_overrides, i, None))
       .collect::<Vec<_>>();
 
     if params.iter().any(|i| i.is_none()) {
@@ -294,7 +324,7 @@ pub fn get_ref_type(
 
     let params = params.into_iter().map(|i| i.unwrap()).collect::<Vec<_>>();
 
-    return Some(format!("&{}{}<{}>", lifetime, t, params.join(", ")));
+    return Some(format!("&{}{}<{}>", lt, t, params.join(", ")));
   }
 
   None

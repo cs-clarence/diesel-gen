@@ -8,6 +8,7 @@ use crate::db::model::CredentialType;
 use crate::db::model::Gender;
 use crate::db::model::StaffRole;
 use crate::db::model::SubjectType;
+use crate::db::model::TestType;
 use crate::db::schema::iam::{
   _prisma_migrations, credentials, email_address_verification_codes,
   email_addresses, identities, password_reset_tokens, refresh_tokens, staffs,
@@ -27,7 +28,7 @@ use crate::db::schema::iam::{
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PrismaMigration {
-  pub id: String,
+  pub id: TestType,
   pub checksum: String,
   pub finished_at: Option<time::OffsetDateTime>,
   pub migration_name: String,
@@ -41,7 +42,7 @@ pub struct PrismaMigration {
 #[diesel(table_name = _prisma_migrations)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPrismaMigration<'a> {
-  pub id: &'a str,
+  pub id: &'a TestType,
   pub checksum: &'a str,
   pub finished_at: Option<&'a time::OffsetDateTime>,
   pub migration_name: &'a str,
@@ -78,7 +79,7 @@ pub struct PrismaMigrationUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Credential {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub identity_id: uuid::Uuid,
   pub enabled: bool,
   #[diesel(column_name = "type_")]
@@ -92,7 +93,7 @@ pub struct Credential {
 #[diesel(table_name = credentials)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewCredential<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub identity_id: &'a uuid::Uuid,
   pub enabled: bool,
   #[diesel(column_name = "type_")]
@@ -129,7 +130,7 @@ pub struct CredentialUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailAddressVerificationCode {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub value: String,
   pub expires_at: time::OffsetDateTime,
   pub email_address_id: uuid::Uuid,
@@ -141,7 +142,7 @@ pub struct EmailAddressVerificationCode {
 #[diesel(table_name = email_address_verification_codes)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewEmailAddressVerificationCode<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub value: &'a str,
   pub expires_at: &'a time::OffsetDateTime,
   pub email_address_id: &'a uuid::Uuid,
@@ -174,7 +175,7 @@ pub struct EmailAddressVerificationCodeUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailAddress {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub identity_id: uuid::Uuid,
   pub value: String,
   pub primary: bool,
@@ -187,7 +188,7 @@ pub struct EmailAddress {
 #[diesel(table_name = email_addresses)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewEmailAddress<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub identity_id: &'a uuid::Uuid,
   pub value: &'a str,
   pub primary: bool,
@@ -222,7 +223,7 @@ pub struct EmailAddressUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Identity {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub username: String,
   pub display_picture_url: Option<String>,
   pub first_name: String,
@@ -237,7 +238,7 @@ pub struct Identity {
 #[diesel(table_name = identities)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewIdentity<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub username: &'a str,
   pub display_picture_url: Option<&'a str>,
   pub first_name: &'a str,
@@ -276,7 +277,7 @@ pub struct IdentityUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct PasswordResetToken {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub value: String,
   pub expires_at: time::OffsetDateTime,
   pub created_at: time::OffsetDateTime,
@@ -286,7 +287,7 @@ pub struct PasswordResetToken {
 #[diesel(table_name = password_reset_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewPasswordResetToken<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub value: &'a str,
   pub expires_at: &'a time::OffsetDateTime,
   pub created_at: &'a time::OffsetDateTime,
@@ -315,7 +316,7 @@ pub struct PasswordResetTokenUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct RefreshToken {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub identity_id: uuid::Uuid,
   pub value: String,
   pub scope: String,
@@ -331,7 +332,7 @@ pub struct RefreshToken {
 #[diesel(table_name = refresh_tokens)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewRefreshToken<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub identity_id: &'a uuid::Uuid,
   pub value: &'a str,
   pub scope: &'a str,
@@ -372,7 +373,7 @@ pub struct RefreshTokenUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Staff {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub role: StaffRole,
   pub identity_id: uuid::Uuid,
   pub created_at: time::OffsetDateTime,
@@ -384,7 +385,7 @@ pub struct Staff {
 #[diesel(table_name = staffs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewStaff<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub role: StaffRole,
   pub identity_id: &'a uuid::Uuid,
   pub created_at: &'a time::OffsetDateTime,
@@ -417,7 +418,7 @@ pub struct StaffUpdate<'a> {
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct User {
-  pub id: uuid::Uuid,
+  pub id: TestType,
   pub identity_id: uuid::Uuid,
   pub created_at: time::OffsetDateTime,
   pub updated_at: time::OffsetDateTime,
@@ -428,7 +429,7 @@ pub struct User {
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewUser<'a> {
-  pub id: &'a uuid::Uuid,
+  pub id: &'a TestType,
   pub identity_id: &'a uuid::Uuid,
   pub created_at: &'a time::OffsetDateTime,
   pub updated_at: &'a time::OffsetDateTime,
@@ -447,7 +448,7 @@ pub struct UserUpdate<'a> {
 
 impl User {
   pub fn update<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     changes: &'a UserUpdate<'a>,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
@@ -466,7 +467,7 @@ impl User {
       .get_result::<User>(conn)
   }
   pub fn update_identity_id<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     identity_id: &'a uuid::Uuid,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
@@ -488,7 +489,7 @@ impl User {
       .get_result::<User>(conn)
   }
   pub fn update_created_at<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     created_at: &'a time::OffsetDateTime,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
@@ -510,7 +511,7 @@ impl User {
       .get_result::<User>(conn)
   }
   pub fn update_updated_at<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     updated_at: &'a time::OffsetDateTime,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
@@ -529,7 +530,7 @@ impl User {
       .get_result::<User>(conn)
   }
   pub fn update_deleted_at<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     deleted_at: Option<&'a time::OffsetDateTime>,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
@@ -554,7 +555,7 @@ impl User {
 
 impl User {
   pub fn delete<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
        + Send
@@ -574,7 +575,7 @@ impl User {
 
 impl User {
   pub fn soft_delete<'a, Conn>(
-    id: &'a uuid::Uuid,
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
        + Send
@@ -753,13 +754,13 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::simple_paginate_extend(offset, limit, ordering, |q| q, conn)
+    User::paginate_extend(offset, limit, ordering, |q| q, conn)
   }
 }
 
 pub struct UserCursor {
   pub created_at: time::OffsetDateTime,
-  pub id: uuid::Uuid,
+  pub id: TestType,
 }
 
 impl From<User> for UserCursor {

@@ -12,7 +12,7 @@ use crate::{
     TableConfig,
   },
   parse::{Column, Table},
-  util::is_rust_keyword,
+  util::{get_type, is_rust_keyword},
 };
 
 pub struct ModelImportsArgs<'a> {
@@ -365,10 +365,10 @@ pub fn output_type<W: Write>(
   writeln!(w, "pub struct {output_type} {{", output_type = &args.name)?;
 
   for f in fields.iter() {
-    let ty = crate::util::get_type(args.type_overrides, &f.column.r#type)
+    let ty = get_type(args.type_overrides, &f.column.r#type, f.column_config)
       .ok_or_else(|| {
-        anyhow::anyhow!("type for field {} not found", f.column.name)
-      })?;
+      anyhow::anyhow!("type for field {} not found", f.column.name)
+    })?;
 
     if let Some(c) = f.field_config {
       if let Some(ref a) = c.attributes {
