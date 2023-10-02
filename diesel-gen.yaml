@@ -29,11 +29,12 @@ tables:
       type_:
         rename: r#type
     operations:
-      enable: true
+      enable: false
       simple_paginate:
         ordering_options: all
   users:
     operations:
+      enable: true
       cursor_paginate:
         cursors:
           UserCursor:

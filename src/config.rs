@@ -7,6 +7,15 @@ use merge::Merge;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+fn overwrite<T>(lhs: &mut Option<T>, rhs: Option<T>) {
+  if let Some(rhs) = rhs {
+    match lhs {
+      Some(lhs) => *lhs = rhs,
+      None => *lhs = Some(rhs),
+    }
+  }
+}
+
 #[derive(Default, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -29,8 +38,11 @@ pub struct Config {
 #[derive(Default, Deserialize, Clone, Debug, Merge, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ColumnConfig {
+  #[merge(strategy = overwrite)]
   pub omit_in_model: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub omit_in_updater: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub omit_in_inserter: Option<bool>,
 
   pub rename: Option<String>,
@@ -47,8 +59,10 @@ pub struct ColumnConfig {
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TableConfig {
+  #[merge(strategy = overwrite)]
   pub skip: Option<bool>,
 
+  #[merge(strategy = overwrite)]
   pub model: Option<bool>,
 
   #[merge(strategy = merge_option)]
@@ -72,28 +86,37 @@ pub struct TableConfig {
   #[serde(default)]
   pub columns: MapConfig<String, ColumnConfig>,
 
+  #[merge(strategy = overwrite)]
   pub model_name_prefix: Option<String>,
 
+  #[merge(strategy = overwrite)]
   pub model_name_suffix: Option<String>,
 
+  #[merge(strategy = overwrite)]
   pub inserter: Option<bool>,
 
   #[merge(strategy = merge_option)]
   pub inserter_omit_columns: Option<ListConfig<String>>,
 
+  #[merge(strategy = overwrite)]
   pub inserter_name_prefix: Option<String>,
 
+  #[merge(strategy = overwrite)]
   pub inserter_name_suffix: Option<String>,
 
+  #[merge(strategy = overwrite)]
   pub updater_struct: Option<bool>,
 
   #[merge(strategy = merge_option)]
   pub updater_omit_columns: Option<ListConfig<String>>,
 
+  #[merge(strategy = overwrite)]
   pub updater_name_prefix: Option<String>,
 
+  #[merge(strategy = overwrite)]
   pub updater_name_suffix: Option<String>,
 
+  #[merge(strategy = overwrite)]
   pub updater_fields_optional: Option<bool>,
 
   #[merge(strategy = merge_option)]
@@ -150,7 +173,9 @@ impl SqlBackend {
 #[serde(deny_unknown_fields)]
 pub struct OperationsConfig {
   #[serde(rename = "async")]
+  #[merge(strategy = overwrite)]
   pub r#async: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
   #[merge(strategy = merge_option)]
   pub delete: Option<DeleteOperationConfig>,
@@ -171,38 +196,51 @@ pub struct OperationsConfig {
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CountOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub include_soft_deleted: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SoftDeleteOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub soft_delete_column: Option<String>,
+  #[merge(strategy = overwrite)]
   pub returning: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DeleteOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub returning: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InsertOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub returning: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub returning: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub column_wise_update: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub column_wise_update_returning: Option<bool>,
   #[merge(strategy = merge_option)]
   pub omit_column_wise_update: Option<ListConfig<String>>,
@@ -213,9 +251,13 @@ pub struct UpdateOperationConfig {
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SimplePaginateOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub include_soft_deleted: Option<bool>,
+  #[merge(strategy = merge_option)]
   pub order_by_enum_derives: Option<ListConfig<String>>,
+  #[merge(strategy = overwrite)]
   pub ordering_options: Option<OrderingOptionsConfig>,
 }
 
@@ -241,7 +283,9 @@ pub enum OrderingOptionsConfig {
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CursorPaginateOperationConfig {
+  #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub include_soft_deleted: Option<bool>,
   #[serde(default)]
   pub cursors: MapConfig<String, CursorConfig>,
@@ -249,10 +293,12 @@ pub struct CursorPaginateOperationConfig {
   pub default_cursor_derives: Option<ListConfig<String>>,
 }
 
-#[derive(Default, Deserialize, Clone, Debug, JsonSchema)]
+#[derive(Default, Deserialize, Clone, Debug, JsonSchema, merge::Merge)]
 #[serde(deny_unknown_fields)]
 pub struct CursorConfig {
+  #[merge(strategy = merge_option)]
   pub derives: Option<ListConfig<String>>,
+  #[merge(strategy = merge::vec::append)]
   pub columns: Vec<CursorColumnConfig>,
 }
 
@@ -573,9 +619,12 @@ impl Inherit {
 #[derive(Deserialize, Clone, Debug, Default, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GraphqlFieldConfig {
+  #[merge(strategy = overwrite)]
   pub omit: Option<bool>,
   pub rename: Option<String>,
+  #[merge(strategy = overwrite)]
   pub shareable: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub external: Option<bool>,
   pub attributes: Option<ListConfig<String>>,
 }
@@ -585,7 +634,9 @@ pub struct GraphqlFieldConfig {
 pub struct OutputTypeConfig {
   #[merge(skip)]
   pub table: Option<String>,
+  #[merge(strategy = overwrite)]
   pub impl_from: Option<bool>,
+  #[merge(strategy = overwrite)]
   pub complex_object: Option<bool>,
   pub derives: Option<ListConfig<String>>,
   pub attributes: Option<ListConfig<String>>,
