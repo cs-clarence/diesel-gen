@@ -1635,7 +1635,7 @@ fn simple_paginate<W: Write>(
   writeln!(w, "{{")?;
   writeln!(
     w,
-    "{model_name}::simple_paginate_extend(offset, limit, ordering, |q| q, conn)",
+    "{model_name}::paginate_extend(offset, limit, ordering, |q| q, conn)",
     model_name = args.model_name
   )?;
   writeln!(w, "}}")?;
