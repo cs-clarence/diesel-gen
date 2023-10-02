@@ -306,7 +306,6 @@ fn main() -> anyhow::Result<()> {
             let mut new = default.clone();
 
             new.merge(v);
-            print!("model_config: {:?}", new);
 
             diesel_gen_config.tables.insert(k, new);
           }
