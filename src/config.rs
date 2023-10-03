@@ -191,7 +191,7 @@ pub struct OperationsConfig {
   #[merge(strategy = merge_option)]
   pub update: Option<UpdateOperationConfig>,
   #[merge(strategy = merge_option)]
-  pub simple_paginate: Option<SimplePaginateOperationConfig>,
+  pub paginate: Option<PaginateOperationConfig>,
   #[merge(strategy = merge_option)]
   pub cursor_paginate: Option<CursorPaginateOperationConfig>,
   #[merge(strategy = merge_option)]
@@ -255,7 +255,7 @@ pub struct UpdateOperationConfig {
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct SimplePaginateOperationConfig {
+pub struct PaginateOperationConfig {
   #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
   #[merge(strategy = overwrite)]

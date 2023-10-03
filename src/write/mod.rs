@@ -785,7 +785,7 @@ pub fn model<W: Write>(
     )?;
   }
 
-  let simple_paginate_config = operations.simple_paginate.unwrap_or_default();
+  let simple_paginate_config = operations.paginate.unwrap_or_default();
   let derives = simple_paginate_config
     .order_by_enum_derives
     .as_ref()
