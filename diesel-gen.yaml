@@ -33,7 +33,7 @@ tables:
         rename: r#type
     operations:
       enable: false
-      simple_paginate:
+      paginate:
         ordering_options: all
   users:
     operations:

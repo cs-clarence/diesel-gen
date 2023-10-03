@@ -8,7 +8,6 @@ use crate::db::model::CredentialType;
 use crate::db::model::Gender;
 use crate::db::model::StaffRole;
 use crate::db::model::SubjectType;
-use crate::db::model::TestType;
 use crate::db::schema::iam::{
   _prisma_migrations, credentials, email_address_verification_codes,
   email_addresses, identities, password_reset_tokens, refresh_tokens, staffs,
@@ -766,8 +765,8 @@ pub struct UserCursor {
 impl From<User> for UserCursor {
   fn from(value: User) -> Self {
     Self {
-      id: value.id,
       created_at: value.created_at,
+      id: value.id,
     }
   }
 }

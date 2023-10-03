@@ -668,10 +668,10 @@
             }
           ]
         },
-        "simple_paginate": {
+        "paginate": {
           "anyOf": [
             {
-              "$ref": "#/definitions/SimplePaginateOperationConfig"
+              "$ref": "#/definitions/PaginateOperationConfig"
             },
             {
               "type": "null"
@@ -787,6 +787,44 @@
       },
       "additionalProperties": false
     },
+    "PaginateOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "include_soft_deleted": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "order_by_enum_derives": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ListConfig_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ordering_options": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OrderingOptionsConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "ReplaceConfig_for_Array_of_Inherit": {
       "type": "object",
       "required": [
@@ -856,44 +894,6 @@
           }
         }
       }
-    },
-    "SimplePaginateOperationConfig": {
-      "type": "object",
-      "properties": {
-        "enable": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "include_soft_deleted": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "order_by_enum_derives": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ListConfig_for_String"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ordering_options": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/OrderingOptionsConfig"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
     },
     "SoftDeleteOperationConfig": {
       "type": "object",

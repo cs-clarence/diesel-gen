@@ -1868,8 +1868,7 @@ fn cursor_paginate<W: Write>(
         query_dsl: true,
         into_sql: true,
         selectable_helper: true,
-        expression_methods: !args.include_soft_deleted
-          && args.soft_delete_column.is_some(),
+        expression_methods: true,
         ..Default::default()
       },
       &mut w,
