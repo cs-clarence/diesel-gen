@@ -202,6 +202,8 @@ pub struct OperationsConfig {
   pub cursor_paginate: Option<CursorPaginateOperationConfig>,
   #[merge(strategy = merge_option)]
   pub count: Option<CountOperationConfig>,
+  #[merge(strategy = merge_option)]
+  pub get: Option<GetOperationConfig>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
@@ -209,6 +211,17 @@ pub struct OperationsConfig {
 pub struct CountOperationConfig {
   #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
+  pub include_soft_deleted: Option<bool>,
+}
+
+#[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetOperationConfig {
+  #[merge(strategy = overwrite)]
+  pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
+  pub many: Option<bool>,
   #[merge(strategy = overwrite)]
   pub include_soft_deleted: Option<bool>,
 }

@@ -244,23 +244,25 @@ fn write_ref_fn_params<W: Write>(
   configs: Option<&HashMap<String, ColumnConfig>>,
   lifetime: Option<&str>,
   mut w: W,
-) -> std::io::Result<()> {
+) -> anyhow::Result<()> {
   for col in cols {
+    let config = configs.and_then(|t| t.get(&col.name));
+    let rename = get_field_name(config, &col.name);
+
     write!(
       w,
       "{}: {}, ",
-      col.name,
-      if col.r#type.is_simple() {
-        let ty = configs.and_then(|c| c.get(&col.name));
-
-        get_type(type_overrides, &col.r#type, ty)
-          .expect("Unknown type encountered")
-      } else {
-        let ty = configs.and_then(|c| c.get(&col.name));
-
-        get_ref_type(ref_type_overrides, &col.r#type, ty, lifetime)
-          .expect("Unknown type encountered")
-      }
+      rename,
+      get_optimal_type(
+        col,
+        config,
+        lifetime,
+        type_overrides,
+        ref_type_overrides
+      )
+      .ok_or_else(|| {
+        anyhow::anyhow!("Unknown type: {}", col.r#type.to_string())
+      })?
     )?;
   }
 
@@ -816,6 +818,27 @@ pub fn model<W: Write>(
     )?;
   }
 
+  let get_config = operations.get.unwrap_or_default();
+  let enable_get = get_config.enable.unwrap_or(true);
+
+  if enable_get {
+    get(
+      &GetArgs {
+        primary_keys: &primary_keys,
+        soft_delete_column,
+        include_soft_deleted: get_config.include_soft_deleted.unwrap_or(false),
+        model_name: &final_model_name,
+        table_config,
+        table,
+        type_overrides,
+        ref_type_overrides,
+        backend,
+        use_async,
+      },
+      &mut w,
+    )?;
+  }
+
   let simple_paginate_config = operations.paginate.unwrap_or_default();
   let derives = simple_paginate_config
     .order_by_enum_derives
@@ -1091,9 +1114,12 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
   writeln!(w, "diesel::update({table}::table)", table = args.table.name)?;
 
   for i in args.primary_keys {
+    let config = args.table_config.and_then(|t| t.columns.get(&i.name));
+    let rename = get_field_name(config, &i.name);
+
     writeln!(
       w,
-      ".filter({table}::{column}.eq({column}))",
+      ".filter({table}::{column}.eq({rename}))",
       table = args.table.name,
       column = i.name,
     )?;
@@ -1181,9 +1207,12 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       writeln!(w, "diesel::update({table}::table)", table = args.table.name)?;
 
       for i in args.primary_keys {
+        let config = args.table_config.and_then(|t| t.columns.get(&i.name));
+        let rename = get_field_name(config, &i.name);
+
         writeln!(
           w,
-          ".filter({table}::{column}.eq({column}))",
+          ".filter({table}::{column}.eq({rename}))",
           table = args.table.name,
           column = i.name,
         )?;
@@ -2387,40 +2416,15 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   )?;
 
   writeln!(w, "extend({table}::table.count()", table = args.table.name)?;
-  if !args.include_soft_deleted {
-    if let Some(col) = args.soft_delete_column {
-      if col.r#type.is_boolean() {
-        writeln!(
-          w,
-          ".filter({table}::{column}.eq(false))",
-          table = args.table.name,
-          column = col.name
-        )?;
-      } else if col.r#type.is_integer() {
-        writeln!(
-          w,
-          ".filter({table}::{column}.eq(0))",
-          table = args.table.name,
-          column = col.name
-        )?;
-      } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-        writeln!(
-          w,
-          ".filter({table}::{column}.is_null())",
-          table = args.table.name,
-          column = col.name
-        )?;
-      } else {
-        return Err(anyhow::anyhow!(
-          "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
-          col.r#type,
-          col.name,
-          args.table.name
-        ));
-      }
-    }
-  }
-
+  writeln!(
+    w,
+    ".{}",
+    soft_delete_filter(&SoftDeleteFilterArgs {
+      table_name: &args.table.name,
+      include_soft_deleted: args.include_soft_deleted,
+      soft_delete_column: args.soft_delete_column,
+    })?
+  )?;
   writeln!(w, ".into_boxed()).first(conn)",)?;
 
   writeln!(w, "}}")?;
@@ -2457,6 +2461,123 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   Ok(())
 }
 
+pub struct GetArgs<'a> {
+  use_async: bool,
+  model_name: &'a str,
+  table: &'a Table,
+  backend: &'a SqlBackend,
+  table_config: Option<&'a TableConfig>,
+  primary_keys: &'a Vec<&'a Column>,
+  type_overrides: &'a HashMap<String, String>,
+  ref_type_overrides: &'a HashMap<String, String>,
+  include_soft_deleted: bool,
+  soft_delete_column: Option<&'a Column>,
+}
+
+fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
+  writeln!(w, "impl {} {{", args.model_name)?;
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "get_extend",
+      generics: Some(vec!["'a", "F", "Conn"]),
+    },
+    &mut w,
+  )?;
+
+  write_ref_fn_params(
+    args.type_overrides,
+    args.ref_type_overrides,
+    args.primary_keys,
+    args.table_config.map(|t| t.columns.map()),
+    Some("'a"),
+    &mut w,
+  )?;
+  writeln!(w, "extend: F, conn: &'a mut Conn",)?;
+  writeln!(
+    w,
+    ")  -> {}{}",
+    return_type(args.use_async, false, "i64"),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+  writeln!(w, ",")?;
+  writeln!(w,
+    "
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
+    ", 
+    table = args.table.name, backend = args.backend.path()
+  )?;
+
+  writeln!(w, "{{")?;
+  default_operation_uses(
+    &DefaultUsesArgs {
+      use_async: args.use_async,
+      query_dsl: true,
+      expression_methods: true,
+      ..Default::default()
+    },
+    &mut w,
+  )?;
+
+  writeln!(w, "extend({table}::table", table = args.table.name)?;
+  writeln!(
+    w,
+    ".{}",
+    soft_delete_filter(&SoftDeleteFilterArgs {
+      table_name: &args.table.name,
+      include_soft_deleted: args.include_soft_deleted,
+      soft_delete_column: args.soft_delete_column,
+    })?
+  )?;
+  for i in args.primary_keys {
+    let config = args.table_config.and_then(|t| t.columns.get(&i.name));
+    let rename = get_field_name(config, &i.name);
+
+    writeln!(
+      w,
+      ".filter({table}::{column}.eq({rename}))",
+      table = args.table.name,
+      column = i.name,
+    )?;
+  }
+
+  writeln!(w, ".into_boxed()).first(conn)",)?;
+
+  writeln!(w, "}}")?;
+
+  function_signature(
+    &FunctionSignatureArgs {
+      use_async: args.use_async,
+      name: "get",
+      generics: Some(vec!["'a", "Conn"]),
+    },
+    &mut w,
+  )?;
+
+  writeln!(w, "conn: &'a mut Conn",)?;
+
+  writeln!(
+    w,
+    ")  -> {}{}",
+    return_type(args.use_async, false, "i64"),
+    if args.use_async { " + 'a" } else { "" },
+  )?;
+
+  operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+
+  writeln!(w, "{{")?;
+  writeln!(
+    w,
+    "{model}::get_extend(|q| q, conn)",
+    model = args.model_name
+  )?;
+  writeln!(w, "}}")?;
+
+  writeln!(w, "}}")?;
+  Ok(())
+}
+
 fn return_type(use_async: bool, multiple: bool, result: &str) -> String {
   if use_async {
     if multiple {
@@ -2476,4 +2597,52 @@ fn return_type(use_async: bool, multiple: bool, result: &str) -> String {
   } else {
     format!("Result<{model}, diesel::result::Error>", model = result)
   }
+}
+
+pub struct SoftDeleteFilterArgs<'a> {
+  pub table_name: &'a str,
+  pub include_soft_deleted: bool,
+  pub soft_delete_column: Option<&'a Column>,
+}
+
+fn soft_delete_filter(
+  args: &SoftDeleteFilterArgs<'_>,
+) -> Result<String, anyhow::Error> {
+  let mut str = Vec::new();
+
+  if !args.include_soft_deleted {
+    if let Some(col) = args.soft_delete_column {
+      if col.r#type.is_boolean() {
+        writeln!(
+          str,
+          "filter({table}::{column}.eq(false))",
+          table = args.table_name,
+          column = col.name
+        )?;
+      } else if col.r#type.is_integer() {
+        writeln!(
+          str,
+          "filter({table}::{column}.eq(0))",
+          table = args.table_name,
+          column = col.name
+        )?;
+      } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
+        writeln!(
+          str,
+          "filter({table}::{column}.is_null())",
+          table = args.table_name,
+          column = col.name
+        )?;
+      } else {
+        return Err(anyhow::anyhow!(
+          "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
+          col.r#type,
+          col.name,
+          args.table_name
+        ));
+      }
+    }
+  }
+
+  Ok(String::from_utf8_lossy(&str).to_string())
 }

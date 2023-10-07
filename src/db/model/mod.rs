@@ -614,8 +614,65 @@ impl User {
       .returning(User::as_returning())
       .get_result::<User>(conn)
   }
+  pub fn insert_many<'a, Conn>(
+    data: &'a [NewUser<'a>],
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+
+    diesel::insert_into(users::table)
+      .values(data)
+      .returning(User::as_returning())
+      .get_results::<User>(conn)
+  }
 }
 
+impl User {
+  pub fn get_extend<'a, F, Conn>(
+    id: &'a TestType,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
+    ) -> users::BoxedQuery<
+      'b,
+      diesel::pg::Pg,
+      diesel::sql_types::BigInt,
+    >,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(
+      users::table
+        .filter(users::deleted_at.is_null())
+        .filter(users::id.eq(id))
+        .into_boxed(),
+    )
+    .first(conn)
+  }
+  pub fn get<'a, Conn>(
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::get_extend(|q| q, conn)
+  }
+}
 pub enum UserOrderBy {
   IdAsc,
   IdDesc,
@@ -765,8 +822,8 @@ pub struct UserCursor {
 impl From<User> for UserCursor {
   fn from(value: User) -> Self {
     Self {
-      created_at: value.created_at,
       id: value.id,
+      created_at: value.created_at,
     }
   }
 }
