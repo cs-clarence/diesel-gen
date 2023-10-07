@@ -2417,15 +2417,17 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   )?;
 
   writeln!(w, "extend({table}::table.count()", table = args.table.name)?;
-  writeln!(
-    w,
-    ".{}",
-    soft_delete_filter(&SoftDeleteFilterArgs {
-      table_name: &args.table.name,
-      include_soft_deleted: args.include_soft_deleted,
-      soft_delete_column: args.soft_delete_column,
-    })?
-  )?;
+  if !args.include_soft_deleted && args.soft_delete_column.is_some() {
+    writeln!(
+      w,
+      ".{}",
+      soft_delete_filter(&SoftDeleteFilterArgs {
+        table_name: &args.table.name,
+        include_soft_deleted: args.include_soft_deleted,
+        soft_delete_column: args.soft_delete_column,
+      })?
+    )?;
+  }
   writeln!(w, ".into_boxed()).first(conn)",)?;
 
   writeln!(w, "}}")?;
@@ -2523,15 +2525,18 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
   )?;
 
   writeln!(w, "extend({table}::table", table = args.table.name)?;
-  writeln!(
-    w,
-    ".{}",
-    soft_delete_filter(&SoftDeleteFilterArgs {
-      table_name: &args.table.name,
-      include_soft_deleted: args.include_soft_deleted,
-      soft_delete_column: args.soft_delete_column,
-    })?
-  )?;
+
+  if !args.include_soft_deleted && args.soft_delete_column.is_some() {
+    writeln!(
+      w,
+      ".{}",
+      soft_delete_filter(&SoftDeleteFilterArgs {
+        table_name: &args.table.name,
+        include_soft_deleted: args.include_soft_deleted,
+        soft_delete_column: args.soft_delete_column,
+      })?
+    )?;
+  }
   for i in args.primary_keys {
     let config = args.table_config.and_then(|t| t.columns.get(&i.name));
     let rename = get_field_name(config, &i.name);
@@ -2613,15 +2618,18 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
     )?;
 
     writeln!(w, "extend({table}::table", table = args.table.name)?;
-    writeln!(
-      w,
-      ".{}",
-      soft_delete_filter(&SoftDeleteFilterArgs {
-        table_name: &args.table.name,
-        include_soft_deleted: args.include_soft_deleted,
-        soft_delete_column: args.soft_delete_column,
-      })?
-    )?;
+
+    if !args.include_soft_deleted && args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          include_soft_deleted: args.include_soft_deleted,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
+    }
 
     writeln!(w, ".into_boxed()).load(conn)",)?;
 

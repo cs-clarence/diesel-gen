@@ -32,9 +32,7 @@ tables:
       type_:
         rename: r#type
     operations:
-      enable: false
-      paginate:
-        ordering_options: all
+      enable: true
   users:
     operations:
       enable: true
