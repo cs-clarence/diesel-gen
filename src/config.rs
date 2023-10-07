@@ -110,6 +110,9 @@ pub struct TableConfig {
   pub inserter_name_suffix: Option<String>,
 
   #[merge(strategy = overwrite)]
+  pub inserter_use_refs: Option<bool>,
+
+  #[merge(strategy = overwrite)]
   pub updater_struct: Option<bool>,
 
   #[merge(strategy = merge_option)]
@@ -123,6 +126,9 @@ pub struct TableConfig {
 
   #[merge(strategy = overwrite)]
   pub updater_fields_optional: Option<bool>,
+
+  #[merge(strategy = overwrite)]
+  pub updater_use_refs: Option<bool>,
 
   #[merge(strategy = merge_option)]
   pub operations: Option<OperationsConfig>,
@@ -232,6 +238,8 @@ pub struct DeleteOperationConfig {
 pub struct InsertOperationConfig {
   #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
+  #[merge(strategy = overwrite)]
+  pub many: Option<bool>,
   #[merge(strategy = overwrite)]
   pub returning: Option<bool>,
 }

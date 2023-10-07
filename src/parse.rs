@@ -112,6 +112,19 @@ impl TypeName {
     )
   }
 
+  pub fn is_byte_array_type(&self) -> bool {
+    matches!(
+      self,
+      TypeName::Bytea
+        | TypeName::Binary
+        | TypeName::Varbinary
+        | TypeName::Blob
+        | TypeName::Tinyblob
+        | TypeName::Mediumblob
+        | TypeName::Longblob
+    )
+  }
+
   pub fn is_unknown_type(&self) -> bool {
     matches!(self, TypeName::Custom(_))
   }

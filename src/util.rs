@@ -173,19 +173,18 @@ fn init_type_map() {
    TINYINT => "i8",
    NULLABLE => "Option",
 
-  // Unsupported types
-   BYTEA => "Bytea",
-   BINARY =>"Binary",
-   VARBINARY => "Varbinary",
-   BLOB => "Blob",
-   TINYBLOB => "Tinyblob",
-   MEDIUMBLOB => "Mediumblob",
-   LONGBLOB => "Longblob",
-   BIT => "Bit",
-   INET => "Inet",
-   TINYTEXT => "Tinytext",
-   MEDIUMTEXT => "Mediumtext",
-   LONGTEXT => "Longtext",
+   BYTEA => "Vec<u8>",
+   BINARY =>"Vec<u8>",
+   VARBINARY => "Vec<u8>",
+   BLOB => "Vec<u8>",
+   TINYBLOB => "Vec<u8>",
+   MEDIUMBLOB => "Vec<u8>",
+   LONGBLOB => "Vec<u8>",
+   BIT => "u8",
+   INET => "ipnetwork::IpNetwork",
+   TINYTEXT => "String",
+   MEDIUMTEXT => "String",
+   LONGTEXT => "String",
   });
 }
 
@@ -287,6 +286,10 @@ pub fn get_ref_type(
 
   if ty.name().is_string_type() {
     return Some(format!("&{}str", lt));
+  }
+
+  if ty.name().is_byte_array_type() {
+    return Some(format!("&{}[u8]", lt));
   }
 
   if *ty.name() == TypeName::Nullable {

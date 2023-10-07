@@ -486,7 +486,16 @@ pub fn model<W: Write>(
     writeln!(w, "}}\n")?;
   }
 
+  /*
+   * ==================
+   * INSERTER STRUCTS
+   * ==================
+   */
+
   let inserter_structs = table_config.and_then(|t| t.inserter).unwrap_or(true);
+  let inserter_use_refs = table_config
+    .and_then(|t| t.inserter_use_refs)
+    .unwrap_or(true);
   let mut inserter_has_ref = false;
 
   if inserter_structs {
@@ -542,21 +551,27 @@ pub fn model<W: Write>(
         )?;
       }
 
-      let ty = get_optimal_type(
-        c,
-        config,
-        Some(lifetime),
-        type_overrides,
-        ref_type_overrides,
-      )
-      .ok_or_else(|| {
-        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-      })?;
+      let ty = if inserter_use_refs {
+        get_optimal_type(
+          c,
+          config,
+          Some(lifetime),
+          type_overrides,
+          ref_type_overrides,
+        )
+        .ok_or_else(|| {
+          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+        })?
+      } else {
+        get_type(type_overrides, &c.r#type, config).ok_or_else(|| {
+          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+        })?
+      };
 
       writeln!(inserter_field_temps, "  pub {}: {},", field_name, ty,)?;
     }
     inserter_has_ref = inserter_field_temps.contains(&b'&');
-    if inserter_has_ref {
+    if inserter_has_ref && inserter_use_refs {
       writeln!(w, "pub struct {}<{}>{{", final_inserter_name, lifetime)?;
     } else {
       writeln!(w, "pub struct {}{{", final_inserter_name,)?;
@@ -567,9 +582,18 @@ pub fn model<W: Write>(
 
   let non_primary_key_columns = table.non_primary_key_columns();
 
+  /*
+   * ==================
+   * UPDATER STRUCTS
+   * ==================
+   */
+
   let updater_structs =
     table_config.and_then(|t| t.updater_struct).unwrap_or(true);
   let mut updater_has_ref = false;
+  let updater_use_refs = table_config
+    .and_then(|t| t.updater_use_refs)
+    .unwrap_or(true);
 
   if updater_structs && !table.only_primary_key_columns() {
     let d = table_config.and_then(|t| t.updater_derives.clone());
@@ -624,16 +648,22 @@ pub fn model<W: Write>(
         )?;
       }
 
-      let ty = get_optimal_type(
-        c,
-        config,
-        Some(lifetime),
-        type_overrides,
-        ref_type_overrides,
-      )
-      .ok_or_else(|| {
-        anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
-      })?;
+      let ty = if updater_use_refs {
+        get_optimal_type(
+          c,
+          config,
+          Some(lifetime),
+          type_overrides,
+          ref_type_overrides,
+        )
+        .ok_or_else(|| {
+          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+        })?
+      } else {
+        get_type(type_overrides, &c.r#type, config).ok_or_else(|| {
+          anyhow::anyhow!("Unknown type: {}", c.r#type.to_string())
+        })?
+      };
 
       writeln!(
         updater_fields_tmp,
@@ -649,7 +679,7 @@ pub fn model<W: Write>(
 
     updater_has_ref = updater_fields_tmp.contains(&b'&');
 
-    if updater_has_ref {
+    if updater_has_ref && updater_use_refs {
       writeln!(w, "pub struct {}<{}>{{", final_updater_name, lifetime)?;
     } else {
       writeln!(w, "pub struct {}{{", final_updater_name)?;
@@ -775,6 +805,7 @@ pub fn model<W: Write>(
         inserter_name: &final_inserter_name,
         use_async,
         table,
+        many: insert_config.many.unwrap_or(true),
         table_config,
         backend,
         primary_keys: &primary_keys,
@@ -864,6 +895,7 @@ struct InsertArgs<'a> {
   pub inserter_has_ref: bool,
   pub use_async: bool,
   pub table: &'a Table,
+  pub many: bool,
   pub table_config: Option<&'a TableConfig>,
   pub backend: &'a SqlBackend,
   pub primary_keys: &'a Vec<&'a Column>,
@@ -937,6 +969,58 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
   )?;
 
   writeln!(w, "}}")?;
+
+  if args.many {
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "insert_many",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+
+    if args.inserter_has_ref {
+      write!(w, "data: &'a [{}<'a>], ", args.inserter_name)?;
+    } else {
+      write!(w, "data: &'a [{}], ", args.inserter_name)?;
+    }
+    write!(w, "conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    write!(w, "{{")?;
+
+    default_operation_uses(
+      &DefaultUsesArgs {
+        query_dsl: false,
+        use_async: args.use_async,
+        selectable_helper: true,
+        expression_methods: false,
+        sql_types: false,
+        into_sql: false,
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+      diesel::insert_into({table}::table)
+        .values(data)
+        .returning({model}::as_returning())
+        .get_results::<{model}>(conn)
+    ",
+      table = args.table.name,
+      model = args.model_name
+    )?;
+    writeln!(w, "}}\n")?;
+  }
 
   writeln!(w, "}}\n")?;
   Ok(())
