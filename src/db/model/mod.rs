@@ -638,18 +638,14 @@ impl User {
     id: &'a TestType,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
     F: for<'b> Fn(
-      users::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
-    ) -> users::BoxedQuery<
-      'b,
-      diesel::pg::Pg,
-      diesel::sql_types::BigInt,
-    >,
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
     use diesel::ExpressionMethods;
     use diesel::QueryDsl;
@@ -664,13 +660,45 @@ impl User {
   }
   pub fn get<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
     User::get_extend(|q| q, conn)
+  }
+  pub fn get_many_extend<'a, F, Conn>(
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(
+      users::table
+        .filter(users::deleted_at.is_null())
+        .into_boxed(),
+    )
+    .load(conn)
+  }
+  pub fn get_many<'a, Conn>(
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::get_many_extend(|q| q, conn)
   }
 }
 pub enum UserOrderBy {
@@ -822,8 +850,8 @@ pub struct UserCursor {
 impl From<User> for UserCursor {
   fn from(value: User) -> Self {
     Self {
-      id: value.id,
       created_at: value.created_at,
+      id: value.id,
     }
   }
 }

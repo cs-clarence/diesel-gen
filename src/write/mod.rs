@@ -824,6 +824,7 @@ pub fn model<W: Write>(
   if enable_get {
     get(
       &GetArgs {
+        many: get_config.many.unwrap_or(true),
         primary_keys: &primary_keys,
         soft_delete_column,
         include_soft_deleted: get_config.include_soft_deleted.unwrap_or(false),
@@ -2466,6 +2467,7 @@ pub struct GetArgs<'a> {
   model_name: &'a str,
   table: &'a Table,
   backend: &'a SqlBackend,
+  many: bool,
   table_config: Option<&'a TableConfig>,
   primary_keys: &'a Vec<&'a Column>,
   type_overrides: &'a HashMap<String, String>,
@@ -2497,14 +2499,14 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
   writeln!(
     w,
     ")  -> {}{}",
-    return_type(args.use_async, false, "i64"),
+    return_type(args.use_async, false, args.model_name),
     if args.use_async { " + 'a" } else { "" },
   )?;
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
   writeln!(w, ",")?;
   writeln!(w,
     "
-      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
     ", 
     table = args.table.name, backend = args.backend.path()
   )?;
@@ -2560,7 +2562,7 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
   writeln!(
     w,
     ")  -> {}{}",
-    return_type(args.use_async, false, "i64"),
+    return_type(args.use_async, false, args.model_name),
     if args.use_async { " + 'a" } else { "" },
   )?;
 
@@ -2573,6 +2575,86 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
     model = args.model_name
   )?;
   writeln!(w, "}}")?;
+
+  if args.many {
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "get_many_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    writeln!(w, "extend: F, conn: &'a mut Conn",)?;
+    writeln!(
+      w,
+      ")  -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(w,
+    "
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
+    ", 
+    table = args.table.name, backend = args.backend.path()
+  )?;
+
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "extend({table}::table", table = args.table.name)?;
+    writeln!(
+      w,
+      ".{}",
+      soft_delete_filter(&SoftDeleteFilterArgs {
+        table_name: &args.table.name,
+        include_soft_deleted: args.include_soft_deleted,
+        soft_delete_column: args.soft_delete_column,
+      })?
+    )?;
+
+    writeln!(w, ".into_boxed()).load(conn)",)?;
+
+    writeln!(w, "}}")?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "get_many",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "conn: &'a mut Conn",)?;
+
+    writeln!(
+      w,
+      ")  -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+
+    writeln!(w, "{{")?;
+    writeln!(
+      w,
+      "{model}::get_many_extend(|q| q, conn)",
+      model = args.model_name
+    )?;
+    writeln!(w, "}}")?;
+  }
 
   writeln!(w, "}}")?;
   Ok(())
