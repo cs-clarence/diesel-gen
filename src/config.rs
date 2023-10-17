@@ -211,8 +211,6 @@ pub struct OperationsConfig {
 pub struct CountOperationConfig {
   #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
-  #[merge(strategy = overwrite)]
-  pub include_soft_deleted: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
@@ -222,8 +220,6 @@ pub struct GetOperationConfig {
   pub enable: Option<bool>,
   #[merge(strategy = overwrite)]
   pub many: Option<bool>,
-  #[merge(strategy = overwrite)]
-  pub include_soft_deleted: Option<bool>,
 }
 
 #[derive(Default, Deserialize, Clone, Debug, Merge, JsonSchema)]
@@ -279,8 +275,6 @@ pub struct UpdateOperationConfig {
 pub struct PaginateOperationConfig {
   #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
-  #[merge(strategy = overwrite)]
-  pub include_soft_deleted: Option<bool>,
   #[merge(strategy = merge_option)]
   pub order_by_enum_derives: Option<ListConfig<String>>,
   #[merge(strategy = overwrite)]
@@ -311,8 +305,6 @@ pub enum OrderingOptionsConfig {
 pub struct CursorPaginateOperationConfig {
   #[merge(strategy = overwrite)]
   pub enable: Option<bool>,
-  #[merge(strategy = overwrite)]
-  pub include_soft_deleted: Option<bool>,
   #[serde(default)]
   pub cursors: MapConfig<String, CursorConfig>,
   #[merge(strategy = merge_option)]

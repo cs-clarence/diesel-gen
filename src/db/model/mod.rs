@@ -313,6 +313,7 @@ impl PrismaMigration {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<PrismaMigration, diesel::result::Error>,
@@ -321,7 +322,7 @@ impl PrismaMigration {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    PrismaMigration::get_extend(|q| q, conn)
+    PrismaMigration::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -388,7 +389,6 @@ impl PrismaMigration {
       _prisma_migrations::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> _prisma_migrations::BoxedQuery<'b, diesel::pg::Pg>,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -872,6 +872,7 @@ impl Credential {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Credential, diesel::result::Error>>
        + Send
@@ -879,7 +880,7 @@ impl Credential {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    Credential::get_extend(|q| q, conn)
+    Credential::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -944,7 +945,6 @@ impl Credential {
       credentials::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> credentials::BoxedQuery<'b, diesel::pg::Pg>,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1381,6 +1381,7 @@ impl EmailAddressVerificationCode {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<EmailAddressVerificationCode, diesel::result::Error>,
@@ -1389,7 +1390,7 @@ impl EmailAddressVerificationCode {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    EmailAddressVerificationCode::get_extend(|q| q, conn)
+    EmailAddressVerificationCode::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -1458,7 +1459,6 @@ impl EmailAddressVerificationCode {
       diesel::pg::Pg,
     >,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -1942,6 +1942,7 @@ impl EmailAddress {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<EmailAddress, diesel::result::Error>>
        + Send
@@ -1949,7 +1950,7 @@ impl EmailAddress {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    EmailAddress::get_extend(|q| q, conn)
+    EmailAddress::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -2014,7 +2015,6 @@ impl EmailAddress {
       email_addresses::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> email_addresses::BoxedQuery<'b, diesel::pg::Pg>,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -2498,6 +2498,7 @@ impl Identity {
       .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Identity, diesel::result::Error>>
        + Send
@@ -2505,7 +2506,7 @@ impl Identity {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    Identity::get_extend(|q| q, conn)
+    Identity::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -2574,7 +2575,6 @@ impl Identity {
       identities::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> identities::BoxedQuery<'b, diesel::pg::Pg>,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -2990,6 +2990,7 @@ impl PasswordResetToken {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<
     Output = Result<PasswordResetToken, diesel::result::Error>,
@@ -2998,7 +2999,7 @@ impl PasswordResetToken {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    PasswordResetToken::get_extend(|q| q, conn)
+    PasswordResetToken::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -3057,7 +3058,6 @@ impl PasswordResetToken {
       password_reset_tokens::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> password_reset_tokens::BoxedQuery<'b, diesel::pg::Pg>,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -3523,6 +3523,7 @@ impl RefreshToken {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<RefreshToken, diesel::result::Error>>
        + Send
@@ -3530,7 +3531,7 @@ impl RefreshToken {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    RefreshToken::get_extend(|q| q, conn)
+    RefreshToken::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -3601,7 +3602,6 @@ impl RefreshToken {
       refresh_tokens::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> refresh_tokens::BoxedQuery<'b, diesel::pg::Pg>,
   {
-    use diesel::ExpressionMethods;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
@@ -4107,6 +4107,7 @@ impl Staff {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
        + Send
@@ -4114,7 +4115,7 @@ impl Staff {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    Staff::get_extend(|q| q, conn)
+    Staff::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -4147,6 +4148,62 @@ impl Staff {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
     Staff::get_many_extend(|q| q, conn)
+  }
+  pub fn get_with_soft_deleted_extend<'a, F, Conn>(
+    id: &'a TestType,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      staffs::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> staffs::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(staffs::table.filter(staffs::id.eq(id)).into_boxed()).first(conn)
+  }
+  pub fn get_with_soft_deleted<'a, Conn>(
+    id: &'a TestType,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Staff, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Staff::get_with_soft_deleted_extend(id, |q| q, conn)
+  }
+  pub fn get_many_with_soft_deleted_extend<'a, F, Conn>(
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      staffs::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> staffs::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(staffs::table.into_boxed()).load(conn)
+  }
+  pub fn get_many_with_soft_deleted<'a, Conn>(
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Staff::get_many_with_soft_deleted_extend(|q| q, conn)
   }
 }
 pub enum StaffOrderBy {
@@ -4306,6 +4363,152 @@ impl Staff {
   {
     Staff::paginate_extend(offset, limit, ordering, |q| q, conn)
   }
+  pub fn paginate_with_soft_deleted_extend<'a, F, Conn>(
+    limit: usize,
+    offset: usize,
+    ordering: Option<&'a Vec<StaffOrderBy>>,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      staffs::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> staffs::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = staffs::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.iter().enumerate() {
+        match ord {
+          StaffOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::id.asc());
+            } else {
+              q = q.then_order_by(staffs::id.asc());
+            }
+          }
+
+          StaffOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::id.desc());
+            } else {
+              q = q.then_order_by(staffs::id.desc());
+            }
+          }
+
+          StaffOrderBy::RoleAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::role.asc());
+            } else {
+              q = q.then_order_by(staffs::role.asc());
+            }
+          }
+
+          StaffOrderBy::RoleDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::role.desc());
+            } else {
+              q = q.then_order_by(staffs::role.desc());
+            }
+          }
+
+          StaffOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::identity_id.asc());
+            } else {
+              q = q.then_order_by(staffs::identity_id.asc());
+            }
+          }
+
+          StaffOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::identity_id.desc());
+            } else {
+              q = q.then_order_by(staffs::identity_id.desc());
+            }
+          }
+
+          StaffOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::created_at.asc());
+            } else {
+              q = q.then_order_by(staffs::created_at.asc());
+            }
+          }
+
+          StaffOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::created_at.desc());
+            } else {
+              q = q.then_order_by(staffs::created_at.desc());
+            }
+          }
+
+          StaffOrderBy::UpdatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::updated_at.asc());
+            } else {
+              q = q.then_order_by(staffs::updated_at.asc());
+            }
+          }
+
+          StaffOrderBy::UpdatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::updated_at.desc());
+            } else {
+              q = q.then_order_by(staffs::updated_at.desc());
+            }
+          }
+
+          StaffOrderBy::DeletedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(staffs::deleted_at.asc());
+            } else {
+              q = q.then_order_by(staffs::deleted_at.asc());
+            }
+          }
+
+          StaffOrderBy::DeletedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(staffs::deleted_at.desc());
+            } else {
+              q = q.then_order_by(staffs::deleted_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q = extend(
+      q.offset(offset.try_into().unwrap())
+        .limit(limit.try_into().unwrap()),
+    );
+    q.select(Staff::as_select()).load::<Staff>(conn)
+  }
+  pub fn paginate_with_soft_deleted<'a, Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&'a Vec<StaffOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<Staff>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Staff::paginate_with_soft_deleted_extend(
+      offset,
+      limit,
+      ordering,
+      |q| q,
+      conn,
+    )
+  }
 }
 impl Staff {
   pub fn count_extend<'a, F, Conn>(
@@ -4344,6 +4547,37 @@ impl Staff {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
     Staff::count_extend(|q| q, conn)
+  }
+  pub fn count_with_soft_deleted_extend<'a, F, Conn>(
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      staffs::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
+    ) -> staffs::BoxedQuery<
+      'b,
+      diesel::pg::Pg,
+      diesel::sql_types::BigInt,
+    >,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(staffs::table.count().into_boxed()).first(conn)
+  }
+  pub fn count_with_soft_deleted<'a, Conn>(
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    Staff::count_with_soft_deleted_extend(|q| q, conn)
   }
 }
 #[derive(
@@ -4602,6 +4836,7 @@ impl User {
     .first(conn)
   }
   pub fn get<'a, Conn>(
+    id: &'a TestType,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
        + Send
@@ -4609,7 +4844,7 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::get_extend(|q| q, conn)
+    User::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
@@ -4642,6 +4877,62 @@ impl User {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
     User::get_many_extend(|q| q, conn)
+  }
+  pub fn get_with_soft_deleted_extend<'a, F, Conn>(
+    id: &'a TestType,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(users::table.filter(users::id.eq(id)).into_boxed()).first(conn)
+  }
+  pub fn get_with_soft_deleted<'a, Conn>(
+    id: &'a TestType,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::get_with_soft_deleted_extend(id, |q| q, conn)
+  }
+  pub fn get_many_with_soft_deleted_extend<'a, F, Conn>(
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(users::table.into_boxed()).load(conn)
+  }
+  pub fn get_many_with_soft_deleted<'a, Conn>(
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::get_many_with_soft_deleted_extend(|q| q, conn)
   }
 }
 pub enum UserOrderBy {
@@ -4783,6 +5074,136 @@ impl User {
   {
     User::paginate_extend(offset, limit, ordering, |q| q, conn)
   }
+  pub fn paginate_with_soft_deleted_extend<'a, F, Conn>(
+    limit: usize,
+    offset: usize,
+    ordering: Option<&'a Vec<UserOrderBy>>,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let mut q = users::table.into_boxed();
+    if let Some(ordering) = ordering {
+      for (idx, ord) in ordering.iter().enumerate() {
+        match ord {
+          UserOrderBy::IdAsc => {
+            if idx == 0 {
+              q = q.order_by(users::id.asc());
+            } else {
+              q = q.then_order_by(users::id.asc());
+            }
+          }
+
+          UserOrderBy::IdDesc => {
+            if idx == 0 {
+              q = q.order_by(users::id.desc());
+            } else {
+              q = q.then_order_by(users::id.desc());
+            }
+          }
+
+          UserOrderBy::IdentityIdAsc => {
+            if idx == 0 {
+              q = q.order_by(users::identity_id.asc());
+            } else {
+              q = q.then_order_by(users::identity_id.asc());
+            }
+          }
+
+          UserOrderBy::IdentityIdDesc => {
+            if idx == 0 {
+              q = q.order_by(users::identity_id.desc());
+            } else {
+              q = q.then_order_by(users::identity_id.desc());
+            }
+          }
+
+          UserOrderBy::CreatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(users::created_at.asc());
+            } else {
+              q = q.then_order_by(users::created_at.asc());
+            }
+          }
+
+          UserOrderBy::CreatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(users::created_at.desc());
+            } else {
+              q = q.then_order_by(users::created_at.desc());
+            }
+          }
+
+          UserOrderBy::UpdatedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(users::updated_at.asc());
+            } else {
+              q = q.then_order_by(users::updated_at.asc());
+            }
+          }
+
+          UserOrderBy::UpdatedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(users::updated_at.desc());
+            } else {
+              q = q.then_order_by(users::updated_at.desc());
+            }
+          }
+
+          UserOrderBy::DeletedAtAsc => {
+            if idx == 0 {
+              q = q.order_by(users::deleted_at.asc());
+            } else {
+              q = q.then_order_by(users::deleted_at.asc());
+            }
+          }
+
+          UserOrderBy::DeletedAtDesc => {
+            if idx == 0 {
+              q = q.order_by(users::deleted_at.desc());
+            } else {
+              q = q.then_order_by(users::deleted_at.desc());
+            }
+          }
+        }
+      }
+    }
+    q = extend(
+      q.offset(offset.try_into().unwrap())
+        .limit(limit.try_into().unwrap()),
+    );
+    q.select(User::as_select()).load::<User>(conn)
+  }
+  pub fn paginate_with_soft_deleted<'a, Conn>(
+    offset: usize,
+    limit: usize,
+    ordering: Option<&'a Vec<UserOrderBy>>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::paginate_with_soft_deleted_extend(
+      offset,
+      limit,
+      ordering,
+      |q| q,
+      conn,
+    )
+  }
 }
 
 pub struct UserCursor {
@@ -4793,8 +5214,8 @@ pub struct UserCursor {
 impl From<User> for UserCursor {
   fn from(value: User) -> Self {
     Self {
-      id: value.id,
       created_at: value.created_at,
+      id: value.id,
     }
   }
 }
@@ -4936,6 +5357,7 @@ impl User {
                 )>>(),
             ),
         )
+        .filter(users::deleted_at.is_null())
         .into_boxed(),
     );
 
@@ -4955,6 +5377,198 @@ impl User {
   }
 
   pub fn has_previous_user_cursor_extend<'a, F, Conn>(
+    cursor: &'a UserCursor,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::IntoSql;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+
+    let q = extend(
+      users::table
+        .filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .lt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        )
+        .filter(users::deleted_at.is_null())
+        .into_boxed(),
+    );
+
+    diesel::select(diesel::dsl::exists(q)).get_result(conn)
+  }
+
+  pub fn paginate_by_user_cursor_with_soft_deleted<'a, Conn>(
+    after: Option<&'a UserCursor>,
+    before: Option<&'a UserCursor>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::paginate_by_user_cursor_with_soft_deleted_extend(
+      after,
+      before,
+      limit,
+      offset,
+      |q| q,
+      conn,
+    )
+  }
+  pub fn paginate_by_user_cursor_with_soft_deleted_extend<'a, F, Conn>(
+    after: Option<&'a UserCursor>,
+    before: Option<&'a UserCursor>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::IntoSql;
+    use diesel::QueryDsl;
+    use diesel::SelectableHelper;
+    use diesel_async::RunQueryDsl;
+    let create_query = || {
+      let mut q = users::table
+        .order_by(users::created_at.desc())
+        .then_order_by(users::id.asc())
+        .into_boxed();
+
+      if let Some(cursor) = after {
+        q = q.filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .gt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        );
+      }
+
+      if let Some(cursor) = before {
+        q = q.filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .lt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        );
+      }
+
+      extend(q)
+    };
+
+    let mut q = create_query();
+
+    //let mut has_last = false;
+
+    if let Some(offset) = offset {
+      q = q.offset(offset.try_into().unwrap());
+    }
+
+    if let Some(limit) = limit {
+      q = q.limit(limit.try_into().unwrap());
+    }
+
+    q.select(User::as_select()).load::<User>(conn)
+  }
+  pub fn has_next_user_cursor_with_soft_deleted<'a, Conn>(
+    cursor: &'a UserCursor,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::has_next_user_cursor_with_soft_deleted_extend(cursor, |q| q, conn)
+  }
+
+  pub fn has_next_user_cursor_with_soft_deleted_extend<'a, F, Conn>(
+    cursor: &'a UserCursor,
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg>,
+    ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::IntoSql;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+
+    let q = extend(
+      users::table
+        .filter(
+          (users::created_at, users::id)
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .gt(
+              (cursor.created_at, cursor.id)
+                .into_sql::<diesel::sql_types::Record<(
+                  diesel::sql_types::Timestamptz,
+                  diesel::sql_types::Uuid,
+                )>>(),
+            ),
+        )
+        .into_boxed(),
+    );
+
+    diesel::select(diesel::dsl::exists(q)).get_result(conn)
+  }
+
+  pub fn has_previous_user_cursor_with_soft_deleted<'a, Conn>(
+    cursor: &'a UserCursor,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::has_previous_user_cursor_with_soft_deleted_extend(cursor, |q| q, conn)
+  }
+
+  pub fn has_previous_user_cursor_with_soft_deleted_extend<'a, F, Conn>(
     cursor: &'a UserCursor,
     extend: F,
     conn: &'a mut Conn,
@@ -5029,5 +5643,36 @@ impl User {
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
     User::count_extend(|q| q, conn)
+  }
+  pub fn count_with_soft_deleted_extend<'a, F, Conn>(
+    extend: F,
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+    F: for<'b> Fn(
+      users::BoxedQuery<'b, diesel::pg::Pg, diesel::sql_types::BigInt>,
+    ) -> users::BoxedQuery<
+      'b,
+      diesel::pg::Pg,
+      diesel::sql_types::BigInt,
+    >,
+  {
+    use diesel::ExpressionMethods;
+    use diesel::QueryDsl;
+    use diesel_async::RunQueryDsl;
+    extend(users::table.count().into_boxed()).first(conn)
+  }
+  pub fn count_with_soft_deleted<'a, Conn>(
+    conn: &'a mut Conn,
+  ) -> impl std::future::Future<Output = Result<i64, diesel::result::Error>>
+       + Send
+       + 'a
+  where
+    Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
+  {
+    User::count_with_soft_deleted_extend(|q| q, conn)
   }
 }

@@ -827,7 +827,6 @@ pub fn model<W: Write>(
         many: get_config.many.unwrap_or(true),
         primary_keys: &primary_keys,
         soft_delete_column,
-        include_soft_deleted: get_config.include_soft_deleted.unwrap_or(false),
         model_name: &final_model_name,
         table_config,
         table,
@@ -858,9 +857,6 @@ pub fn model<W: Write>(
         use_async,
         table,
         backend,
-        include_soft_deleted: simple_paginate_config
-          .include_soft_deleted
-          .unwrap_or(false),
         soft_delete_column,
       },
       &mut w,
@@ -883,9 +879,6 @@ pub fn model<W: Write>(
         use_async,
         table,
         backend,
-        include_soft_deleted: cursor_paginate_config
-          .include_soft_deleted
-          .unwrap_or(false),
         soft_delete_column,
       },
       &mut w,
@@ -902,9 +895,6 @@ pub fn model<W: Write>(
         use_async,
         table,
         backend,
-        include_soft_deleted: count_config
-          .include_soft_deleted
-          .unwrap_or(false),
         soft_delete_column,
       },
       &mut w,
@@ -1463,7 +1453,6 @@ struct SimplePaginateArgs<'a> {
   columns: &'a Vec<Column>,
   ordering_options: &'a OrderingOptionsConfig,
   backend: &'a SqlBackend,
-  include_soft_deleted: bool,
   order_by_enum_derives: Option<&'a Vec<String>>,
   soft_delete_column: Option<&'a Column>,
 }
@@ -1564,9 +1553,10 @@ fn simple_paginate<W: Write>(
       query_dsl: true,
       use_async: args.use_async,
       selectable_helper: true,
-      expression_methods: !args.include_soft_deleted
-        || !matches!(args.ordering_options, OrderingOptionsConfig::None)
-          && args.soft_delete_column.is_some(),
+      expression_methods: !matches!(
+        args.ordering_options,
+        OrderingOptionsConfig::None
+      ) && args.soft_delete_column.is_some(),
       ..Default::default()
     },
     &mut w,
@@ -1585,38 +1575,15 @@ fn simple_paginate<W: Write>(
     )?;
   }
 
-  if let Some(col) = args.soft_delete_column {
-    if !args.include_soft_deleted {
-      if col.r#type.is_boolean() {
-        writeln!(
-          w,
-          ".filter({table}::{column}.eq(false))",
-          table = args.table.name,
-          column = col.name,
-        )?;
-      } else if col.r#type.is_integer() {
-        writeln!(
-          w,
-          ".filter({table}::{column}.eq(0))",
-          table = args.table.name,
-          column = col.name,
-        )?;
-      } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-        writeln!(
-          w,
-          ".filter({table}::{column}.is_null())",
-          table = args.table.name,
-          column = col.name,
-        )?;
-      } else {
-        return Err(anyhow::anyhow!(
-          "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
-          col.r#type,
-          col.name,
-          args.table.name
-        ));
-      }
-    }
+  if args.soft_delete_column.is_some() {
+    writeln!(
+      w,
+      ".{}",
+      soft_delete_filter(&SoftDeleteFilterArgs {
+        table_name: &args.table.name,
+        soft_delete_column: args.soft_delete_column,
+      })?
+    )?;
   }
 
   if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
@@ -1799,6 +1766,258 @@ fn simple_paginate<W: Write>(
     model_name = args.model_name
   )?;
   writeln!(w, "}}")?;
+
+  if args.soft_delete_column.is_some() {
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "paginate_with_soft_deleted_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+
+    const EXTEND_NAME: &str = "extend";
+    if let OrderingOptionsConfig::None = args.ordering_options {
+      write!(
+        w,
+        "limit: usize, offset: usize, {EXTEND_NAME}: F, conn: &'a mut Conn",
+      )?;
+    } else {
+      write!(
+      w,
+      "limit: usize, offset: usize, ordering: Option<&'a Vec<{order_enum_name}>>, {EXTEND_NAME}: F, conn: &'a mut Conn",
+    )?;
+    }
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+    F: for<'b> Fn(
+      {table}::BoxedQuery<'b, {backend}>,
+    ) -> {table}::BoxedQuery<'b, {backend}>,
+  ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        query_dsl: true,
+        use_async: args.use_async,
+        selectable_helper: true,
+        expression_methods: !matches!(
+          args.ordering_options,
+          OrderingOptionsConfig::None
+        ) && args.soft_delete_column.is_some(),
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    const QUERY_NAME: &str = "q";
+
+    if let OrderingOptionsConfig::None = args.ordering_options {
+      writeln!(w, "{table}::table", table = args.table.name,)?;
+    } else {
+      writeln!(
+        w,
+        "let mut {} = {table}::table",
+        QUERY_NAME,
+        table = args.table.name,
+      )?;
+    }
+
+    if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
+      write!(w, ".into_boxed();")?;
+    }
+
+    fn order(
+      idx_name: &str,
+      query_name: &str,
+      table: &str,
+      column: &str,
+      desc: bool,
+    ) -> String {
+      format!(
+        "
+      {{ 
+        if {index} == 0 {{
+          {query} = {query}.order_by({table}::{column}.{ordering}());
+        }} else {{
+          {query} = {query}.then_order_by({table}::{column}.{ordering}());
+        }}
+      }}
+      ",
+        index = idx_name,
+        query = query_name,
+        table = table,
+        column = column,
+        ordering = if desc { "desc" } else { "asc" }
+      )
+    }
+
+    let idx = "idx";
+    let ord = "ord";
+
+    if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
+      writeln!(w, "if let Some(ordering) = ordering {{")?;
+      writeln!(
+        w,
+        "for ({}, {}) in ordering.iter().enumerate() {{",
+        idx, ord
+      )?;
+      writeln!(w, "match {} {{", ord)?;
+      match args.ordering_options {
+        OrderingOptionsConfig::None => {}
+        OrderingOptionsConfig::All => {
+          for c in args.columns {
+            writeln!(
+              w,
+              "{}::{}Asc => {}",
+              &order_enum_name,
+              c.name.to_pascal_case(),
+              order(idx, QUERY_NAME, &args.table.name, &c.name, false)
+            )?;
+            writeln!(
+              w,
+              "{}::{}Desc =>  {}",
+              &order_enum_name,
+              c.name.to_pascal_case(),
+              order(idx, QUERY_NAME, &args.table.name, &c.name, true)
+            )?;
+          }
+        }
+        OrderingOptionsConfig::AllAsc => {
+          for c in args.columns {
+            writeln!(
+              w,
+              "{}::{}Asc => {}",
+              &order_enum_name,
+              c.name.to_pascal_case(),
+              order(idx, QUERY_NAME, &args.table.name, &c.name, false)
+            )?;
+          }
+        }
+        OrderingOptionsConfig::AllDesc => {
+          for c in args.columns {
+            writeln!(
+              w,
+              "{}::{}Desc => {}",
+              &order_enum_name,
+              c.name.to_pascal_case(),
+              order(idx, QUERY_NAME, &args.table.name, &c.name, true)
+            )?;
+          }
+        }
+        OrderingOptionsConfig::Columns(order_configs) => {
+          for col in args.columns {
+            if let Some(o) = order_configs.get(&col.name) {
+              match o {
+                crate::config::Order::Asc => {
+                  writeln!(
+                    w,
+                    "{}::{}Asc => {}",
+                    &order_enum_name,
+                    col.name.to_pascal_case(),
+                    order(idx, QUERY_NAME, &args.table.name, &col.name, false)
+                  )?;
+                }
+                crate::config::Order::Desc => {
+                  writeln!(
+                    w,
+                    "{}::{}Desc => {}",
+                    &order_enum_name,
+                    col.name.to_pascal_case(),
+                    order(idx, QUERY_NAME, &args.table.name, &col.name, true)
+                  )?;
+                }
+                crate::config::Order::Both => {
+                  writeln!(
+                    w,
+                    "{}::{}Asc => {}",
+                    &order_enum_name,
+                    col.name.to_pascal_case(),
+                    order(idx, QUERY_NAME, &args.table.name, &col.name, false)
+                  )?;
+                  writeln!(
+                    w,
+                    "{}::{}Desc => {}",
+                    &order_enum_name,
+                    col.name.to_pascal_case(),
+                    order(idx, QUERY_NAME, &args.table.name, &col.name, true)
+                  )?;
+                }
+              }
+            }
+          }
+        }
+      }
+      writeln!(w, "}}")?;
+      writeln!(w, "}}")?;
+      writeln!(w, "}}")?;
+    }
+
+    if !matches!(args.ordering_options, OrderingOptionsConfig::None) {
+      write!(
+      w,
+      "q = {extend_name}({query_name}.offset(offset.try_into().unwrap()).limit(limit.try_into().unwrap()));",
+      extend_name = EXTEND_NAME,
+      query_name = QUERY_NAME
+    )?;
+    }
+    writeln!(
+      w,
+      "{query_name}.select({model}::as_select()).load::<{model}>(conn)",
+      query_name = QUERY_NAME,
+      model = args.model_name
+    )?;
+
+    writeln!(w, "}}")?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "paginate_with_soft_deleted",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+
+    if let OrderingOptionsConfig::None = args.ordering_options {
+      write!(w, "offset: u32, limit: u32, conn: &'a mut Conn",)?;
+    } else {
+      write!(
+      w,
+      "offset: usize, limit: usize, ordering: Option<&'a Vec<{enum_name}>>, conn: &'a mut Conn",
+      enum_name = &order_enum_name,
+    )?;
+    }
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, "{{")?;
+    writeln!(
+    w,
+    "{model_name}::paginate_with_soft_deleted_extend(offset, limit, ordering, |q| q, conn)",
+    model_name = args.model_name
+  )?;
+    writeln!(w, "}}")?;
+  }
+
   writeln!(w, "}}")?;
   Ok(())
 }
@@ -1811,7 +2030,6 @@ struct CursorPaginateArgs<'a> {
   table_config: Option<&'a TableConfig>,
   cursors: &'a HashMap<String, CursorConfig>,
   backend: &'a SqlBackend,
-  include_soft_deleted: bool,
   default_cursor_derives: Option<&'a ListConfig<String>>,
   type_overrides: &'a HashMap<String, String>,
   soft_delete_column: Option<&'a Column>,
@@ -1914,6 +2132,14 @@ fn cursor_paginate<W: Write>(
       format!("paginate_by_{}", cursor_name.to_snake_case());
     let cursor_paginate_extend_fn_name =
       format!("{}_extend", &cursor_paginate_fn_name);
+
+    let cursor_paginate_soft_del_fn_name = format!(
+      "paginate_by_{}_with_soft_deleted",
+      cursor_name.to_snake_case()
+    );
+
+    let cursor_paginate_soft_del_extend_fn_name =
+      format!("{}_extend", &cursor_paginate_soft_del_fn_name);
 
     function_signature(
       &FunctionSignatureArgs {
@@ -2045,38 +2271,15 @@ fn cursor_paginate<W: Write>(
       }
     }
 
-    if let Some(col) = args.soft_delete_column {
-      if !args.include_soft_deleted {
-        if col.r#type.is_boolean() {
-          writeln!(
-            w,
-            ".filter({table}::{column}.eq(false))",
-            table = args.table.name,
-            column = col.name,
-          )?;
-        } else if col.r#type.is_integer() {
-          writeln!(
-            w,
-            ".filter({table}::{column}.eq(0))",
-            table = args.table.name,
-            column = col.name,
-          )?;
-        } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-          writeln!(
-            w,
-            ".filter({table}::{column}.is_null())",
-            table = args.table.name,
-            column = col.name,
-          )?;
-        } else {
-          return Err(anyhow::anyhow!(
-          "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
-          col.r#type,
-          col.name,
-          args.table.name
-        ));
-        }
-      }
+    if args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
     }
     writeln!(w, ".into_boxed();")?;
 
@@ -2260,6 +2463,456 @@ fn cursor_paginate<W: Write>(
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
              )
+      ",
+      table = &args.table.name,
+    )?;
+
+    if args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
+    }
+
+    writeln!(
+      w,
+      "
+             .into_boxed(),
+         );
+         
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+    )?;
+    // HAS NEXT
+
+    // HAS PREVIOUS
+    let has_previous = format!("has_previous_{}", cursor_name.to_snake_case());
+    let has_previous_extend = format!("{}_extend", &has_previous);
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_previous,
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {model}::{has_previous_extend}(cursor, |q| q, conn)
+      }}
+      ",
+      model = &args.model_name,
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_previous_extend,
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+               ({table_columns})
+                 .into_sql::<diesel::sql_types::Record<_>>()
+                 .lt(
+                   ({cursor_fields})
+                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+                 ),
+             )
+      ",
+      table = &args.table.name,
+    )?;
+    if args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
+    }
+    writeln!(
+      w,
+      "
+             .into_boxed(),
+         );
+         
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+    )?;
+    // HAS PREVIOUS
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &cursor_paginate_soft_del_fn_name,
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, "{{
+      {model_name}::{cursor_paginate_soft_del_extend_fn_name}(after, before, limit, offset, |q| q, conn)
+     }}",
+     model_name = args.model_name,
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &cursor_paginate_soft_del_extend_fn_name,
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        into_sql: true,
+        selectable_helper: true,
+        expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "let create_query = || {{")?;
+
+    writeln!(
+      w,
+      "let mut {QUERY_NAME} = {table}::table",
+      table = args.table.name,
+    )?;
+
+    for (idx, col) in config.columns.iter().enumerate() {
+      match col {
+        crate::config::CursorColumnConfig::Column(name) => {
+          writeln!(
+            w,
+            ".{order_fn}({table}::{column}.asc())",
+            order_fn = if idx != 0 {
+              "then_order_by"
+            } else {
+              "order_by"
+            },
+            table = args.table.name,
+            column = name,
+          )?;
+        }
+        crate::config::CursorColumnConfig::WithOrdering { name, order } => {
+          match order {
+            crate::config::CursorColumnOrder::Asc => {
+              writeln!(
+                w,
+                ".{order_fn}({table}::{column}.asc())",
+                order_fn = if idx != 0 {
+                  "then_order_by"
+                } else {
+                  "order_by"
+                },
+                table = args.table.name,
+                column = name,
+              )?;
+            }
+            crate::config::CursorColumnOrder::Desc => {
+              writeln!(
+                w,
+                ".{order_fn}({table}::{column}.desc())",
+                order_fn = if idx != 0 {
+                  "then_order_by"
+                } else {
+                  "order_by"
+                },
+                table = args.table.name,
+                column = name,
+              )?;
+            }
+            crate::config::CursorColumnOrder::None => {}
+          }
+        }
+      }
+    }
+
+    writeln!(w, ".into_boxed();")?;
+
+    let mut vec = Vec::new();
+
+    for cursor_col in config.columns.iter() {
+      let col = args.table.get_column(cursor_col.name()).unwrap();
+
+      let name = get_field_name(
+        args.table_config.and_then(|t| t.columns.get(&col.name)),
+        cursor_col.name(),
+      );
+
+      vec.push((
+        format!("{}::{}", &args.table.name, cursor_col.name()),
+        format!("{}.{}", "cursor", name),
+        col.r#type.to_qualified_string(args.table_imports_root),
+      ));
+    }
+
+    let table_columns = vec
+      .iter()
+      .map(|(col, _, _)| col.deref())
+      .collect::<Vec<&str>>()
+      .join(", ");
+
+    let cursor_fields = vec
+      .iter()
+      .map(|(_, field, _)| field.deref())
+      .collect::<Vec<&str>>()
+      .join(", ");
+
+    let record_types = vec
+      .iter()
+      .map(|(_, _, ty)| ty.deref())
+      .collect::<Vec<&str>>()
+      .join(", ");
+
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = after {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          ({table_columns})
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .gt(
+              ({cursor_fields})
+                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+            ),
+        );
+      }}
+      ",
+    )?;
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = before {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          ({table_columns})
+            .into_sql::<diesel::sql_types::Record<_>>()
+            .lt(
+              ({cursor_fields})
+                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+            ),
+        );
+      }}
+      ",
+    )?;
+
+    writeln!(w, "{EXTEND_NAME}({QUERY_NAME})")?;
+    writeln!(w, "}};")?;
+
+    writeln!(
+      w,
+      "
+      let mut {QUERY_NAME} = create_query();
+
+      //let mut has_last = false;
+
+      if let Some(offset) = offset {{
+        {QUERY_NAME} = {QUERY_NAME}.offset(offset.try_into().unwrap());
+      }}
+
+      if let Some(limit) = limit {{
+        {QUERY_NAME} = {QUERY_NAME}.limit(limit.try_into().unwrap());
+      }}
+
+      "
+    )?;
+
+    writeln!(
+      w,
+      "{QUERY_NAME}.select({model}::as_select()).load::<{model}>(conn)",
+      model = args.model_name
+    )?;
+
+    writeln!(w, "}}")?;
+
+    // HAS NEXT
+    let has_next =
+      format!("has_next_{}_with_soft_deleted", cursor_name.to_snake_case());
+    let has_next_extend = format!("{}_extend", &has_next);
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_next,
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {model}::{has_next_extend}(cursor, |q| q, conn)
+      }}
+      ",
+      model = &args.model_name,
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: &has_next_extend,
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+               ({table_columns})
+                 .into_sql::<diesel::sql_types::Record<_>>()
+                 .gt(
+                   ({cursor_fields})
+                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
+                 ),
+             )
              .into_boxed(),
          );
          
@@ -2271,7 +2924,10 @@ fn cursor_paginate<W: Write>(
     // HAS NEXT
 
     // HAS PREVIOUS
-    let has_previous = format!("has_previous_{}", cursor_name.to_snake_case());
+    let has_previous = format!(
+      "has_previous_{}_with_soft_deleted",
+      cursor_name.to_snake_case()
+    );
     let has_previous_extend = format!("{}_extend", &has_previous);
 
     function_signature(
@@ -2375,7 +3031,6 @@ pub struct CountArgs<'a> {
   model_name: &'a str,
   table: &'a Table,
   backend: &'a SqlBackend,
-  include_soft_deleted: bool,
   soft_delete_column: Option<&'a Column>,
 }
 
@@ -2417,13 +3072,12 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   )?;
 
   writeln!(w, "extend({table}::table.count()", table = args.table.name)?;
-  if !args.include_soft_deleted && args.soft_delete_column.is_some() {
+  if args.soft_delete_column.is_some() {
     writeln!(
       w,
       ".{}",
       soft_delete_filter(&SoftDeleteFilterArgs {
         table_name: &args.table.name,
-        include_soft_deleted: args.include_soft_deleted,
         soft_delete_column: args.soft_delete_column,
       })?
     )?;
@@ -2460,6 +3114,76 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   )?;
   writeln!(w, "}}")?;
 
+  if args.soft_delete_column.is_some() {
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "count_with_soft_deleted_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    writeln!(w, "extend: F, conn: &'a mut Conn",)?;
+    writeln!(
+      w,
+      ")  -> {}{}",
+      return_type(args.use_async, false, "i64"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(w,
+    "
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
+    ", 
+    table = args.table.name, backend = args.backend.path()
+  )?;
+
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "extend({table}::table.count()", table = args.table.name)?;
+
+    writeln!(w, ".into_boxed()).first(conn)",)?;
+
+    writeln!(w, "}}")?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "count_with_soft_deleted",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "conn: &'a mut Conn",)?;
+
+    writeln!(
+      w,
+      ")  -> {}{}",
+      return_type(args.use_async, false, "i64"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+
+    writeln!(w, "{{")?;
+    writeln!(
+      w,
+      "{model}::count_with_soft_deleted_extend(|q| q, conn)",
+      model = args.model_name
+    )?;
+    writeln!(w, "}}")?;
+  }
   writeln!(w, "}}")?;
   Ok(())
 }
@@ -2474,7 +3198,6 @@ pub struct GetArgs<'a> {
   primary_keys: &'a Vec<&'a Column>,
   type_overrides: &'a HashMap<String, String>,
   ref_type_overrides: &'a HashMap<String, String>,
-  include_soft_deleted: bool,
   soft_delete_column: Option<&'a Column>,
 }
 
@@ -2526,13 +3249,12 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
 
   writeln!(w, "extend({table}::table", table = args.table.name)?;
 
-  if !args.include_soft_deleted && args.soft_delete_column.is_some() {
+  if args.soft_delete_column.is_some() {
     writeln!(
       w,
       ".{}",
       soft_delete_filter(&SoftDeleteFilterArgs {
         table_name: &args.table.name,
-        include_soft_deleted: args.include_soft_deleted,
         soft_delete_column: args.soft_delete_column,
       })?
     )?;
@@ -2561,6 +3283,14 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
     },
     &mut w,
   )?;
+  write_ref_fn_params(
+    args.type_overrides,
+    args.ref_type_overrides,
+    args.primary_keys,
+    args.table_config.map(|t| t.columns.map()),
+    Some("'a"),
+    &mut w,
+  )?;
 
   writeln!(w, "conn: &'a mut Conn",)?;
 
@@ -2574,11 +3304,14 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
   operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
 
   writeln!(w, "{{")?;
-  writeln!(
-    w,
-    "{model}::get_extend(|q| q, conn)",
-    model = args.model_name
-  )?;
+  writeln!(w, "{model}::get_extend(", model = args.model_name)?;
+  for col in args.primary_keys {
+    let config = args.table_config.and_then(|t| t.columns.get(&col.name));
+    let rename = get_field_name(config, &col.name);
+
+    writeln!(w, "{rename},", rename = rename,)?;
+  }
+  writeln!(w, "|q| q, conn)",)?;
   writeln!(w, "}}")?;
 
   if args.many {
@@ -2619,13 +3352,12 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
 
     writeln!(w, "extend({table}::table", table = args.table.name)?;
 
-    if !args.include_soft_deleted && args.soft_delete_column.is_some() {
+    if args.soft_delete_column.is_some() {
       writeln!(
         w,
         ".{}",
         soft_delete_filter(&SoftDeleteFilterArgs {
           table_name: &args.table.name,
-          include_soft_deleted: args.include_soft_deleted,
           soft_delete_column: args.soft_delete_column,
         })?
       )?;
@@ -2664,6 +3396,184 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
     writeln!(w, "}}")?;
   }
 
+  if args.soft_delete_column.is_some() {
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "get_with_soft_deleted_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+
+    write_ref_fn_params(
+      args.type_overrides,
+      args.ref_type_overrides,
+      args.primary_keys,
+      args.table_config.map(|t| t.columns.map()),
+      Some("'a"),
+      &mut w,
+    )?;
+    writeln!(w, "extend: F, conn: &'a mut Conn",)?;
+    writeln!(
+      w,
+      ")  -> {}{}",
+      return_type(args.use_async, false, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(w,
+    "
+      F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
+    ", 
+    table = args.table.name, backend = args.backend.path()
+  )?;
+
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "extend({table}::table", table = args.table.name)?;
+
+    for i in args.primary_keys {
+      let config = args.table_config.and_then(|t| t.columns.get(&i.name));
+      let rename = get_field_name(config, &i.name);
+
+      writeln!(
+        w,
+        ".filter({table}::{column}.eq({rename}))",
+        table = args.table.name,
+        column = i.name,
+      )?;
+    }
+
+    writeln!(w, ".into_boxed()).first(conn)",)?;
+
+    writeln!(w, "}}")?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "get_with_soft_deleted",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write_ref_fn_params(
+      args.type_overrides,
+      args.ref_type_overrides,
+      args.primary_keys,
+      args.table_config.map(|t| t.columns.map()),
+      Some("'a"),
+      &mut w,
+    )?;
+
+    writeln!(w, "conn: &'a mut Conn",)?;
+
+    writeln!(
+      w,
+      ")  -> {}{}",
+      return_type(args.use_async, false, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+
+    writeln!(w, "{{")?;
+    writeln!(
+      w,
+      "{model}::get_with_soft_deleted_extend(",
+      model = args.model_name
+    )?;
+    for col in args.primary_keys {
+      let config = args.table_config.and_then(|t| t.columns.get(&col.name));
+      let rename = get_field_name(config, &col.name);
+
+      writeln!(w, "{rename},", rename = rename,)?;
+    }
+    writeln!(w, "|q| q, conn)",)?;
+    writeln!(w, "}}")?;
+
+    if args.many {
+      function_signature(
+        &FunctionSignatureArgs {
+          use_async: args.use_async,
+          name: "get_many_with_soft_deleted_extend",
+          generics: Some(vec!["'a", "F", "Conn"]),
+        },
+        &mut w,
+      )?;
+      writeln!(w, "extend: F, conn: &'a mut Conn",)?;
+      writeln!(
+        w,
+        ")  -> {}{}",
+        return_type(args.use_async, true, args.model_name),
+        if args.use_async { " + 'a" } else { "" },
+      )?;
+      operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+      writeln!(w, ",")?;
+      writeln!(w,
+        "
+          F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
+        ", 
+        table = args.table.name, backend = args.backend.path()
+      )?;
+
+      writeln!(w, "{{")?;
+      default_operation_uses(
+        &DefaultUsesArgs {
+          use_async: args.use_async,
+          query_dsl: true,
+          expression_methods: true,
+          ..Default::default()
+        },
+        &mut w,
+      )?;
+
+      writeln!(w, "extend({table}::table", table = args.table.name)?;
+
+      writeln!(w, ".into_boxed()).load(conn)",)?;
+
+      writeln!(w, "}}")?;
+
+      function_signature(
+        &FunctionSignatureArgs {
+          use_async: args.use_async,
+          name: "get_many_with_soft_deleted",
+          generics: Some(vec!["'a", "Conn"]),
+        },
+        &mut w,
+      )?;
+
+      writeln!(w, "conn: &'a mut Conn",)?;
+
+      writeln!(
+        w,
+        ")  -> {}{}",
+        return_type(args.use_async, true, args.model_name),
+        if args.use_async { " + 'a" } else { "" },
+      )?;
+
+      operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+
+      writeln!(w, "{{")?;
+      writeln!(
+        w,
+        "{model}::get_many_with_soft_deleted_extend(|q| q, conn)",
+        model = args.model_name
+      )?;
+      writeln!(w, "}}")?;
+    }
+  }
+
   writeln!(w, "}}")?;
   Ok(())
 }
@@ -2691,7 +3601,6 @@ fn return_type(use_async: bool, multiple: bool, result: &str) -> String {
 
 pub struct SoftDeleteFilterArgs<'a> {
   pub table_name: &'a str,
-  pub include_soft_deleted: bool,
   pub soft_delete_column: Option<&'a Column>,
 }
 
@@ -2700,37 +3609,35 @@ fn soft_delete_filter(
 ) -> Result<String, anyhow::Error> {
   let mut str = Vec::new();
 
-  if !args.include_soft_deleted {
-    if let Some(col) = args.soft_delete_column {
-      if col.r#type.is_boolean() {
-        writeln!(
-          str,
-          "filter({table}::{column}.eq(false))",
-          table = args.table_name,
-          column = col.name
-        )?;
-      } else if col.r#type.is_integer() {
-        writeln!(
-          str,
-          "filter({table}::{column}.eq(0))",
-          table = args.table_name,
-          column = col.name
-        )?;
-      } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
-        writeln!(
-          str,
-          "filter({table}::{column}.is_null())",
-          table = args.table_name,
-          column = col.name
-        )?;
-      } else {
-        return Err(anyhow::anyhow!(
+  if let Some(col) = args.soft_delete_column {
+    if col.r#type.is_boolean() {
+      writeln!(
+        str,
+        "filter({table}::{column}.eq(false))",
+        table = args.table_name,
+        column = col.name
+      )?;
+    } else if col.r#type.is_integer() {
+      writeln!(
+        str,
+        "filter({table}::{column}.eq(0))",
+        table = args.table_name,
+        column = col.name
+      )?;
+    } else if col.r#type.is_nullable_and(|t| t.is_datetime()) {
+      writeln!(
+        str,
+        "filter({table}::{column}.is_null())",
+        table = args.table_name,
+        column = col.name
+      )?;
+    } else {
+      return Err(anyhow::anyhow!(
           "Unsupported soft delete column type '{}' of column '{}' in table '{}'. Supported class of types are boolean, datetime, integer",
           col.r#type,
           col.name,
           args.table_name
         ));
-      }
     }
   }
 
