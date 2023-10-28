@@ -2207,8 +2207,8 @@ fn cursor_paginate<W: Write>(
 
     let mut ordering = vec![];
     for (idx, col) in config.columns.iter().enumerate() {
-      match col {
-        crate::config::CursorColumnConfig::Column(name) => {
+      match col.order() {
+        crate::config::CursorColumnOrder::Asc => {
           writeln!(
             ordering,
             ".{order_fn}({table}::{column}.asc())",
@@ -2221,37 +2221,20 @@ fn cursor_paginate<W: Write>(
             column = name,
           )?;
         }
-        crate::config::CursorColumnConfig::WithOrdering { name, order } => {
-          match order {
-            crate::config::CursorColumnOrder::Asc => {
-              writeln!(
-                ordering,
-                ".{order_fn}({table}::{column}.asc())",
-                order_fn = if idx != 0 {
-                  "then_order_by"
-                } else {
-                  "order_by"
-                },
-                table = args.table.name,
-                column = name,
-              )?;
-            }
-            crate::config::CursorColumnOrder::Desc => {
-              writeln!(
-                ordering,
-                ".{order_fn}({table}::{column}.desc())",
-                order_fn = if idx != 0 {
-                  "then_order_by"
-                } else {
-                  "order_by"
-                },
-                table = args.table.name,
-                column = name,
-              )?;
-            }
-            crate::config::CursorColumnOrder::None => {}
-          }
+        crate::config::CursorColumnOrder::Desc => {
+          writeln!(
+            ordering,
+            ".{order_fn}({table}::{column}.desc())",
+            order_fn = if idx != 0 {
+              "then_order_by"
+            } else {
+              "order_by"
+            },
+            table = args.table.name,
+            column = name,
+          )?;
         }
+        crate::config::CursorColumnOrder::None => {}
       }
     }
     let ordering = String::from_utf8_lossy(&ordering);
@@ -2449,7 +2432,9 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             ){ordering}
+             )
+             .limit(1)
+             {ordering}
       ",
       table = &args.table.name,
     )?;
@@ -2557,7 +2542,9 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             ){ordering}
+             )
+             .limit(1)
+             {ordering}
       ",
       table = &args.table.name,
     )?;
@@ -2839,7 +2826,9 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             ){ordering}
+             )
+             .limit(1)
+             {ordering}
              .into_boxed(),
          );
 
@@ -2931,7 +2920,9 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             ){ordering}
+             )
+             .limit(1)
+             {ordering}
              .into_boxed(),
          );
 

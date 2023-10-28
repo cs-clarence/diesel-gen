@@ -320,7 +320,7 @@ pub struct CursorConfig {
   pub columns: Vec<CursorColumnConfig>,
 }
 
-#[derive(Deserialize, Default, Clone, Debug, JsonSchema)]
+#[derive(Deserialize, Default, Clone, Debug, JsonSchema, Copy)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum CursorColumnOrder {
@@ -347,6 +347,12 @@ impl CursorColumnConfig {
     match self {
       CursorColumnConfig::Column(name) => name,
       CursorColumnConfig::WithOrdering { name, .. } => name,
+    }
+  }
+  pub fn order(&self) -> CursorColumnOrder {
+    match self {
+      CursorColumnConfig::Column(_) => CursorColumnOrder::None,
+      CursorColumnConfig::WithOrdering { order, .. } => *order,
     }
   }
 }
