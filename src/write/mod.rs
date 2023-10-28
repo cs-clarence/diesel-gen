@@ -1599,7 +1599,7 @@ fn simple_paginate<W: Write>(
   ) -> String {
     format!(
       "
-      {{ 
+      {{
         if {index} == 0 {{
           {query} = {query}.order_by({table}::{column}.{ordering}());
         }} else {{
@@ -1849,7 +1849,7 @@ fn simple_paginate<W: Write>(
     ) -> String {
       format!(
         "
-      {{ 
+      {{
         if {index} == 0 {{
           {query} = {query}.order_by({table}::{column}.{ordering}());
         }} else {{
@@ -2125,26 +2125,14 @@ fn cursor_paginate<W: Write>(
     writeln!(w, "}}")?;
   }
 
-  writeln!(w, "impl {} {{", args.model_name)?;
   for (name, config) in args.cursors {
     let cursor_name = name.to_pascal_case();
-    let cursor_paginate_fn_name =
-      format!("paginate_by_{}", cursor_name.to_snake_case());
-    let cursor_paginate_extend_fn_name =
-      format!("{}_extend", &cursor_paginate_fn_name);
-
-    let cursor_paginate_soft_del_fn_name = format!(
-      "paginate_by_{}_with_soft_deleted",
-      cursor_name.to_snake_case()
-    );
-
-    let cursor_paginate_soft_del_extend_fn_name =
-      format!("{}_extend", &cursor_paginate_soft_del_fn_name);
+    writeln!(w, "impl {} {{", &cursor_name)?;
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &cursor_paginate_fn_name,
+        name: "paginate",
         generics: Some(vec!["'a", "Conn"]),
       },
       &mut w,
@@ -2161,10 +2149,11 @@ fn cursor_paginate<W: Write>(
       if args.use_async { " + 'a" } else { "" },
     )?;
     operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
-    writeln!(w, "{{
-      {model_name}::{cursor_paginate_extend_fn_name}(after, before, limit, offset, |q| q, conn)
-     }}",
-     model_name = args.model_name,
+    writeln!(
+      w,
+      "{{
+      {cursor_name}::paginate_extend(after, before, limit, offset, |q| q, conn)
+     }}"
     )?;
 
     const EXTEND_NAME: &str = "extend";
@@ -2172,7 +2161,7 @@ fn cursor_paginate<W: Write>(
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &cursor_paginate_extend_fn_name,
+        name: "paginate_extend",
         generics: Some(vec!["'a", "F", "Conn"]),
       },
       &mut w,
@@ -2378,13 +2367,11 @@ fn cursor_paginate<W: Write>(
 
     writeln!(w, "}}")?;
     // HAS NEXT
-    let has_next = format!("has_next_{}", cursor_name.to_snake_case());
-    let has_next_extend = format!("{}_extend", &has_next);
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_next,
+        name: "has_next",
         generics: Some(vec!["'a", "Conn"]),
       },
       &mut w,
@@ -2402,16 +2389,15 @@ fn cursor_paginate<W: Write>(
       w,
       "
       {{
-         {model}::{has_next_extend}(cursor, |q| q, conn)
+         {cursor_name}::has_next_extend(cursor, |q| q, conn)
       }}
-      ",
-      model = &args.model_name,
+      "
     )?;
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_next_extend,
+        name: "has_next_extend",
         generics: Some(vec!["'a", "F", "Conn"]),
       },
       &mut w,
@@ -2483,7 +2469,7 @@ fn cursor_paginate<W: Write>(
       "
              .into_boxed(),
          );
-         
+
          diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
       }}
       ",
@@ -2491,13 +2477,11 @@ fn cursor_paginate<W: Write>(
     // HAS NEXT
 
     // HAS PREVIOUS
-    let has_previous = format!("has_previous_{}", cursor_name.to_snake_case());
-    let has_previous_extend = format!("{}_extend", &has_previous);
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_previous,
+        name: "has_previous",
         generics: Some(vec!["'a", "Conn"]),
       },
       &mut w,
@@ -2515,16 +2499,15 @@ fn cursor_paginate<W: Write>(
       w,
       "
       {{
-         {model}::{has_previous_extend}(cursor, |q| q, conn)
+         {cursor_name}::has_previous_extend(cursor, |q| q, conn)
       }}
-      ",
-      model = &args.model_name,
+      "
     )?;
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_previous_extend,
+        name: "has_previous_extend",
         generics: Some(vec!["'a", "F", "Conn"]),
       },
       &mut w,
@@ -2594,7 +2577,7 @@ fn cursor_paginate<W: Write>(
       "
              .into_boxed(),
          );
-         
+
          diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
       }}
       ",
@@ -2604,7 +2587,7 @@ fn cursor_paginate<W: Write>(
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &cursor_paginate_soft_del_fn_name,
+        name: "paginate_with_soft_deleted",
         generics: Some(vec!["'a", "Conn"]),
       },
       &mut w,
@@ -2622,15 +2605,14 @@ fn cursor_paginate<W: Write>(
     )?;
     operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
     writeln!(w, "{{
-      {model_name}::{cursor_paginate_soft_del_extend_fn_name}(after, before, limit, offset, |q| q, conn)
-     }}",
-     model_name = args.model_name,
+      {cursor_name}::paginate_with_soft_deleted_extend(after, before, limit, offset, |q| q, conn)
+     }}"
     )?;
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &cursor_paginate_soft_del_extend_fn_name,
+        name: "paginate_with_soft_deleted_extend",
         generics: Some(vec!["'a", "F", "Conn"]),
       },
       &mut w,
@@ -2827,14 +2809,11 @@ fn cursor_paginate<W: Write>(
     writeln!(w, "}}")?;
 
     // HAS NEXT
-    let has_next =
-      format!("has_next_{}_with_soft_deleted", cursor_name.to_snake_case());
-    let has_next_extend = format!("{}_extend", &has_next);
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_next,
+        name: "has_next_with_soft_deleted",
         generics: Some(vec!["'a", "Conn"]),
       },
       &mut w,
@@ -2852,16 +2831,15 @@ fn cursor_paginate<W: Write>(
       w,
       "
       {{
-         {model}::{has_next_extend}(cursor, |q| q, conn)
+         {cursor_name}::has_next_with_soft_deleted_extend(cursor, |q| q, conn)
       }}
       ",
-      model = &args.model_name,
     )?;
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_next_extend,
+        name: "has_next_with_soft_deleted_extend",
         generics: Some(vec!["'a", "F", "Conn"]),
       },
       &mut w,
@@ -2915,7 +2893,7 @@ fn cursor_paginate<W: Write>(
              )
              .into_boxed(),
          );
-         
+
          diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
       }}
       ",
@@ -2924,16 +2902,10 @@ fn cursor_paginate<W: Write>(
     // HAS NEXT
 
     // HAS PREVIOUS
-    let has_previous = format!(
-      "has_previous_{}_with_soft_deleted",
-      cursor_name.to_snake_case()
-    );
-    let has_previous_extend = format!("{}_extend", &has_previous);
-
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_previous,
+        name: "has_previous_with_soft_deleted",
         generics: Some(vec!["'a", "Conn"]),
       },
       &mut w,
@@ -2951,16 +2923,15 @@ fn cursor_paginate<W: Write>(
       w,
       "
       {{
-         {model}::{has_previous_extend}(cursor, |q| q, conn)
+         {cursor_name}::has_previous_with_soft_deleted_extend(cursor, |q| q, conn)
       }}
       ",
-      model = &args.model_name,
     )?;
 
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
-        name: &has_previous_extend,
+        name: "has_previous_with_soft_deleted_extend",
         generics: Some(vec!["'a", "F", "Conn"]),
       },
       &mut w,
@@ -3014,15 +2985,15 @@ fn cursor_paginate<W: Write>(
              )
              .into_boxed(),
          );
-         
+
          diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
       }}
       ",
       table = &args.table.name,
     )?;
     // HAS PREVIOUS
+    writeln!(w, "}}\n")?;
   }
-  writeln!(w, "}}\n")?;
   Ok(())
 }
 
@@ -3056,7 +3027,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
   writeln!(w,
     "
       F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
-    ", 
+    ",
     table = args.table.name, backend = args.backend.path()
   )?;
 
@@ -3135,7 +3106,7 @@ fn count<W: Write>(args: &CountArgs, mut w: W) -> anyhow::Result<()> {
     writeln!(w,
     "
       F: for<'b> Fn({table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>) -> {table}::BoxedQuery<'b, {backend}, diesel::sql_types::BigInt>,
-    ", 
+    ",
     table = args.table.name, backend = args.backend.path()
   )?;
 
@@ -3232,7 +3203,7 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
   writeln!(w,
     "
       F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
-    ", 
+    ",
     table = args.table.name, backend = args.backend.path()
   )?;
 
@@ -3335,7 +3306,7 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
     writeln!(w,
     "
       F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
-    ", 
+    ",
     table = args.table.name, backend = args.backend.path()
   )?;
 
@@ -3426,7 +3397,7 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
     writeln!(w,
     "
       F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
-    ", 
+    ",
     table = args.table.name, backend = args.backend.path()
   )?;
 
@@ -3523,7 +3494,7 @@ fn get<W: Write>(args: &GetArgs, mut w: W) -> anyhow::Result<()> {
       writeln!(w,
         "
           F: for<'b> Fn({table}::BoxedQuery<'b, {backend}>) -> {table}::BoxedQuery<'b, {backend}>,
-        ", 
+        ",
         table = args.table.name, backend = args.backend.path()
       )?;
 

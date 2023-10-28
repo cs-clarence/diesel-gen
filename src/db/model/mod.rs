@@ -5219,8 +5219,8 @@ impl From<User> for UserCursor {
     }
   }
 }
-impl User {
-  pub fn paginate_by_user_cursor<'a, Conn>(
+impl UserCursor {
+  pub fn paginate<'a, Conn>(
     after: Option<&'a UserCursor>,
     before: Option<&'a UserCursor>,
     limit: Option<usize>,
@@ -5232,16 +5232,9 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::paginate_by_user_cursor_extend(
-      after,
-      before,
-      limit,
-      offset,
-      |q| q,
-      conn,
-    )
+    UserCursor::paginate_extend(after, before, limit, offset, |q| q, conn)
   }
-  pub fn paginate_by_user_cursor_extend<'a, F, Conn>(
+  pub fn paginate_extend<'a, F, Conn>(
     after: Option<&'a UserCursor>,
     before: Option<&'a UserCursor>,
     limit: Option<usize>,
@@ -5314,7 +5307,7 @@ impl User {
 
     q.select(User::as_select()).load::<User>(conn)
   }
-  pub fn has_next_user_cursor<'a, Conn>(
+  pub fn has_next<'a, Conn>(
     cursor: &'a UserCursor,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
@@ -5323,10 +5316,10 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::has_next_user_cursor_extend(cursor, |q| q, conn)
+    UserCursor::has_next_extend(cursor, |q| q, conn)
   }
 
-  pub fn has_next_user_cursor_extend<'a, F, Conn>(
+  pub fn has_next_extend<'a, F, Conn>(
     cursor: &'a UserCursor,
     extend: F,
     conn: &'a mut Conn,
@@ -5364,7 +5357,7 @@ impl User {
     diesel::select(diesel::dsl::exists(q)).get_result(conn)
   }
 
-  pub fn has_previous_user_cursor<'a, Conn>(
+  pub fn has_previous<'a, Conn>(
     cursor: &'a UserCursor,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
@@ -5373,10 +5366,10 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::has_previous_user_cursor_extend(cursor, |q| q, conn)
+    UserCursor::has_previous_extend(cursor, |q| q, conn)
   }
 
-  pub fn has_previous_user_cursor_extend<'a, F, Conn>(
+  pub fn has_previous_extend<'a, F, Conn>(
     cursor: &'a UserCursor,
     extend: F,
     conn: &'a mut Conn,
@@ -5414,7 +5407,7 @@ impl User {
     diesel::select(diesel::dsl::exists(q)).get_result(conn)
   }
 
-  pub fn paginate_by_user_cursor_with_soft_deleted<'a, Conn>(
+  pub fn paginate_with_soft_deleted<'a, Conn>(
     after: Option<&'a UserCursor>,
     before: Option<&'a UserCursor>,
     limit: Option<usize>,
@@ -5426,7 +5419,7 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::paginate_by_user_cursor_with_soft_deleted_extend(
+    UserCursor::paginate_with_solf_deleted_extend(
       after,
       before,
       limit,
@@ -5435,7 +5428,7 @@ impl User {
       conn,
     )
   }
-  pub fn paginate_by_user_cursor_with_soft_deleted_extend<'a, F, Conn>(
+  pub fn paginate_with_soft_deleted_extend<'a, F, Conn>(
     after: Option<&'a UserCursor>,
     before: Option<&'a UserCursor>,
     limit: Option<usize>,
@@ -5507,7 +5500,7 @@ impl User {
 
     q.select(User::as_select()).load::<User>(conn)
   }
-  pub fn has_next_user_cursor_with_soft_deleted<'a, Conn>(
+  pub fn has_next_with_soft_deleted<'a, Conn>(
     cursor: &'a UserCursor,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
@@ -5516,10 +5509,10 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::has_next_user_cursor_with_soft_deleted_extend(cursor, |q| q, conn)
+    UserCursor::has_next_with_soft_deleted_extend(cursor, |q| q, conn)
   }
 
-  pub fn has_next_user_cursor_with_soft_deleted_extend<'a, F, Conn>(
+  pub fn has_next_with_soft_deleted_extend<'a, F, Conn>(
     cursor: &'a UserCursor,
     extend: F,
     conn: &'a mut Conn,
@@ -5556,7 +5549,7 @@ impl User {
     diesel::select(diesel::dsl::exists(q)).get_result(conn)
   }
 
-  pub fn has_previous_user_cursor_with_soft_deleted<'a, Conn>(
+  pub fn has_previous_with_soft_deleted<'a, Conn>(
     cursor: &'a UserCursor,
     conn: &'a mut Conn,
   ) -> impl std::future::Future<Output = Result<bool, diesel::result::Error>>
@@ -5565,10 +5558,10 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::has_previous_user_cursor_with_soft_deleted_extend(cursor, |q| q, conn)
+    UserCursor::has_previous_with_soft_deleted_extend(cursor, |q| q, conn)
   }
 
-  pub fn has_previous_user_cursor_with_soft_deleted_extend<'a, F, Conn>(
+  pub fn has_previous_with_soft_deleted_extend<'a, F, Conn>(
     cursor: &'a UserCursor,
     extend: F,
     conn: &'a mut Conn,
