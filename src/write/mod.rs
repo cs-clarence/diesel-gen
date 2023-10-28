@@ -2207,6 +2207,7 @@ fn cursor_paginate<W: Write>(
 
     let mut ordering = vec![];
     for (idx, col) in config.columns.iter().enumerate() {
+      let name = col.name();
       match col.order() {
         crate::config::CursorColumnOrder::Asc => {
           writeln!(
