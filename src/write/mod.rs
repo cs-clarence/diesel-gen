@@ -2205,17 +2205,12 @@ fn cursor_paginate<W: Write>(
 
     writeln!(w, "let create_query = || {{")?;
 
-    writeln!(
-      w,
-      "let mut {QUERY_NAME} = {table}::table",
-      table = args.table.name,
-    )?;
-
+    let mut ordering = vec![];
     for (idx, col) in config.columns.iter().enumerate() {
       match col {
         crate::config::CursorColumnConfig::Column(name) => {
           writeln!(
-            w,
+            ordering,
             ".{order_fn}({table}::{column}.asc())",
             order_fn = if idx != 0 {
               "then_order_by"
@@ -2230,7 +2225,7 @@ fn cursor_paginate<W: Write>(
           match order {
             crate::config::CursorColumnOrder::Asc => {
               writeln!(
-                w,
+                ordering,
                 ".{order_fn}({table}::{column}.asc())",
                 order_fn = if idx != 0 {
                   "then_order_by"
@@ -2243,7 +2238,7 @@ fn cursor_paginate<W: Write>(
             }
             crate::config::CursorColumnOrder::Desc => {
               writeln!(
-                w,
+                ordering,
                 ".{order_fn}({table}::{column}.desc())",
                 order_fn = if idx != 0 {
                   "then_order_by"
@@ -2259,7 +2254,13 @@ fn cursor_paginate<W: Write>(
         }
       }
     }
+    let ordering = String::from_utf8_lossy(&ordering);
 
+    writeln!(
+      w,
+      "let mut {QUERY_NAME} = {table}::table{ordering}",
+      table = args.table.name,
+    )?;
     if args.soft_delete_column.is_some() {
       writeln!(
         w,
@@ -2448,7 +2449,7 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             )
+             ){ordering}
       ",
       table = &args.table.name,
     )?;
@@ -2467,9 +2468,8 @@ fn cursor_paginate<W: Write>(
     writeln!(
       w,
       "
-             .into_boxed(),
-         );
-
+          .into_boxed(),
+        );
          diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
       }}
       ",
@@ -2477,7 +2477,6 @@ fn cursor_paginate<W: Write>(
     // HAS NEXT
 
     // HAS PREVIOUS
-
     function_signature(
       &FunctionSignatureArgs {
         use_async: args.use_async,
@@ -2558,7 +2557,7 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             )
+             ){ordering}
       ",
       table = &args.table.name,
     )?;
@@ -2575,9 +2574,8 @@ fn cursor_paginate<W: Write>(
     writeln!(
       w,
       "
-             .into_boxed(),
+            .into_boxed(),
          );
-
          diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
       }}
       ",
@@ -2658,58 +2656,9 @@ fn cursor_paginate<W: Write>(
 
     writeln!(
       w,
-      "let mut {QUERY_NAME} = {table}::table",
+      "let mut {QUERY_NAME} = {table}::table{ordering}",
       table = args.table.name,
     )?;
-
-    for (idx, col) in config.columns.iter().enumerate() {
-      match col {
-        crate::config::CursorColumnConfig::Column(name) => {
-          writeln!(
-            w,
-            ".{order_fn}({table}::{column}.asc())",
-            order_fn = if idx != 0 {
-              "then_order_by"
-            } else {
-              "order_by"
-            },
-            table = args.table.name,
-            column = name,
-          )?;
-        }
-        crate::config::CursorColumnConfig::WithOrdering { name, order } => {
-          match order {
-            crate::config::CursorColumnOrder::Asc => {
-              writeln!(
-                w,
-                ".{order_fn}({table}::{column}.asc())",
-                order_fn = if idx != 0 {
-                  "then_order_by"
-                } else {
-                  "order_by"
-                },
-                table = args.table.name,
-                column = name,
-              )?;
-            }
-            crate::config::CursorColumnOrder::Desc => {
-              writeln!(
-                w,
-                ".{order_fn}({table}::{column}.desc())",
-                order_fn = if idx != 0 {
-                  "then_order_by"
-                } else {
-                  "order_by"
-                },
-                table = args.table.name,
-                column = name,
-              )?;
-            }
-            crate::config::CursorColumnOrder::None => {}
-          }
-        }
-      }
-    }
 
     writeln!(w, ".into_boxed();")?;
 
@@ -2890,7 +2839,7 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             )
+             ){ordering}
              .into_boxed(),
          );
 
@@ -2982,7 +2931,7 @@ fn cursor_paginate<W: Write>(
                    ({cursor_fields})
                      .into_sql::<diesel::sql_types::Record<({record_types})>>(),
                  ),
-             )
+             ){ordering}
              .into_boxed(),
          );
 

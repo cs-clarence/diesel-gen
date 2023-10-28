@@ -5350,10 +5350,11 @@ impl UserCursor {
                 )>>(),
             ),
         )
+        .order_by(users::created_at.desc())
+        .then_order_by(users::id.asc())
         .filter(users::deleted_at.is_null())
         .into_boxed(),
     );
-
     diesel::select(diesel::dsl::exists(q)).get_result(conn)
   }
 
@@ -5400,10 +5401,11 @@ impl UserCursor {
                 )>>(),
             ),
         )
+        .order_by(users::created_at.desc())
+        .then_order_by(users::id.asc())
         .filter(users::deleted_at.is_null())
         .into_boxed(),
     );
-
     diesel::select(diesel::dsl::exists(q)).get_result(conn)
   }
 
@@ -5419,7 +5421,7 @@ impl UserCursor {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    UserCursor::paginate_with_solf_deleted_extend(
+    UserCursor::paginate_with_soft_deleted_extend(
       after,
       before,
       limit,
@@ -5543,6 +5545,8 @@ impl UserCursor {
                 )>>(),
             ),
         )
+        .order_by(users::created_at.desc())
+        .then_order_by(users::id.asc())
         .into_boxed(),
     );
 
@@ -5592,6 +5596,8 @@ impl UserCursor {
                 )>>(),
             ),
         )
+        .order_by(users::created_at.desc())
+        .then_order_by(users::id.asc())
         .into_boxed(),
     );
 
