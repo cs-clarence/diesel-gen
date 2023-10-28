@@ -5250,6 +5250,7 @@ impl UserCursor {
       users::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
+    use diesel::prelude::BoolExpressionMethods;
     use diesel::ExpressionMethods;
     use diesel::IntoSql;
     use diesel::QueryDsl;
@@ -5258,35 +5259,26 @@ impl UserCursor {
     let create_query = || {
       let mut q = users::table
         .order_by(users::created_at.desc())
-        .then_order_by(users::id.asc())
         .filter(users::deleted_at.is_null())
         .into_boxed();
 
       if let Some(cursor) = after {
         q = q.filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .gt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.le(&cursor.created_at).and(
+            users::created_at
+              .lt(&cursor.created_at)
+              .or(users::id.gt(&cursor.id)),
+          ),
         );
       }
 
       if let Some(cursor) = before {
         q = q.filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .lt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.ge(&cursor.created_at).and(
+            users::created_at
+              .gt(&cursor.created_at)
+              .or(users::id.lt(&cursor.id)),
+          ),
         );
       }
 
@@ -5332,6 +5324,7 @@ impl UserCursor {
       users::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
+    use diesel::prelude::BoolExpressionMethods;
     use diesel::ExpressionMethods;
     use diesel::IntoSql;
     use diesel::QueryDsl;
@@ -5340,18 +5333,14 @@ impl UserCursor {
     let q = extend(
       users::table
         .filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .gt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.le(&cursor.created_at).and(
+            users::created_at
+              .lt(&cursor.created_at)
+              .or(users::id.gt(&cursor.id)),
+          ),
         )
         .order_by(users::created_at.desc())
-        .then_order_by(users::id.asc())
+        .limit(1)
         .filter(users::deleted_at.is_null())
         .into_boxed(),
     );
@@ -5383,6 +5372,7 @@ impl UserCursor {
       users::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
+    use diesel::prelude::BoolExpressionMethods;
     use diesel::ExpressionMethods;
     use diesel::IntoSql;
     use diesel::QueryDsl;
@@ -5391,18 +5381,14 @@ impl UserCursor {
     let q = extend(
       users::table
         .filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .lt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.ge(&cursor.created_at).and(
+            users::created_at
+              .gt(&cursor.created_at)
+              .or(users::id.lt(&cursor.id)),
+          ),
         )
         .order_by(users::created_at.desc())
-        .then_order_by(users::id.asc())
+        .limit(1)
         .filter(users::deleted_at.is_null())
         .into_boxed(),
     );
@@ -5446,42 +5432,32 @@ impl UserCursor {
       users::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
+    use diesel::prelude::BoolExpressionMethods;
     use diesel::ExpressionMethods;
     use diesel::IntoSql;
     use diesel::QueryDsl;
     use diesel::SelectableHelper;
     use diesel_async::RunQueryDsl;
     let create_query = || {
-      let mut q = users::table
-        .order_by(users::created_at.desc())
-        .then_order_by(users::id.asc())
-        .into_boxed();
+      let mut q = users::table.order_by(users::created_at.desc()).into_boxed();
 
       if let Some(cursor) = after {
         q = q.filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .gt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.le(&cursor.created_at).and(
+            users::created_at
+              .lt(&cursor.created_at)
+              .or(users::id.gt(&cursor.id)),
+          ),
         );
       }
 
       if let Some(cursor) = before {
         q = q.filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .lt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.ge(&cursor.created_at).and(
+            users::created_at
+              .gt(&cursor.created_at)
+              .or(users::id.lt(&cursor.id)),
+          ),
         );
       }
 
@@ -5527,6 +5503,7 @@ impl UserCursor {
       users::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
+    use diesel::prelude::BoolExpressionMethods;
     use diesel::ExpressionMethods;
     use diesel::IntoSql;
     use diesel::QueryDsl;
@@ -5535,18 +5512,14 @@ impl UserCursor {
     let q = extend(
       users::table
         .filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .gt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.le(&cursor.created_at).and(
+            users::created_at
+              .lt(&cursor.created_at)
+              .or(users::id.gt(&cursor.id)),
+          ),
         )
         .order_by(users::created_at.desc())
-        .then_order_by(users::id.asc())
+        .limit(1)
         .into_boxed(),
     );
 
@@ -5578,6 +5551,7 @@ impl UserCursor {
       users::BoxedQuery<'b, diesel::pg::Pg>,
     ) -> users::BoxedQuery<'b, diesel::pg::Pg>,
   {
+    use diesel::prelude::BoolExpressionMethods;
     use diesel::ExpressionMethods;
     use diesel::IntoSql;
     use diesel::QueryDsl;
@@ -5586,18 +5560,14 @@ impl UserCursor {
     let q = extend(
       users::table
         .filter(
-          (users::created_at, users::id)
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .lt(
-              (cursor.created_at, cursor.id)
-                .into_sql::<diesel::sql_types::Record<(
-                  diesel::sql_types::Timestamptz,
-                  diesel::sql_types::Uuid,
-                )>>(),
-            ),
+          users::created_at.ge(&cursor.created_at).and(
+            users::created_at
+              .gt(&cursor.created_at)
+              .or(users::id.lt(&cursor.id)),
+          ),
         )
         .order_by(users::created_at.desc())
-        .then_order_by(users::id.asc())
+        .limit(1)
         .into_boxed(),
     );
 

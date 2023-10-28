@@ -5,7 +5,6 @@ pub mod async_graphql;
 use std::{
   collections::{HashMap, HashSet},
   io::Write,
-  ops::Deref,
 };
 
 use inflector::Inflector;
@@ -321,6 +320,7 @@ struct DefaultUsesArgs {
   expression_methods: bool,
   sql_types: bool,
   into_sql: bool,
+  bool_expression_methods: bool,
 }
 
 fn default_operation_uses<W: Write>(
@@ -341,6 +341,10 @@ fn default_operation_uses<W: Write>(
 
   if args.expression_methods {
     writeln!(w, "use diesel::ExpressionMethods;")?;
+  }
+
+  if args.bool_expression_methods {
+    writeln!(w, "use diesel::prelude::BoolExpressionMethods;")?;
   }
 
   if args.use_async {
@@ -967,6 +971,7 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
       expression_methods: false,
       sql_types: false,
       into_sql: false,
+      ..Default::default()
     },
     &mut w,
   )?;
@@ -1019,6 +1024,7 @@ fn insert<W: Write>(args: &InsertArgs<'_>, mut w: W) -> anyhow::Result<()> {
         expression_methods: false,
         sql_types: false,
         into_sql: false,
+        ..Default::default()
       },
       &mut w,
     )?;
@@ -1099,6 +1105,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
       expression_methods: true,
       sql_types: false,
       into_sql: false,
+      ..Default::default()
     },
     &mut w,
   )?;
@@ -1192,6 +1199,7 @@ fn update<W: Write>(args: &UpdateArgs<'_>, mut w: W) -> anyhow::Result<()> {
           expression_methods: true,
           sql_types: false,
           into_sql: false,
+          ..Default::default()
         },
         &mut w,
       )?;
@@ -1294,6 +1302,7 @@ fn delete<W: Write>(args: &DeleteArgs<'_>, mut w: W) -> anyhow::Result<()> {
       expression_methods: true,
       sql_types: false,
       into_sql: false,
+      ..Default::default()
     },
     &mut w,
   )?;
@@ -2198,6 +2207,7 @@ fn cursor_paginate<W: Write>(
         into_sql: true,
         selectable_helper: true,
         expression_methods: true,
+        bool_expression_methods: true,
         ..Default::default()
       },
       &mut w,
@@ -2257,52 +2267,90 @@ fn cursor_paginate<W: Write>(
     }
     writeln!(w, ".into_boxed();")?;
 
-    let mut vec = Vec::new();
-
-    for cursor_col in config.columns.iter() {
+    let mut next_filter = String::new();
+    let mut prev_filter = String::new();
+    for (idx, cursor_col) in config.columns.iter().enumerate().rev() {
       let col = args.table.get_column(cursor_col.name()).unwrap();
 
-      let name = get_field_name(
+      let field_name = get_field_name(
         args.table_config.and_then(|t| t.columns.get(&col.name)),
         cursor_col.name(),
       );
+      let cursor_field = format!("{}.{}", "cursor", field_name);
 
-      vec.push((
-        format!("{}::{}", &args.table.name, cursor_col.name()),
-        format!("{}.{}", "cursor", name),
-        col.r#type.to_qualified_string(args.table_imports_root),
-      ));
+      if idx == config.columns.len() - 1 {
+        match cursor_col.order() {
+          crate::config::CursorColumnOrder::Desc => {
+            next_filter = format!(
+              "{table}::{column}.lt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter = format!(
+              "{table}::{column}.gt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+          crate::config::CursorColumnOrder::Asc
+          | crate::config::CursorColumnOrder::None => {
+            next_filter = format!(
+              "{table}::{column}.gt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter = format!(
+              "{table}::{column}.lt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+        }
+      } else {
+        match cursor_col.order() {
+          crate::config::CursorColumnOrder::Desc => {
+            next_filter = format!(
+              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({next_filter}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter = format!(
+              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({prev_filter}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+          crate::config::CursorColumnOrder::Asc
+          | crate::config::CursorColumnOrder::None => {
+            next_filter = format!(
+              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({prev_filter}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter = format!(
+              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({next_filter}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+        }
+      }
     }
-
-    let table_columns = vec
-      .iter()
-      .map(|(col, _, _)| col.deref())
-      .collect::<Vec<&str>>()
-      .join(", ");
-
-    let cursor_fields = vec
-      .iter()
-      .map(|(_, field, _)| field.deref())
-      .collect::<Vec<&str>>()
-      .join(", ");
-
-    let record_types = vec
-      .iter()
-      .map(|(_, _, ty)| ty.deref())
-      .collect::<Vec<&str>>()
-      .join(", ");
 
     writeln!(
       w,
       "
       if let Some(cursor) = after {{
         {QUERY_NAME} = {QUERY_NAME}.filter(
-          ({table_columns})
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .gt(
-              ({cursor_fields})
-                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-            ),
+          {next_filter}
         );
       }}
       ",
@@ -2312,12 +2360,7 @@ fn cursor_paginate<W: Write>(
       "
       if let Some(cursor) = before {{
         {QUERY_NAME} = {QUERY_NAME}.filter(
-          ({table_columns})
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .lt(
-              ({cursor_fields})
-                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-            ),
+          {prev_filter}
         );
       }}
       ",
@@ -2417,6 +2460,7 @@ fn cursor_paginate<W: Write>(
         query_dsl: true,
         expression_methods: true,
         into_sql: true,
+        bool_expression_methods: true,
         ..Default::default()
       },
       &mut w,
@@ -2427,15 +2471,10 @@ fn cursor_paginate<W: Write>(
          let {QUERY_NAME} = extend(
            {table}::table
              .filter(
-               ({table_columns})
-                 .into_sql::<diesel::sql_types::Record<_>>()
-                 .gt(
-                   ({cursor_fields})
-                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-                 ),
+              {next_filter}
              )
-             .limit(1)
              {ordering}
+             .limit(1)
       ",
       table = &args.table.name,
     )?;
@@ -2527,6 +2566,7 @@ fn cursor_paginate<W: Write>(
         query_dsl: true,
         expression_methods: true,
         into_sql: true,
+        bool_expression_methods: true,
         ..Default::default()
       },
       &mut w,
@@ -2537,15 +2577,10 @@ fn cursor_paginate<W: Write>(
          let {QUERY_NAME} = extend(
            {table}::table
              .filter(
-               ({table_columns})
-                 .into_sql::<diesel::sql_types::Record<_>>()
-                 .lt(
-                   ({cursor_fields})
-                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-                 ),
+              {prev_filter}
              )
-             .limit(1)
              {ordering}
+             .limit(1)
       ",
       table = &args.table.name,
     )?;
@@ -2635,6 +2670,7 @@ fn cursor_paginate<W: Write>(
         into_sql: true,
         selectable_helper: true,
         expression_methods: true,
+        bool_expression_methods: true,
         ..Default::default()
       },
       &mut w,
@@ -2667,35 +2703,12 @@ fn cursor_paginate<W: Write>(
       ));
     }
 
-    let table_columns = vec
-      .iter()
-      .map(|(col, _, _)| col.deref())
-      .collect::<Vec<&str>>()
-      .join(", ");
-
-    let cursor_fields = vec
-      .iter()
-      .map(|(_, field, _)| field.deref())
-      .collect::<Vec<&str>>()
-      .join(", ");
-
-    let record_types = vec
-      .iter()
-      .map(|(_, _, ty)| ty.deref())
-      .collect::<Vec<&str>>()
-      .join(", ");
-
     writeln!(
       w,
       "
       if let Some(cursor) = after {{
         {QUERY_NAME} = {QUERY_NAME}.filter(
-          ({table_columns})
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .gt(
-              ({cursor_fields})
-                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-            ),
+          {next_filter}
         );
       }}
       ",
@@ -2705,12 +2718,7 @@ fn cursor_paginate<W: Write>(
       "
       if let Some(cursor) = before {{
         {QUERY_NAME} = {QUERY_NAME}.filter(
-          ({table_columns})
-            .into_sql::<diesel::sql_types::Record<_>>()
-            .lt(
-              ({cursor_fields})
-                .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-            ),
+          {prev_filter}
         );
       }}
       ",
@@ -2811,6 +2819,7 @@ fn cursor_paginate<W: Write>(
         query_dsl: true,
         expression_methods: true,
         into_sql: true,
+        bool_expression_methods: true,
         ..Default::default()
       },
       &mut w,
@@ -2821,15 +2830,10 @@ fn cursor_paginate<W: Write>(
          let {QUERY_NAME} = extend(
            {table}::table
              .filter(
-               ({table_columns})
-                 .into_sql::<diesel::sql_types::Record<_>>()
-                 .gt(
-                   ({cursor_fields})
-                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-                 ),
+              {next_filter}
              )
-             .limit(1)
              {ordering}
+             .limit(1)
              .into_boxed(),
          );
 
@@ -2904,6 +2908,7 @@ fn cursor_paginate<W: Write>(
         use_async: args.use_async,
         query_dsl: true,
         expression_methods: true,
+        bool_expression_methods: true,
         into_sql: true,
         ..Default::default()
       },
@@ -2915,15 +2920,10 @@ fn cursor_paginate<W: Write>(
          let {QUERY_NAME} = extend(
            {table}::table
              .filter(
-               ({table_columns})
-                 .into_sql::<diesel::sql_types::Record<_>>()
-                 .lt(
-                   ({cursor_fields})
-                     .into_sql::<diesel::sql_types::Record<({record_types})>>(),
-                 ),
+              {prev_filter}
              )
-             .limit(1)
              {ordering}
+             .limit(1)
              .into_boxed(),
          );
 
