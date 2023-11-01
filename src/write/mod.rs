@@ -586,14 +586,13 @@ pub fn model<W: Write>(
     writeln!(w, "}}\n")?;
   }
 
-  let non_primary_key_columns = table.non_primary_key_columns();
-
   /*
    * ==================
    * UPDATER STRUCTS
    * ==================
    */
 
+  let non_primary_key_columns = table.non_primary_key_columns();
   let updater_structs =
     table_config.and_then(|t| t.updater_struct).unwrap_or(true);
   let mut updater_has_ref = false;
@@ -601,7 +600,20 @@ pub fn model<W: Write>(
     .and_then(|t| t.updater_use_refs)
     .unwrap_or(true);
 
-  if updater_structs && !table.only_primary_key_columns() {
+  let has_non_omitted_columns = non_primary_key_columns.iter().any(|c| {
+    let config = table_config.and_then(|t| t.columns.get(&c.name));
+
+    if let Some(c) = config {
+      !c.omit_in_updater.unwrap_or(false)
+    } else {
+      true
+    }
+  });
+
+  if updater_structs
+    && !table.only_primary_key_columns()
+    && has_non_omitted_columns
+  {
     let d = table_config.and_then(|t| t.updater_derives.clone());
 
     if let Some(mut d) = d {
@@ -723,7 +735,10 @@ pub fn model<W: Write>(
       "Only datetime columns are supported for update_timestamp_columns"
     ));
   }
-  if enable_update && !table.only_primary_key_columns() {
+  if enable_update
+    && !table.only_primary_key_columns()
+    && has_non_omitted_columns
+  {
     if !updater_structs {
       return Err(anyhow::anyhow!(
         "updater_structs must be enabled to generate update functions"
