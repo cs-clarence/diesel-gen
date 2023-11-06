@@ -2344,13 +2344,13 @@ fn cursor_paginate<W: Write>(
           crate::config::CursorColumnOrder::Asc
           | crate::config::CursorColumnOrder::None => {
             next_filter = format!(
-              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({prev_filter}))",
+              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({next_filter}))",
               table = args.table.name,
               column = col.name,
               cursor_field = cursor_field,
             );
             prev_filter = format!(
-              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({next_filter}))",
+              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({prev_filter}))",
               table = args.table.name,
               column = col.name,
               cursor_field = cursor_field,
@@ -3137,13 +3137,13 @@ fn cursor_paginate<W: Write>(
           crate::config::CursorColumnOrder::Asc
           | crate::config::CursorColumnOrder::None => {
             next_filter_rev = format!(
-              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({prev_filter_rev}))",
+              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({next_filter_rev}))",
               table = args.table.name,
               column = col.name,
               cursor_field = cursor_field,
             );
             prev_filter_rev = format!(
-              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({next_filter_rev}))",
+              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({prev_filter_rev}))",
               table = args.table.name,
               column = col.name,
               cursor_field = cursor_field,
