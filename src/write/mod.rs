@@ -2091,12 +2091,12 @@ fn cursor_paginate<W: Write>(
       }
     }
 
+    let cursor_name = name.to_pascal_case();
     writeln!(
       w,
       "
       pub struct {cursor_name} {{
       ",
-      cursor_name = name.to_pascal_case(),
     )?;
 
     let mut field_names = HashMap::new();
@@ -2388,8 +2388,6 @@ fn cursor_paginate<W: Write>(
       w,
       "
       let mut {QUERY_NAME} = create_query();
-
-      //let mut has_last = false;
 
       if let Some(offset) = offset {{
         {QUERY_NAME} = {QUERY_NAME}.offset(offset.try_into().unwrap());
@@ -2936,6 +2934,799 @@ fn cursor_paginate<W: Write>(
            {table}::table
              .filter(
               {prev_filter}
+             )
+             {ordering}
+             .limit(1)
+             .into_boxed(),
+         );
+
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+      table = &args.table.name,
+    )?;
+    // HAS PREVIOUS
+
+    // REVERSED paginate reversed
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "paginate_reversed",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "{{
+      {cursor_name}::paginate_reversed_extend(after, before, limit, offset, |q| q, conn)
+     }}"
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "paginate_reversed_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        into_sql: true,
+        selectable_helper: true,
+        expression_methods: true,
+        bool_expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "let create_query = || {{")?;
+
+    let mut ordering = vec![];
+    for (idx, col) in config.columns.iter().enumerate() {
+      let name = col.name();
+      match col.order() {
+        crate::config::CursorColumnOrder::Asc => {
+          writeln!(
+            ordering,
+            ".{order_fn}({table}::{column}.desc())",
+            order_fn = if idx != 0 {
+              "then_order_by"
+            } else {
+              "order_by"
+            },
+            table = args.table.name,
+            column = name,
+          )?;
+        }
+        crate::config::CursorColumnOrder::Desc => {
+          writeln!(
+            ordering,
+            ".{order_fn}({table}::{column}.asc())",
+            order_fn = if idx != 0 {
+              "then_order_by"
+            } else {
+              "order_by"
+            },
+            table = args.table.name,
+            column = name,
+          )?;
+        }
+        crate::config::CursorColumnOrder::None => {}
+      }
+    }
+    let ordering = String::from_utf8_lossy(&ordering);
+
+    writeln!(
+      w,
+      "let mut {QUERY_NAME} = {table}::table{ordering}",
+      table = args.table.name,
+    )?;
+    if args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
+    }
+    writeln!(w, ".into_boxed();")?;
+
+    let mut next_filter_rev = String::new();
+    let mut prev_filter_rev = String::new();
+    for (idx, cursor_col) in config.columns.iter().enumerate().rev() {
+      let col = args.table.get_column(cursor_col.name()).unwrap();
+
+      let field_name = get_field_name(
+        args.table_config.and_then(|t| t.columns.get(&col.name)),
+        cursor_col.name(),
+      );
+      let cursor_field = format!("{}.{}", "cursor", field_name);
+
+      if idx == config.columns.len() - 1 {
+        match cursor_col.order() {
+          crate::config::CursorColumnOrder::Desc => {
+            next_filter_rev = format!(
+              "{table}::{column}.gt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter_rev = format!(
+              "{table}::{column}.lt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+          crate::config::CursorColumnOrder::Asc
+          | crate::config::CursorColumnOrder::None => {
+            next_filter_rev = format!(
+              "{table}::{column}.lt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter_rev = format!(
+              "{table}::{column}.gt(&{cursor_field})",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+        }
+      } else {
+        match cursor_col.order() {
+          crate::config::CursorColumnOrder::Desc => {
+            next_filter_rev = format!(
+              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({next_filter_rev}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter_rev = format!(
+              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({prev_filter_rev}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+          crate::config::CursorColumnOrder::Asc
+          | crate::config::CursorColumnOrder::None => {
+            next_filter_rev = format!(
+              "{table}::{column}.le(&{cursor_field}).and({table}::{column}.lt(&{cursor_field}).or({prev_filter_rev}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+            prev_filter_rev = format!(
+              "{table}::{column}.ge(&{cursor_field}).and({table}::{column}.gt(&{cursor_field}).or({next_filter_rev}))",
+              table = args.table.name,
+              column = col.name,
+              cursor_field = cursor_field,
+            );
+          }
+        }
+      }
+    }
+
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = after {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          {next_filter_rev}
+        );
+      }}
+      ",
+    )?;
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = before {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          {prev_filter_rev}
+        );
+      }}
+      ",
+    )?;
+
+    writeln!(w, "{EXTEND_NAME}({QUERY_NAME})")?;
+    writeln!(w, "}};")?;
+
+    writeln!(
+      w,
+      "
+      let mut {QUERY_NAME} = create_query();
+
+      if let Some(offset) = offset {{
+        {QUERY_NAME} = {QUERY_NAME}.offset(offset.try_into().unwrap());
+      }}
+
+      if let Some(limit) = limit {{
+        {QUERY_NAME} = {QUERY_NAME}.limit(limit.try_into().unwrap());
+      }}
+
+      "
+    )?;
+
+    writeln!(
+      w,
+      "{QUERY_NAME}.select({model}::as_select()).load::<{model}>(conn)",
+      model = args.model_name
+    )?;
+
+    writeln!(w, "}}")?;
+    // HAS NEXT
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_next_reversed",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {cursor_name}::has_next_reversed_extend(cursor, |q| q, conn)
+      }}
+      "
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_next_reversed_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        bool_expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+              {next_filter_rev}
+             )
+             {ordering}
+             .limit(1)
+      ",
+      table = &args.table.name,
+    )?;
+
+    if args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
+    }
+
+    writeln!(
+      w,
+      "
+          .into_boxed(),
+        );
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+    )?;
+    // HAS NEXT
+
+    // HAS PREVIOUS
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_previous_reversed",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {cursor_name}::has_previous_reversed_extend(cursor, |q| q, conn)
+      }}
+      "
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_previous_reversed_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        bool_expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+              {prev_filter_rev}
+             )
+             {ordering}
+             .limit(1)
+      ",
+      table = &args.table.name,
+    )?;
+    if args.soft_delete_column.is_some() {
+      writeln!(
+        w,
+        ".{}",
+        soft_delete_filter(&SoftDeleteFilterArgs {
+          table_name: &args.table.name,
+          soft_delete_column: args.soft_delete_column,
+        })?
+      )?;
+    }
+    writeln!(
+      w,
+      "
+            .into_boxed(),
+         );
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+    )?;
+    // HAS PREVIOUS
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "paginate_reversed_with_soft_deleted",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, "{{
+      {cursor_name}::paginate_reversed_with_soft_deleted_extend(after, before, limit, offset, |q| q, conn)
+     }}"
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "paginate_reversed_with_soft_deleted_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "after: Option<&'a {cursor_name}>, before: Option<&'a {cursor_name}>, limit: Option<usize>, offset: Option<usize>, {EXTEND_NAME}: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, true, args.model_name),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        into_sql: true,
+        selectable_helper: true,
+        expression_methods: true,
+        bool_expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+
+    writeln!(w, "let create_query = || {{")?;
+
+    writeln!(
+      w,
+      "let mut {QUERY_NAME} = {table}::table{ordering}",
+      table = args.table.name,
+    )?;
+
+    writeln!(w, ".into_boxed();")?;
+
+    let mut vec = Vec::new();
+
+    for cursor_col in config.columns.iter() {
+      let col = args.table.get_column(cursor_col.name()).unwrap();
+
+      let name = get_field_name(
+        args.table_config.and_then(|t| t.columns.get(&col.name)),
+        cursor_col.name(),
+      );
+
+      vec.push((
+        format!("{}::{}", &args.table.name, cursor_col.name()),
+        format!("{}.{}", "cursor", name),
+        col.r#type.to_qualified_string(args.table_imports_root),
+      ));
+    }
+
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = after {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          {next_filter_rev}
+        );
+      }}
+      ",
+    )?;
+    writeln!(
+      w,
+      "
+      if let Some(cursor) = before {{
+        {QUERY_NAME} = {QUERY_NAME}.filter(
+          {prev_filter_rev}
+        );
+      }}
+      ",
+    )?;
+
+    writeln!(w, "{EXTEND_NAME}({QUERY_NAME})")?;
+    writeln!(w, "}};")?;
+
+    writeln!(
+      w,
+      "
+      let mut {QUERY_NAME} = create_query();
+
+      //let mut has_last = false;
+
+      if let Some(offset) = offset {{
+        {QUERY_NAME} = {QUERY_NAME}.offset(offset.try_into().unwrap());
+      }}
+
+      if let Some(limit) = limit {{
+        {QUERY_NAME} = {QUERY_NAME}.limit(limit.try_into().unwrap());
+      }}
+
+      "
+    )?;
+
+    writeln!(
+      w,
+      "{QUERY_NAME}.select({model}::as_select()).load::<{model}>(conn)",
+      model = args.model_name
+    )?;
+
+    writeln!(w, "}}")?;
+
+    // HAS NEXT
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_next_reversed_with_soft_deleted",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {cursor_name}::has_next_reversed_with_soft_deleted_extend(cursor, |q| q, conn)
+      }}
+      ",
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_next_reversed_with_soft_deleted_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        into_sql: true,
+        bool_expression_methods: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+              {next_filter_rev}
+             )
+             {ordering}
+             .limit(1)
+             .into_boxed(),
+         );
+
+         diesel::select(diesel::dsl::exists({QUERY_NAME})).get_result(conn)
+      }}
+      ",
+      table = &args.table.name,
+    )?;
+    // HAS NEXT
+
+    // HAS PREVIOUS
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_previous_reversed_with_soft_deleted",
+        generics: Some(vec!["'a", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(w, "cursor: &'a {cursor_name}, conn: &'a mut Conn")?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(
+      w,
+      "
+      {{
+         {cursor_name}::has_previous_reversed_with_soft_deleted_extend(cursor, |q| q, conn)
+      }}
+      ",
+    )?;
+
+    function_signature(
+      &FunctionSignatureArgs {
+        use_async: args.use_async,
+        name: "has_previous_reversed_with_soft_deleted_extend",
+        generics: Some(vec!["'a", "F", "Conn"]),
+      },
+      &mut w,
+    )?;
+    write!(
+      w,
+      "cursor: &'a {cursor_name}, extend: F, conn: &'a mut Conn"
+    )?;
+
+    write!(
+      w,
+      "\n  ) -> {}{}",
+      return_type(args.use_async, false, "bool"),
+      if args.use_async { " + 'a" } else { "" },
+    )?;
+    operation_contraints(args.use_async, "Conn", args.backend, &mut w)?;
+    writeln!(w, ",")?;
+    writeln!(
+      w,
+      "
+      F: for<'b> Fn(
+        {table}::BoxedQuery<'b, {backend}>,
+      ) -> {table}::BoxedQuery<'b, {backend}>,
+      ",
+      table = args.table.name,
+      backend = args.backend.path(),
+    )?;
+    writeln!(w, "{{")?;
+    default_operation_uses(
+      &DefaultUsesArgs {
+        use_async: args.use_async,
+        query_dsl: true,
+        expression_methods: true,
+        bool_expression_methods: true,
+        into_sql: true,
+        ..Default::default()
+      },
+      &mut w,
+    )?;
+    writeln!(
+      w,
+      "
+         let {QUERY_NAME} = extend(
+           {table}::table
+             .filter(
+              {prev_filter_rev}
              )
              {ordering}
              .limit(1)
