@@ -3078,7 +3078,7 @@ fn cursor_paginate<W: Write>(
     writeln!(
       w,
       "
-      if let Some(cursor) = after {{
+      if let Some(cursor) = before {{
         {QUERY_NAME} = {QUERY_NAME}.filter(
           {next_filter}
         );
@@ -3088,7 +3088,7 @@ fn cursor_paginate<W: Write>(
     writeln!(
       w,
       "
-      if let Some(cursor) = before {{
+      if let Some(cursor) = after {{
         {QUERY_NAME} = {QUERY_NAME}.filter(
           {prev_filter}
         );
