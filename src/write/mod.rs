@@ -16,7 +16,10 @@ use crate::{
     TableConfig,
   },
   parse::{self, Column, File, ParseContext, Table},
-  util::{get_field_name, get_ref_type, get_type, model_name},
+  util::{
+    final_inserter_name, final_model_name, final_updater_name, get_field_name,
+    get_ref_type, get_type,
+  },
 };
 
 pub fn rust_file_headers<W: Write>(mut writer: W) -> std::io::Result<()> {
@@ -384,38 +387,9 @@ pub fn model<W: Write>(
     .and_then(|t| t.updater_fields_optional)
     .unwrap_or(true);
 
-  let inserter_prefix = table_config
-    .and_then(|t| t.inserter_name_prefix.as_deref())
-    .unwrap_or("New");
-
-  let inserter_suffix = table_config
-    .and_then(|t| t.inserter_name_suffix.as_deref())
-    .unwrap_or("");
-
-  let updater_prefix = table_config
-    .and_then(|t| t.updater_name_prefix.as_deref())
-    .unwrap_or("");
-
-  let updater_suffix = table_config
-    .and_then(|t| t.updater_name_suffix.as_deref())
-    .unwrap_or("Update");
-
-  let model_prefix = table_config
-    .and_then(|t| t.model_name_prefix.as_deref())
-    .unwrap_or("");
-
-  let model_suffix = table_config
-    .and_then(|t| t.model_name_suffix.as_deref())
-    .unwrap_or("");
-
-  let struct_name = model_name(&table.name);
-
-  let final_model_name =
-    format!("{}{}{}", model_prefix, struct_name, model_suffix);
-  let final_inserter_name =
-    format!("{}{}{}", inserter_prefix, struct_name, inserter_suffix);
-  let final_updater_name =
-    format!("{}{}{}", updater_prefix, struct_name, updater_suffix);
+  let final_model_name = final_model_name(table, table_config);
+  let final_inserter_name = final_inserter_name(table, table_config);
+  let final_updater_name = final_updater_name(table, table_config);
 
   let gen_model = table_config.and_then(|t| t.model).unwrap_or(true);
 

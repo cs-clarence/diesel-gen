@@ -4593,7 +4593,7 @@ impl Staff {
 #[diesel(table_name = users)]
 #[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct User {
+pub struct Users {
   pub id: TestType,
   pub identity_id: uuid::Uuid,
   pub created_at: time::OffsetDateTime,
@@ -4604,7 +4604,7 @@ pub struct User {
 #[derive(Clone, Debug, diesel::Insertable)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUser<'a> {
+pub struct NewUsers<'a> {
   pub id: &'a TestType,
   pub identity_id: &'a uuid::Uuid,
   pub created_at: &'a time::OffsetDateTime,
@@ -4615,19 +4615,19 @@ pub struct NewUser<'a> {
 #[derive(Clone, Debug, Default, diesel::AsChangeset)]
 #[diesel(table_name = users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct UserUpdate<'a> {
+pub struct UsersUpdate<'a> {
   pub identity_id: Option<&'a uuid::Uuid>,
   pub created_at: Option<&'a time::OffsetDateTime>,
   pub updated_at: Option<&'a time::OffsetDateTime>,
   pub deleted_at: Option<Option<&'a time::OffsetDateTime>>,
 }
 
-impl User {
+impl Users {
   pub fn update<'a, Conn>(
     id: &'a TestType,
-    changes: &'a UserUpdate<'a>,
+    changes: &'a UsersUpdate<'a>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4639,14 +4639,14 @@ impl User {
     diesel::update(users::table)
       .filter(users::id.eq(id))
       .set((users::updated_at.eq(diesel::dsl::now), changes))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
   pub fn update_identity_id<'a, Conn>(
     id: &'a TestType,
     identity_id: &'a uuid::Uuid,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4661,14 +4661,14 @@ impl User {
         users::updated_at.eq(diesel::dsl::now),
         users::identity_id.eq(identity_id),
       ))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
   pub fn update_created_at<'a, Conn>(
     id: &'a TestType,
     created_at: &'a time::OffsetDateTime,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4683,14 +4683,14 @@ impl User {
         users::updated_at.eq(diesel::dsl::now),
         users::created_at.eq(created_at),
       ))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
   pub fn update_updated_at<'a, Conn>(
     id: &'a TestType,
     updated_at: &'a time::OffsetDateTime,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4702,14 +4702,14 @@ impl User {
     diesel::update(users::table)
       .filter(users::id.eq(id))
       .set((users::updated_at.eq(updated_at),))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
   pub fn update_deleted_at<'a, Conn>(
     id: &'a TestType,
     deleted_at: Option<&'a time::OffsetDateTime>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4724,16 +4724,16 @@ impl User {
         users::updated_at.eq(diesel::dsl::now),
         users::deleted_at.eq(deleted_at),
       ))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
 }
 
-impl User {
+impl Users {
   pub fn delete<'a, Conn>(
     id: &'a TestType,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4744,16 +4744,16 @@ impl User {
     use diesel_async::RunQueryDsl;
     diesel::delete(users::table)
       .filter(users::id.eq(id))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
 }
 
-impl User {
+impl Users {
   pub fn soft_delete<'a, Conn>(
     id: &'a TestType,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4768,16 +4768,16 @@ impl User {
         users::updated_at.eq(diesel::dsl::now),
         users::deleted_at.eq(diesel::dsl::now),
       ))
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
 }
 
-impl User {
+impl Users {
   pub fn insert<'a, Conn>(
-    data: &'a NewUser<'a>,
+    data: &'a NewUsers<'a>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4788,13 +4788,13 @@ impl User {
 
     diesel::insert_into(users::table)
       .values(data)
-      .returning(User::as_returning())
-      .get_result::<User>(conn)
+      .returning(Users::as_returning())
+      .get_result::<Users>(conn)
   }
   pub fn insert_many<'a, Conn>(
-    data: &'a [NewUser<'a>],
+    data: &'a [NewUsers<'a>],
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4805,17 +4805,17 @@ impl User {
 
     diesel::insert_into(users::table)
       .values(data)
-      .returning(User::as_returning())
-      .get_results::<User>(conn)
+      .returning(Users::as_returning())
+      .get_results::<Users>(conn)
   }
 }
 
-impl User {
+impl Users {
   pub fn get_extend<'a, F, Conn>(
     id: &'a TestType,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4838,18 +4838,18 @@ impl User {
   pub fn get<'a, Conn>(
     id: &'a TestType,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::get_extend(id, |q| q, conn)
+    Users::get_extend(id, |q| q, conn)
   }
   pub fn get_many_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4870,19 +4870,19 @@ impl User {
   }
   pub fn get_many<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::get_many_extend(|q| q, conn)
+    Users::get_many_extend(|q| q, conn)
   }
   pub fn get_with_soft_deleted_extend<'a, F, Conn>(
     id: &'a TestType,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4899,18 +4899,18 @@ impl User {
   pub fn get_with_soft_deleted<'a, Conn>(
     id: &'a TestType,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<User, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Users, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::get_with_soft_deleted_extend(id, |q| q, conn)
+    Users::get_with_soft_deleted_extend(id, |q| q, conn)
   }
   pub fn get_many_with_soft_deleted_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4926,16 +4926,16 @@ impl User {
   }
   pub fn get_many_with_soft_deleted<'a, Conn>(
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::get_many_with_soft_deleted_extend(|q| q, conn)
+    Users::get_many_with_soft_deleted_extend(|q| q, conn)
   }
 }
-pub enum UserOrderBy {
+pub enum UsersOrderBy {
   IdAsc,
   IdDesc,
   IdentityIdAsc,
@@ -4947,14 +4947,14 @@ pub enum UserOrderBy {
   DeletedAtAsc,
   DeletedAtDesc,
 }
-impl User {
+impl Users {
   pub fn paginate_extend<'a, F, Conn>(
     limit: usize,
     offset: usize,
-    ordering: Option<&'a Vec<UserOrderBy>>,
+    ordering: Option<&'a Vec<UsersOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -4973,7 +4973,7 @@ impl User {
     if let Some(ordering) = ordering {
       for (idx, ord) in ordering.iter().enumerate() {
         match ord {
-          UserOrderBy::IdAsc => {
+          UsersOrderBy::IdAsc => {
             if idx == 0 {
               q = q.order_by(users::id.asc());
             } else {
@@ -4981,7 +4981,7 @@ impl User {
             }
           }
 
-          UserOrderBy::IdDesc => {
+          UsersOrderBy::IdDesc => {
             if idx == 0 {
               q = q.order_by(users::id.desc());
             } else {
@@ -4989,7 +4989,7 @@ impl User {
             }
           }
 
-          UserOrderBy::IdentityIdAsc => {
+          UsersOrderBy::IdentityIdAsc => {
             if idx == 0 {
               q = q.order_by(users::identity_id.asc());
             } else {
@@ -4997,7 +4997,7 @@ impl User {
             }
           }
 
-          UserOrderBy::IdentityIdDesc => {
+          UsersOrderBy::IdentityIdDesc => {
             if idx == 0 {
               q = q.order_by(users::identity_id.desc());
             } else {
@@ -5005,7 +5005,7 @@ impl User {
             }
           }
 
-          UserOrderBy::CreatedAtAsc => {
+          UsersOrderBy::CreatedAtAsc => {
             if idx == 0 {
               q = q.order_by(users::created_at.asc());
             } else {
@@ -5013,7 +5013,7 @@ impl User {
             }
           }
 
-          UserOrderBy::CreatedAtDesc => {
+          UsersOrderBy::CreatedAtDesc => {
             if idx == 0 {
               q = q.order_by(users::created_at.desc());
             } else {
@@ -5021,7 +5021,7 @@ impl User {
             }
           }
 
-          UserOrderBy::UpdatedAtAsc => {
+          UsersOrderBy::UpdatedAtAsc => {
             if idx == 0 {
               q = q.order_by(users::updated_at.asc());
             } else {
@@ -5029,7 +5029,7 @@ impl User {
             }
           }
 
-          UserOrderBy::UpdatedAtDesc => {
+          UsersOrderBy::UpdatedAtDesc => {
             if idx == 0 {
               q = q.order_by(users::updated_at.desc());
             } else {
@@ -5037,7 +5037,7 @@ impl User {
             }
           }
 
-          UserOrderBy::DeletedAtAsc => {
+          UsersOrderBy::DeletedAtAsc => {
             if idx == 0 {
               q = q.order_by(users::deleted_at.asc());
             } else {
@@ -5045,7 +5045,7 @@ impl User {
             }
           }
 
-          UserOrderBy::DeletedAtDesc => {
+          UsersOrderBy::DeletedAtDesc => {
             if idx == 0 {
               q = q.order_by(users::deleted_at.desc());
             } else {
@@ -5059,28 +5059,28 @@ impl User {
       q.offset(offset.try_into().unwrap())
         .limit(limit.try_into().unwrap()),
     );
-    q.select(User::as_select()).load::<User>(conn)
+    q.select(Users::as_select()).load::<Users>(conn)
   }
   pub fn paginate<'a, Conn>(
     offset: usize,
     limit: usize,
-    ordering: Option<&'a Vec<UserOrderBy>>,
+    ordering: Option<&'a Vec<UsersOrderBy>>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::paginate_extend(offset, limit, ordering, |q| q, conn)
+    Users::paginate_extend(offset, limit, ordering, |q| q, conn)
   }
   pub fn paginate_with_soft_deleted_extend<'a, F, Conn>(
     limit: usize,
     offset: usize,
-    ordering: Option<&'a Vec<UserOrderBy>>,
+    ordering: Option<&'a Vec<UsersOrderBy>>,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5097,7 +5097,7 @@ impl User {
     if let Some(ordering) = ordering {
       for (idx, ord) in ordering.iter().enumerate() {
         match ord {
-          UserOrderBy::IdAsc => {
+          UsersOrderBy::IdAsc => {
             if idx == 0 {
               q = q.order_by(users::id.asc());
             } else {
@@ -5105,7 +5105,7 @@ impl User {
             }
           }
 
-          UserOrderBy::IdDesc => {
+          UsersOrderBy::IdDesc => {
             if idx == 0 {
               q = q.order_by(users::id.desc());
             } else {
@@ -5113,7 +5113,7 @@ impl User {
             }
           }
 
-          UserOrderBy::IdentityIdAsc => {
+          UsersOrderBy::IdentityIdAsc => {
             if idx == 0 {
               q = q.order_by(users::identity_id.asc());
             } else {
@@ -5121,7 +5121,7 @@ impl User {
             }
           }
 
-          UserOrderBy::IdentityIdDesc => {
+          UsersOrderBy::IdentityIdDesc => {
             if idx == 0 {
               q = q.order_by(users::identity_id.desc());
             } else {
@@ -5129,7 +5129,7 @@ impl User {
             }
           }
 
-          UserOrderBy::CreatedAtAsc => {
+          UsersOrderBy::CreatedAtAsc => {
             if idx == 0 {
               q = q.order_by(users::created_at.asc());
             } else {
@@ -5137,7 +5137,7 @@ impl User {
             }
           }
 
-          UserOrderBy::CreatedAtDesc => {
+          UsersOrderBy::CreatedAtDesc => {
             if idx == 0 {
               q = q.order_by(users::created_at.desc());
             } else {
@@ -5145,7 +5145,7 @@ impl User {
             }
           }
 
-          UserOrderBy::UpdatedAtAsc => {
+          UsersOrderBy::UpdatedAtAsc => {
             if idx == 0 {
               q = q.order_by(users::updated_at.asc());
             } else {
@@ -5153,7 +5153,7 @@ impl User {
             }
           }
 
-          UserOrderBy::UpdatedAtDesc => {
+          UsersOrderBy::UpdatedAtDesc => {
             if idx == 0 {
               q = q.order_by(users::updated_at.desc());
             } else {
@@ -5161,7 +5161,7 @@ impl User {
             }
           }
 
-          UserOrderBy::DeletedAtAsc => {
+          UsersOrderBy::DeletedAtAsc => {
             if idx == 0 {
               q = q.order_by(users::deleted_at.asc());
             } else {
@@ -5169,7 +5169,7 @@ impl User {
             }
           }
 
-          UserOrderBy::DeletedAtDesc => {
+          UsersOrderBy::DeletedAtDesc => {
             if idx == 0 {
               q = q.order_by(users::deleted_at.desc());
             } else {
@@ -5183,20 +5183,20 @@ impl User {
       q.offset(offset.try_into().unwrap())
         .limit(limit.try_into().unwrap()),
     );
-    q.select(User::as_select()).load::<User>(conn)
+    q.select(Users::as_select()).load::<Users>(conn)
   }
   pub fn paginate_with_soft_deleted<'a, Conn>(
     offset: usize,
     limit: usize,
-    ordering: Option<&'a Vec<UserOrderBy>>,
+    ordering: Option<&'a Vec<UsersOrderBy>>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::paginate_with_soft_deleted_extend(
+    Users::paginate_with_soft_deleted_extend(
       offset,
       limit,
       ordering,
@@ -5211,11 +5211,11 @@ pub struct UserCursor {
   pub id: TestType,
 }
 
-impl From<User> for UserCursor {
-  fn from(value: User) -> Self {
+impl From<Users> for UserCursor {
+  fn from(value: Users) -> Self {
     Self {
-      id: value.id,
       created_at: value.created_at,
+      id: value.id,
     }
   }
 }
@@ -5226,7 +5226,7 @@ impl UserCursor {
     limit: Option<usize>,
     offset: Option<usize>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5241,7 +5241,7 @@ impl UserCursor {
     offset: Option<usize>,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5295,7 +5295,7 @@ impl UserCursor {
       q = q.limit(limit.try_into().unwrap());
     }
 
-    q.select(User::as_select()).load::<User>(conn)
+    q.select(Users::as_select()).load::<Users>(conn)
   }
   pub fn has_next<'a, Conn>(
     cursor: &'a UserCursor,
@@ -5399,7 +5399,7 @@ impl UserCursor {
     limit: Option<usize>,
     offset: Option<usize>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5421,7 +5421,7 @@ impl UserCursor {
     offset: Option<usize>,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5474,7 +5474,7 @@ impl UserCursor {
       q = q.limit(limit.try_into().unwrap());
     }
 
-    q.select(User::as_select()).load::<User>(conn)
+    q.select(Users::as_select()).load::<Users>(conn)
   }
   pub fn has_next_with_soft_deleted<'a, Conn>(
     cursor: &'a UserCursor,
@@ -5578,7 +5578,7 @@ impl UserCursor {
     limit: Option<usize>,
     offset: Option<usize>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5600,7 +5600,7 @@ impl UserCursor {
     offset: Option<usize>,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5621,7 +5621,7 @@ impl UserCursor {
         .filter(users::deleted_at.is_null())
         .into_boxed();
 
-      if let Some(cursor) = after {
+      if let Some(cursor) = before {
         q = q.filter(
           users::created_at.le(&cursor.created_at).and(
             users::created_at
@@ -5631,7 +5631,7 @@ impl UserCursor {
         );
       }
 
-      if let Some(cursor) = before {
+      if let Some(cursor) = after {
         q = q.filter(
           users::created_at.ge(&cursor.created_at).and(
             users::created_at
@@ -5654,7 +5654,7 @@ impl UserCursor {
       q = q.limit(limit.try_into().unwrap());
     }
 
-    q.select(User::as_select()).load::<User>(conn)
+    q.select(Users::as_select()).load::<Users>(conn)
   }
   pub fn paginate_reversed_with_soft_deleted<'a, Conn>(
     after: Option<&'a UserCursor>,
@@ -5662,7 +5662,7 @@ impl UserCursor {
     limit: Option<usize>,
     offset: Option<usize>,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5684,7 +5684,7 @@ impl UserCursor {
     offset: Option<usize>,
     extend: F,
     conn: &'a mut Conn,
-  ) -> impl std::future::Future<Output = Result<Vec<User>, diesel::result::Error>>
+  ) -> impl std::future::Future<Output = Result<Vec<Users>, diesel::result::Error>>
        + Send
        + 'a
   where
@@ -5702,7 +5702,7 @@ impl UserCursor {
     let create_query = || {
       let mut q = users::table.order_by(users::created_at.asc()).into_boxed();
 
-      if let Some(cursor) = after {
+      if let Some(cursor) = before {
         q = q.filter(
           users::created_at.le(&cursor.created_at).and(
             users::created_at
@@ -5712,7 +5712,7 @@ impl UserCursor {
         );
       }
 
-      if let Some(cursor) = before {
+      if let Some(cursor) = after {
         q = q.filter(
           users::created_at.ge(&cursor.created_at).and(
             users::created_at
@@ -5737,11 +5737,11 @@ impl UserCursor {
       q = q.limit(limit.try_into().unwrap());
     }
 
-    q.select(User::as_select()).load::<User>(conn)
+    q.select(Users::as_select()).load::<Users>(conn)
   }
 }
 
-impl User {
+impl Users {
   pub fn count_extend<'a, F, Conn>(
     extend: F,
     conn: &'a mut Conn,
@@ -5777,7 +5777,7 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::count_extend(|q| q, conn)
+    Users::count_extend(|q| q, conn)
   }
   pub fn count_with_soft_deleted_extend<'a, F, Conn>(
     extend: F,
@@ -5808,6 +5808,6 @@ impl User {
   where
     Conn: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> + Send,
   {
-    User::count_with_soft_deleted_extend(|q| q, conn)
+    Users::count_with_soft_deleted_extend(|q| q, conn)
   }
 }

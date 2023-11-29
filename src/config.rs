@@ -76,6 +76,9 @@ pub struct TableConfig {
   #[merge(strategy = merge_option)]
   pub updater_attributes: Option<ListConfig<String>>,
 
+  #[merge(strategy = overwrite)]
+  pub singularize_name: Option<bool>,
+
   #[merge(strategy = merge_option)]
   pub inserter_attributes: Option<ListConfig<String>>,
 
@@ -92,6 +95,9 @@ pub struct TableConfig {
   pub columns: MapConfig<String, ColumnConfig>,
 
   #[merge(strategy = overwrite)]
+  pub model_name: Option<String>,
+
+  #[merge(strategy = overwrite)]
   pub model_name_prefix: Option<String>,
 
   #[merge(strategy = overwrite)]
@@ -99,6 +105,9 @@ pub struct TableConfig {
 
   #[merge(strategy = overwrite)]
   pub inserter: Option<bool>,
+
+  #[merge(strategy = overwrite)]
+  pub inserter_name: Option<String>,
 
   #[merge(strategy = merge_option)]
   pub inserter_omit_columns: Option<ListConfig<String>>,
@@ -114,6 +123,9 @@ pub struct TableConfig {
 
   #[merge(strategy = overwrite)]
   pub updater_struct: Option<bool>,
+
+  #[merge(strategy = overwrite)]
+  pub updater_name: Option<String>,
 
   #[merge(strategy = merge_option)]
   pub updater_omit_columns: Option<ListConfig<String>>,

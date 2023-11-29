@@ -225,8 +225,10 @@ fn get_fields<'a>(
         }
       }
 
-      let table_config =
+      let mut table_config =
         args.table_configs.get(&t.name).or(wildcard_table_config);
+
+      table_config.merge(wildcard_table_config);
 
       let field_configs = if index == max - 1 {
         Some(&otc.fields)

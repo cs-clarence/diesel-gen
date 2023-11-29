@@ -3,8 +3,8 @@ use std::{collections::HashMap, sync::OnceLock};
 use inflector::Inflector;
 
 use crate::{
-  config::ColumnConfig,
-  parse::{self, type_name, ParseContext, Type, TypeName},
+  config::{ColumnConfig, TableConfig},
+  parse::{self, type_name, ParseContext, Table, Type, TypeName},
 };
 
 pub fn remove_spaces_from_keys(
@@ -41,21 +41,95 @@ pub fn to_rust_path(path: &str) -> String {
     .join("::")
 }
 
-pub fn final_name(
-  prefix: Option<&str>,
-  model_name: &str,
-  suffix: Option<&str>,
+pub fn final_model_name(
+  table: &Table,
+  table_config: Option<&TableConfig>,
 ) -> String {
-  format!(
-    "{}{}{}",
-    prefix.unwrap_or(""),
-    model_name,
-    suffix.unwrap_or("")
-  )
+  table_config
+    .and_then(|t| t.model_name.clone())
+    .unwrap_or_else(|| {
+      let prefix = table_config
+        .and_then(|t| t.model_name_prefix.clone())
+        .unwrap_or_default();
+
+      let suffix = table_config
+        .and_then(|t| t.model_name_suffix.clone())
+        .unwrap_or_default();
+
+      let name = model_name(
+        &table.name,
+        table_config
+          .and_then(|t| t.singularize_name)
+          .unwrap_or(true),
+      );
+      format!("{}{}{}", prefix, name, suffix)
+    })
 }
 
-pub fn model_name(text: &str) -> String {
-  text.to_pascal_case().to_singular()
+pub fn final_inserter_name(
+  table: &Table,
+  table_config: Option<&TableConfig>,
+) -> String {
+  table_config
+    .and_then(|t| t.inserter_name.clone())
+    .unwrap_or_else(|| {
+      let prefix = table_config
+        .and_then(|t| t.inserter_name_prefix.clone())
+        .unwrap_or("New".to_string());
+
+      let suffix = table_config
+        .and_then(|t| t.inserter_name_suffix.clone())
+        .unwrap_or("".to_string());
+
+      let name = table_config
+        .and_then(|f| f.model_name.clone())
+        .unwrap_or_else(|| {
+          model_name(
+            &table.name,
+            table_config
+              .and_then(|t| t.singularize_name)
+              .unwrap_or(true),
+          )
+        });
+      format!("{}{}{}", prefix, name, suffix)
+    })
+}
+
+pub fn final_updater_name(
+  table: &Table,
+  table_config: Option<&TableConfig>,
+) -> String {
+  table_config
+    .and_then(|t| t.updater_name.clone())
+    .unwrap_or_else(|| {
+      let prefix = table_config
+        .and_then(|t| t.updater_name_prefix.clone())
+        .unwrap_or("".to_string());
+
+      let suffix = table_config
+        .and_then(|t| t.updater_name_prefix.clone())
+        .unwrap_or("Update".to_string());
+
+      let name = table_config
+        .and_then(|f| f.model_name.clone())
+        .unwrap_or_else(|| {
+          model_name(
+            &table.name,
+            table_config
+              .and_then(|t| t.singularize_name)
+              .unwrap_or(true),
+          )
+        });
+      format!("{}{}{}", prefix, name, suffix)
+    })
+}
+
+pub fn model_name(text: &str, singularize: bool) -> String {
+  if singularize {
+    text.to_pascal_case().to_singular()
+  } else {
+    text.to_pascal_case()
+  }
 }
 
 pub fn is_rust_keyword(str: &str) -> bool {

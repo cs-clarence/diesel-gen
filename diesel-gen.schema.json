@@ -205,12 +205,6 @@
             "boolean",
             "null"
           ]
-        },
-        "include_soft_deleted": {
-          "type": [
-            "boolean",
-            "null"
-          ]
         }
       },
       "additionalProperties": false
@@ -291,12 +285,6 @@
             "boolean",
             "null"
           ]
-        },
-        "include_soft_deleted": {
-          "type": [
-            "boolean",
-            "null"
-          ]
         }
       },
       "additionalProperties": false
@@ -311,6 +299,24 @@
           ]
         },
         "returning": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "GetOperationConfig": {
+      "type": "object",
+      "properties": {
+        "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "many": {
           "type": [
             "boolean",
             "null"
@@ -395,6 +401,12 @@
       "type": "object",
       "properties": {
         "enable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "many": {
           "type": [
             "boolean",
             "null"
@@ -658,6 +670,16 @@
             "null"
           ]
         },
+        "get": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GetOperationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "insert": {
           "anyOf": [
             {
@@ -791,12 +813,6 @@
       "type": "object",
       "properties": {
         "enable": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "include_soft_deleted": {
           "type": [
             "boolean",
             "null"
@@ -959,6 +975,12 @@
             }
           ]
         },
+        "inserter_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "inserter_name_prefix": {
           "type": [
             "string",
@@ -979,6 +1001,12 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "inserter_use_refs": {
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "model": {
@@ -1007,6 +1035,12 @@
             }
           ]
         },
+        "model_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "model_name_prefix": {
           "type": [
             "string",
@@ -1027,6 +1061,12 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "singularize_name": {
+          "type": [
+            "boolean",
+            "null"
           ]
         },
         "skip": {
@@ -1061,6 +1101,12 @@
             "null"
           ]
         },
+        "updater_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "updater_name_prefix": {
           "type": [
             "string",
@@ -1084,6 +1130,12 @@
           ]
         },
         "updater_struct": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "updater_use_refs": {
           "type": [
             "boolean",
             "null"

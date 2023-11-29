@@ -206,20 +206,9 @@ fn generate_async_graphql(
       .tables
       .iter()
       .map(|v| {
-        let t = tables
-          .get(&v.name)
-          .or(wildcard_table_config)
-          .cloned()
-          .unwrap_or_default();
+        let t = tables.get(&v.name).or(wildcard_table_config);
 
-        (
-          v.name.clone(),
-          util::final_name(
-            t.model_name_prefix.as_deref(),
-            &util::model_name(&v.name),
-            t.model_name_suffix.as_deref(),
-          ),
-        )
+        (v.name.clone(), util::final_model_name(v, t))
       })
       .collect::<HashMap<String, String>>();
 

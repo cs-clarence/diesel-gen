@@ -7,7 +7,7 @@ use crate::db::model::CredentialType;
 use crate::db::model::Gender;
 use crate::db::model::StaffRole;
 use crate::db::model::SubjectType;
-use crate::db::model::{Identity as ModelIdentity, User as ModelUser};
+use crate::db::model::{Identity as ModelIdentity, Users as ModelUsers};
 #[derive(async_graphql::SimpleObject)]
 #[graphql(complex)]
 pub struct User {
@@ -25,8 +25,8 @@ pub struct User {
   pub updated_at: time::OffsetDateTime,
   pub username: String,
 }
-impl From<(ModelIdentity, ModelUser)> for User {
-  fn from(val: (ModelIdentity, ModelUser)) -> Self {
+impl From<(ModelIdentity, ModelUsers)> for User {
+  fn from(val: (ModelIdentity, ModelUsers)) -> Self {
     Self {
       created_at: val.1.created_at,
       deleted_at: val.1.deleted_at,
